@@ -21,6 +21,21 @@
 (provide 'init-dtk)
 ;;; init-dtk.el ends here
    #+end_src
+
+** Defaults For Emacs
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-csharp.el
+;;; init-csharp.el --- Provides omnisharp -*- lexical-binding: t -*-
+;;; Commentary:
+;; csharp intellisense like bindings
+;;; Code:
+
+(unless (package-installed-p 'omnisharp)
+  (package-install 'omnisharp))
+
+(provide 'init-csharp)
+;;; init-csharp.el ends here
+   #+end_src
+
 ** Golang Mode
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-golang.el
 ;;; init-golang.el --- Support Golang files -*- lexical-binding: t -*-
