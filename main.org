@@ -36,6 +36,15 @@
 ;;; init-csharp.el ends here
    #+end_src
 
+** Dir Locals
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/.dir-locals
+;;; Directory Local Variables
+;;; For more information see (info "(emacs) Directory Variables")
+
+((emacs-lisp-mode
+  (no-byte-compile . t)))
+   #+end_src
+
 ** Golang Mode
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-golang.el
 ;;; init-golang.el --- Support Golang files -*- lexical-binding: t -*-
