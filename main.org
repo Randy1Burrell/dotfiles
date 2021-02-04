@@ -1,6 +1,19 @@
 #+Title: My Dot File Configurations
 #+CATEGORY: Configuration
 
+* Table of Contents                                                        :TOC:
+- [[#emacs-configuration][Emacs Configuration]]
+  - [[#benchmark][Benchmark]]
+  - [[#dtk-mode][Dtk Mode]]
+  - [[#c-mode--configurations][C# Mode & Configurations]]
+  - [[#general][General]]
+  - [[#dir-locals][Dir Locals]]
+  - [[#golang-mode][Golang Mode]]
+  - [[#init-file][Init File]]
+  - [[#org-mode][Org Mode]]
+  - [[#treemacs][Treemacs]]
+  - [[#web-development-extras][Web Development Extras]]
+
 * Emacs Configuration
 
 ** Benchmark
@@ -105,7 +118,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 ** C# Mode & Configurations
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-csharp.el
-;;; init-csharp.el --- Provides omnisharp -*- lexical-binding: t -*-
+   ;;; init-csharp.el --- Provides omnisharp -*- lexical-binding: t -*-
 ;;; Commentary:
 ;; csharp intellisense like bindings
 ;;; Code:
