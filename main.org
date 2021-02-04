@@ -1356,3 +1356,22 @@
 (provide 'init-golang)
 ;;; init-golang.el ends here
    #+end_src
+
+** Dtk Mode
+   #+begin_src emacs-lisp :notangle ~/.emacs.d/lisp/init-dtk.el
+;;; init-dtk.el --- Provides shell  -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
+
+(use-package dtk
+  :bind (("C-c B" . dtk-bible))
+  :config
+  (setq dtk-module "KJV")
+  (setq dtk-module-category "Biblical Texts"))
+
+(provide 'init-dtk)
+;;; init-dtk.el ends here
+   #+end_src
