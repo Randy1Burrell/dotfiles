@@ -13,6 +13,7 @@
   - [[#dir-locals][Dir Locals]]
   - [[#golang-mode][Golang Mode]]
   - [[#init-file][Init File]]
+  - [[#lsp-mode][LSP Mode]]
   - [[#org-mode][Org Mode]]
   - [[#treemacs][Treemacs]]
   - [[#web-development-extras][Web Development Extras]]
@@ -667,6 +668,64 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 ;; no-byte-compile: t
 ;; End:
 ;;; init.el ends here
+   #+end_src
+
+** LSP Mode
+   #+begin_src emacs-lisp :tangle no
+;;; init-lsp.el --- Provides completion engine -*- lexical-binding: t -*-
+;;; Commentary:
+;; Intellisense like binding with lsp-mode
+;;; Code:
+
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
+
+(defun efs/lsp-mode-setup ()
+  "Show path to project."
+  (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
+  (lsp-headerline-breadcrumb-mode))
+
+(use-package lsp-mode
+  :commands (lsp lsp-deferred)
+  :hook (lsp-mode . efs/lsp-mode-setup)
+  :init
+  (setq lsp-keymap-prefix "s-8")  ;; Or 'C-l', 's-l'
+  :config
+  (lsp-enable-which-key-integration t))
+
+(use-package lsp-ui
+  :hook (lsp-mode . lsp-ui-mode)
+  :custom
+  (lsp-ui-doc-position 'bottom)
+  :config
+  (setq lsp-ui-doc-enable t
+        lsp-ui-peek-enable t
+        lsp-ui-sideline-enable t
+        lsp-ui-imenu-enable t
+        lsp-ui-flycheck-enable t))
+
+(use-package lsp-treemacs
+  :after (lsp treemacs)
+  :commands (lsp-treemacs-errors-list))
+
+(use-package lsp-ivy
+  :after (lsp ivy))
+
+(use-package lsp-ui
+  :commands (lsp-ui-mode))
+
+(dolist (mode '(c++-mode-hook
+                c-mode-hook
+                css-mode-hook
+                less-css-mode-hook
+                sass-mode-hook
+                scss-mode-hook
+                typescript-mode-hook
+                web-mode-hook))
+  (add-hook mode #'lsp))
+
+(provide 'init-lsp)
+;;; init-lsp.el ends here
    #+end_src
 
 ** Org Mode
