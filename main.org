@@ -5,6 +5,7 @@
 * Table of Contents                                                        :TOC:
 - [[#emacs-configuration][Emacs Configuration]]
   - [[#benchmark][Benchmark]]
+  - [[#closure][Closure]]
   - [[#company-mode][Company Mode]]
   - [[#dtk-mode][Dtk Mode]]
   - [[#c-mode--configurations][C# Mode & Configurations]]
@@ -101,6 +102,32 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 (provide 'init-benchmarking)
 ;;; init-benchmarking.el ends here
+   #+end_src
+
+** Closure
+   #+begin_src emacs-lisp
+;;; init-clojure-cider.el --- Cider support for clojure -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(require 'init-clojure)
+
+(when (maybe-require-package 'cider)
+  (setq nrepl-popup-stacktraces nil)
+
+  (with-eval-after-load 'cider
+    (add-hook 'cider-repl-mode-hook 'subword-mode)
+    (add-hook 'cider-repl-mode-hook 'paredit-mode))
+
+  (require-package 'flycheck-clojure)
+  (with-eval-after-load 'clojure-mode
+    (with-eval-after-load 'cider
+      (with-eval-after-load 'flycheck
+        (flycheck-clojure-setup)))))
+
+
+(provide 'init-clojure-cider)
+;;; init-clojure-cider.el ends here
    #+end_src
 
 ** Company Mode
