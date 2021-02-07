@@ -30,7 +30,7 @@
 * Emacs Configuration
 
 ** Benchmark
-   #+begin_src emacs-lisp :tangle lisp/init-benchmarking.el
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-benchmarking.el
 ;;; init-benchmarking.el --- Measure startup and require times -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
@@ -297,7 +297,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
    #+end_src
 
 ** Compile
-   #+begin_src emacs-lisp ~/.emacs.d/lisp/init-compile.el
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-compile.el
 ;;; init-compile.el --- Helpers for M-x compile -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
