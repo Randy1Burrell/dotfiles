@@ -12,6 +12,7 @@
   - [[#counsel][Counsel]]
   - [[#css][CSS]]
   - [[#c-mode][C# Mode]]
+  - [[#csv][CSV]]
   - [[#crontab][Crontab]]
   - [[#dtk-mode][Dtk Mode]]
   - [[#general][General]]
@@ -474,6 +475,22 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 (provide 'init-csharp)
 ;;; init-csharp.el ends here
+   #+end_src
+
+** CSV
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-csv.el
+;;; init-csv.el --- CSV files -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(require-package 'csv-mode)
+
+(add-auto-mode 'csv-mode "\\.[Cc][Ss][Vv]\\'")
+
+(setq csv-separators '("," ";" "|" " "))
+
+(provide 'init-csv)
+;;; init-csv.el ends here
    #+end_src
 
 ** Crontab
