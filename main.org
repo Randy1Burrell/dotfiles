@@ -9,6 +9,7 @@
   - [[#common-lisp][Common Lisp]]
   - [[#company-mode][Company Mode]]
   - [[#compile][Compile]]
+  - [[#crontab][Crontab]]
   - [[#dtk-mode][Dtk Mode]]
   - [[#c-mode--configurations][C# Mode & Configurations]]
   - [[#general][General]]
@@ -359,6 +360,20 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 (provide 'init-compile)
 ;;; init-compile.el ends here
+   #+end_src
+** Crontab
+   #+begin_src emacs-lisp
+;;; init-crontab.el --- Working with crontabs -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(require-package 'crontab-mode)
+(add-auto-mode 'crontab-mode "\\.?cron\\(tab\\)?\\'")
+
+(provide 'init-crontab)
+;;; init-crontab.el ends here
+   #+end_src
+
 ** Dtk Mode
 #+begin_src emacs-lisp :tangle no
 ;;; init-dtk.el --- Provides shell  -*- lexical-binding: t -*-
