@@ -9,6 +9,7 @@
   - [[#common-lisp][Common Lisp]]
   - [[#company-mode][Company Mode]]
   - [[#compile][Compile]]
+  - [[#counsel][Counsel]]
   - [[#crontab][Crontab]]
   - [[#dtk-mode][Dtk Mode]]
   - [[#c-mode][C# Mode]]
@@ -362,6 +363,27 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 (provide 'init-compile)
 ;;; init-compile.el ends here
+   #+end_src
+
+** Counsel
+   #+begin_src emacs-lisp :tangle no
+(unless (package-installed-p 'use-package)
+    (package-install 'use-package))
+
+(use-package counsel-web
+    :diminish
+    :init
+    (setq counsel-web-engine 'google)
+    (setq counsel-web-search-action #'eww)
+    (setq counsel-web-search-alternate-action #'w3m)
+    :config
+    (defvar counsel-web-map
+      (let ((map (make-sparse-keymap "counsel-web")))
+        (define-key map (kbd "w") #'counsel-web-suggest)
+        (define-key map (kbd "s") #'counsel-web-search)
+        (define-key map (kbd ".") #'counsel-web-thing-at-point)
+        map))
+    (global-set-key (kbd "s-i") counsel-web-map))
    #+end_src
 
 ** Crontab
