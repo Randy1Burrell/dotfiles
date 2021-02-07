@@ -365,7 +365,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
    #+end_src
 
 ** Crontab
-   #+begin_src emacs-lisp
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-crontab.el
 ;;; init-crontab.el --- Working with crontabs -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
