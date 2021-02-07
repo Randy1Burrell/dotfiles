@@ -14,23 +14,23 @@
   - [[#c-mode][C# Mode]]
   - [[#csv][CSV]]
   - [[#crontab][Crontab]]
+  - [[#dir-locals][Dir Locals]]
   - [[#dtk-mode][Dtk Mode]]
   - [[#general][General]]
-  - [[#security][Security]]
-  - [[#dir-locals][Dir Locals]]
-  - [[#golang-mode][Golang Mode]]
-  - [[#init-file][Init File]]
+  - [[#golang][Golang]]
+  - [[#init][Init]]
   - [[#lsp-mode][LSP Mode]]
   - [[#org-mode][Org Mode]]
   - [[#magit][Magit]]
   - [[#treemacs][Treemacs]]
+  - [[#security][Security]]
   - [[#web-development-extras][Web Development Extras]]
   - [[#directory--file-management][Directory & File Management]]
 
 * Emacs Configuration
 
 ** Benchmark
-   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-benchmarking.el
+   #+begin_src emacs-lisp :tangle lisp/init-benchmarking.el
 ;;; init-benchmarking.el --- Measure startup and require times -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
@@ -506,6 +506,15 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 ;;; init-crontab.el ends here
    #+end_src
 
+** Dir Locals
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/.dir-locals.el
+;;; Directory Local Variables
+;;; For more information see (info "(emacs) Directory Variables")
+
+((emacs-lisp-mode
+  (no-byte-compile . t)))
+   #+end_src
+
 ** Dtk Mode
 #+begin_src emacs-lisp :tangle no
 ;;; init-dtk.el --- Provides shell  -*- lexical-binding: t -*-
@@ -616,30 +625,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 ;;; init-general.el ends here
    #+end_src
 
-** Security
-   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-security.el
-;;; init-security.el --- Security tools -*- lexical-binding: t -*-
-;;; Commentary:
-;;; Code
-
-(setq epg-gpg-program "gpg2")
-(setenv "GPG_AGENT_INFO" nil)
-(setq auth-sources '("~/.emacs.d/secrets/.authinfo.gpg"))
-
-(provide 'init-security)
-;;; init-security..el ends here
-   #+end_src
-
-** Dir Locals
-   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/.dir-locals.el
-;;; Directory Local Variables
-;;; For more information see (info "(emacs) Directory Variables")
-
-((emacs-lisp-mode
-  (no-byte-compile . t)))
-   #+end_src
-
-** Golang Mode
+** Golang
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-golang.el
 ;;; init-golang.el --- Support Golang files -*- lexical-binding: t -*-
 ;;; Commentary:
@@ -709,7 +695,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 ;;; init-golang.el ends here
    #+end_src
 
-** Init File
+** Init
 
    #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 ;;; init.el --- Load the full configuration -*- lexical-binding: t -*-
@@ -967,6 +953,11 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 ;; Security
 ;;----------------------------------------------------------------------------
 (require 'init-security)
+
+;;----------------------------------------------------------------------------
+;; Shell
+;;----------------------------------------------------------------------------
+(require 'init-shell)
 
 
 (provide 'init)
@@ -2201,6 +2192,20 @@ Unless NO-PROMPT?"
  (provide 'init-treemacs)
  ;;; init-treemacs.el ends here
  #+end_src
+
+** Security
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-security.el
+;;; init-security.el --- Security tools -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code
+
+(setq epg-gpg-program "gpg2")
+(setenv "GPG_AGENT_INFO" nil)
+(setq auth-sources '("~/.emacs.d/secrets/.authinfo.gpg"))
+
+(provide 'init-security)
+;;; init-security..el ends here
+   #+end_src
 
 ** Web Development Extras
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-webdev.el
