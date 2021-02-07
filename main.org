@@ -1,6 +1,6 @@
 #+Title: My Dot File Configurations
 #+CATEGORY: Configuration
-#+PROPERTY:  header-args:emacs-lisp :tangle ./init.el :mkdirp yes
+#+PROPERTY:  header-args:emacs-lisp :tangle yes :mkdirp yes
 
 * Table of Contents                                                        :TOC:
 - [[#emacs-configuration][Emacs Configuration]]
@@ -30,7 +30,7 @@
 * Emacs Configuration
 
 ** Benchmark
-   #+begin_src emacs-lisp :tangle lisp/init-benchmarking.el
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-benchmarking.el
 ;;; init-benchmarking.el --- Measure startup and require times -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
