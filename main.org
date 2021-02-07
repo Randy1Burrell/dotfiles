@@ -11,7 +11,7 @@
   - [[#compile][Compile]]
   - [[#crontab][Crontab]]
   - [[#dtk-mode][Dtk Mode]]
-  - [[#c-mode--configurations][C# Mode & Configurations]]
+  - [[#c-mode][C# Mode]]
   - [[#general][General]]
   - [[#security][Security]]
   - [[#dir-locals][Dir Locals]]
