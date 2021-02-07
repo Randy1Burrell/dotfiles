@@ -1978,6 +1978,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
     #+end_src
 *** Projectile
+
     #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-projectile.el
 ;;; init-projectile.el --- Use Projectile for navigation within projects -*- lexical-binding: t -*-
 ;;; Commentary:
@@ -2013,6 +2014,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 (provide 'init-projectile)
 ;;; init-projectile.el ends here
     #+end_src
+
 *** Find-File-in-Project
     #+begin_src emacs-lisp :tangle no
 ;;; init-find-file-in-project.el --- loads treemacs package -*- lexical-binding: t -*-
