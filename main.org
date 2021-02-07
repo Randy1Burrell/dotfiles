@@ -11,9 +11,9 @@
   - [[#compile][Compile]]
   - [[#counsel][Counsel]]
   - [[#css][CSS]]
+  - [[#c-mode][C# Mode]]
   - [[#crontab][Crontab]]
   - [[#dtk-mode][Dtk Mode]]
-  - [[#c-mode][C# Mode]]
   - [[#general][General]]
   - [[#security][Security]]
   - [[#dir-locals][Dir Locals]]
@@ -462,6 +462,20 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 ;;; init-css.el ends here
    #+end_src
 
+** C# Mode
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-csharp.el
+   ;;; init-csharp.el --- Provides omnisharp -*- lexical-binding: t -*-
+;;; Commentary:
+;; csharp intellisense like bindings
+;;; Code:
+
+(unless (package-installed-p 'omnisharp)
+  (package-install 'omnisharp))
+
+(provide 'init-csharp)
+;;; init-csharp.el ends here
+   #+end_src
+
 ** Crontab
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-crontab.el
 ;;; init-crontab.el --- Working with crontabs -*- lexical-binding: t -*-
@@ -492,20 +506,6 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 (provide 'init-dtk)
 ;;; init-dtk.el ends here
-   #+end_src
-
-** C# Mode
-   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-csharp.el
-   ;;; init-csharp.el --- Provides omnisharp -*- lexical-binding: t -*-
-;;; Commentary:
-;; csharp intellisense like bindings
-;;; Code:
-
-(unless (package-installed-p 'omnisharp)
-  (package-install 'omnisharp))
-
-(provide 'init-csharp)
-;;; init-csharp.el ends here
    #+end_src
 
 ** General
