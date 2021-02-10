@@ -20,6 +20,7 @@
   - [[#golang][Golang]]
   - [[#init][Init]]
   - [[#lsp-mode][LSP Mode]]
+  - [[#vc-darcs][vc-darcs]]
   - [[#org-mode][Org Mode]]
   - [[#magit][Magit]]
   - [[#treemacs][Treemacs]]
@@ -988,7 +989,9 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
   :commands (lsp lsp-deferred)
   :hook (lsp-mode . efs/lsp-mode-setup)
   :init
-  (setq lsp-keymap-prefix "s-8")  ;; Or 'C-l', 's-l'
+  (setq lsp-keymap-prefix "s-8"
+        lsp-idle-delay 0.1
+        lsp-headerline-breadcrumb-enable t)
   :config
   (lsp-enable-which-key-integration t))
 
@@ -1007,7 +1010,9 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 (use-package lsp-treemacs
   :diminish
   :after (lsp treemacs)
-  :commands (lsp-treemacs-errors-list))
+  :commands (lsp-treemacs-errors-list)
+  :init
+  (lsp-treemacs-sync-mode 1))
 
 (use-package lsp-ivy
   :diminish
@@ -1021,6 +1026,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
                 c-mode-hook
                 css-mode-hook
                 dockerfile-mode-hook
+                js-mode-hook
                 less-css-mode-hook
                 php-mode-hook
                 sass-mode-hook
@@ -1039,7 +1045,14 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
   :after (python-mode)
   :config
   ;; Set up Node debugging
+  (require 'dap-chrome)
+  (require 'dap-cpptools)
+  (require 'dap-edge)
+  (require 'dap-firefox)
+  (require 'dap-gdb-lldb)
+  (require 'dap-go)
   (require 'dap-node)
+  (require 'dap-php)
   (dap-node-setup) ;; Automatically installs Node debug adapter if needed
 
   (setq dap-python-debugger 'debugpy)
@@ -1051,6 +1064,29 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 (provide 'init-lsp)
 ;;; init-lsp.el ends here
+   #+end_src
+
+   #+RESULTS:
+   : init-lsp
+
+** vc-darcs
+   #+begin_src emacs-lisp
+;;; init-darcs.el --- Support for the Darcs DVCS -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(require-package 'vc-darcs)
+
+
+;; TODO: include this in the vc-darcs ELPA package
+(add-to-list 'vc-handled-backends 'DARCS)
+(autoload 'vc-darcs-find-file-hook "vc-darcs")
+(add-hook 'find-file-hooks 'vc-darcs-find-file-hook)
+
+(setq darcsum-whatsnew-switches "-l")
+
+(provide 'init-darcs)
+;;; init-darcs.el ends here
    #+end_src
 
 ** Org Mode
