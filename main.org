@@ -1070,7 +1070,7 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
    : init-lsp
 
 ** vc-darcs
-   #+begin_src emacs-lisp
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-darcs.el
 ;;; init-darcs.el --- Support for the Darcs DVCS -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
