@@ -21,6 +21,7 @@
   - [[#init][Init]]
   - [[#lsp-mode][LSP Mode]]
   - [[#vc-darcs][vc-darcs]]
+  - [[#dash][dash]]
   - [[#org-mode][Org Mode]]
   - [[#magit][Magit]]
   - [[#treemacs][Treemacs]]
@@ -1087,6 +1088,22 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 (provide 'init-darcs)
 ;;; init-darcs.el ends here
+   #+end_src
+
+** dash
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-dash.el
+;;; init-dash.el --- Integrate with the Mac app "Dash" -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+;; Support for the http://kapeli.com/dash documentation browser
+
+(when *is-a-mac*
+  (require-package 'dash-at-point)
+  (global-set-key (kbd "C-c D") 'dash-at-point))
+
+(provide 'init-dash)
+;;; init-dash.el ends here
    #+end_src
 
 ** Org Mode
