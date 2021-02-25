@@ -2649,9 +2649,3 @@ Unless NO-PROMPT?"
    #+end_src
 
 ** Directory & File Management
-
-   #+begin_src shell :dir /ssh:WebsiteBlog:/ :results raw
-   ls -la
-   #+end_src
-
-   #+RESULTS:
