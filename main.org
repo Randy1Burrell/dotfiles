@@ -2012,7 +2012,6 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
  
  ;;; Org clock
-
  ;; Save the running clock and all clock history when exiting Emacs, load it on startup
  (with-eval-after-load 'org
    (org-clock-persistence-insinuate))
@@ -2115,7 +2114,9 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
       (python . t)
       (ruby . t)
       (screen . nil)
-      (,(if (locate-library "ob-shell") 'shell) . t)
+      ;; (,(if (locate-library "ob-shell") 'shell) . t)
+      ;; (,(if (locate-library "ob-shell") 'shell) . t)
+      (shell . t)
       (sql . t)
       (sqlite . t))))
 
@@ -2648,3 +2649,9 @@ Unless NO-PROMPT?"
    #+end_src
 
 ** Directory & File Management
+
+   #+begin_src shell :dir /ssh:WebsiteBlog:/ :results raw
+   ls -la
+   #+end_src
+
+   #+RESULTS:
