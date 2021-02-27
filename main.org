@@ -26,7 +26,7 @@
   - [[#dired][dired]]
   - [[#dired-1][Dired]]
   - [[#direnv][direnv]]
-  - [[#org-mode][Org Mode]]
+  - [[#docker][docker]]
   - [[#magit][Magit]]
   - [[#treemacs][Treemacs]]
   - [[#security][Security]]
@@ -1374,8 +1374,25 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 ;;; init-direnv.el ends here
    #+end_src
-** Org Mode
-   I use  org-mode for productivity so I have configured this to my liking
+
+** docker
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-docker.el
+;;; init-docker.el --- Work with Docker and its tools -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+ (when (maybe-require-package 'docker)
+  (fullframe docker-images tablist-quit)
+  (fullframe docker-machines tablist-quit)
+  (fullframe docker-volumes tablist-quit)
+  (fullframe docker-networks tablist-quit)
+  (fullframe docker-containers tablist-quit))
+(maybe-require-package 'dockerfile-mode)
+(maybe-require-package 'docker-compose-mode)
+  (provide 'init-docker)
+;;; init-docker.el ends here
+end_src
+g Mode
+use  org-mode for productivity so I have configured this to my liking
    according to the GTD system.
  #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-org.el
  ;;; init-org.el --- Org-mode config -*- lexical-binding: t -*-
