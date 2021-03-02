@@ -27,6 +27,7 @@
   - [[#dired-1][Dired]]
   - [[#direnv][direnv]]
   - [[#docker][docker]]
+  - [[#org-mode][Org Mode]]
   - [[#magit][Magit]]
   - [[#treemacs][Treemacs]]
   - [[#security][Security]]
@@ -1390,9 +1391,10 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 (maybe-require-package 'docker-compose-mode)
   (provide 'init-docker)
 ;;; init-docker.el ends here
-end_src
-g Mode
-use  org-mode for productivity so I have configured this to my liking
+#+end_src
+
+** Org Mode
+   I use  org-mode for productivity so I have configured this to my liking
    according to the GTD system.
  #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-org.el
  ;;; init-org.el --- Org-mode config -*- lexical-binding: t -*-
@@ -2310,7 +2312,7 @@ use  org-mode for productivity so I have configured this to my liking
  #+end_src
 
 ** Magit
-   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-magit.el
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-magit.el -n
 ;;; init-magit.el --- Support Yaml files -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
