@@ -970,72 +970,72 @@ ORIG is the advised function, which is called with its ARGS."
 
 ** Golang
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-golang.el
-;;; init-golang.el --- Support Golang files -*- lexical-binding: t -*-
-;;; Commentary:
-;;; Code:
+     ;;; init-golang.el --- Support Golang files -*- lexical-binding: t -*-
+     ;;; Commentary:
+     ;;; Code:
 
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
+     (unless (package-installed-p 'use-package)
+       (package-install 'use-package))
 
-(use-package go-mode
-  :defer t
-  :config
-  (setq compile-command "echo Building... && go build -v && echo Testing... && go test -v && echo Linter... && golint")
-  (setq compilation-scroll-output t
-        compilation-window-height 14)
-  (setq compilation-read-command nil))
+     (use-package go-mode
+       :defer t
+       :config
+       (setq compile-command "echo Building... && go build -v && echo Testing... && go test -v && echo Linter... && golint")
+       (setq compilation-scroll-output t
+             compilation-window-height 14)
+       (setq compilation-read-command nil))
 
-(add-hook 'go-mode-hook
-          (lambda ()
-            (local-set-key (kbd "M-,") 'compile)
-            (local-set-key (kbd "M-.") 'godef-jump)))
-;; Set compile-command back to its original value
-;; (setq compile-command (eval (car (get 'compile-command 'standard-value))))
+     (add-hook 'go-mode-hook
+               (lambda ()
+                 (local-set-key (kbd "M-,") 'compile)
+                 (local-set-key (kbd "M-.") 'godef-jump)))
+     ;; Set compile-command back to its original value
+     ;; (setq compile-command (eval (car (get 'compile-command 'standard-value))))
 
-(unless (package-installed-p 'lsp-mode)
-  (package-install 'lsp-mode))
-(require 'lsp)
-(add-hook 'go-mode-hook #'lsp-diferred)
+     (unless (package-installed-p 'lsp-mode)
+       (package-install 'lsp-mode))
+     (require 'lsp)
+     (add-hook 'go-mode-hook #'lsp-diferred)
 
-;; Set up before-save hooks to format buffer and add/delete imports.
-;; Make sure you don't have other gofmt/goimports hooks enabled.
-(defun lsp-go-install-save-hooks ()
-  "Install and save lsp-go hooks."
-  (add-hook 'before-save-hook #'lsp-format-buffer t t)
-  (add-hook 'before-save-hook #'lsp-organize-imports t t))
-(add-hook 'go-mode-hook #'lsp-go-install-save-hooks)
+     ;; Set up before-save hooks to format buffer and add/delete imports.
+     ;; Make sure you don't have other gofmt/goimports hooks enabled.
+     (defun lsp-go-install-save-hooks ()
+       "Install and save lsp-go hooks."
+       (add-hook 'before-save-hook #'lsp-format-buffer t t)
+       (add-hook 'before-save-hook #'lsp-organize-imports t t))
+     (add-hook 'go-mode-hook #'lsp-go-install-save-hooks)
 
-(unless (package-installed-p 'go-eldoc)
-  (package-install 'go-eldoc))
+     (unless (package-installed-p 'go-eldoc)
+       (package-install 'go-eldoc))
 
-(add-hook 'go-mode-hook 'go-eldoc-setup)
+     (add-hook 'go-mode-hook 'go-eldoc-setup)
 
-(set-face-attribute 'eldoc-highlight-function-argument nil
-                    :underline t :foreground "green"
-                    :weight 'bold)
+     (set-face-attribute 'eldoc-highlight-function-argument nil
+                         :underline t :foreground "green"
+                         :weight 'bold)
 
 
-(add-hook 'go-mode-hook 'lsp-deferred)
+     (add-hook 'go-mode-hook 'lsp-deferred)
 
-(setq-local compilation-window-height 14)
+     ;; (setq-local compilation-window-height 14)
 
-(defun my-compilation-hook ()
-  "Run at compilation time."
-  (when (not (get-buffer-window "*compilation*"))
-    (save-selected-window
-      (save-excursion
-        (let* ((w (split-window-vertically))
-               (h (window-height w)))
-          (select-window w)
-          (switch-to-buffer "*compilation*")
-          (shrink-window (- h compilation-window-height)))))))
+     ;; (defun my-compilation-hook ()
+     ;;   "Run at compilation time."
+     ;;   (when (not (get-buffer-window "*compilation*"))
+     ;;     (save-selected-window
+     ;;       (save-excursion
+     ;;         (let* ((w (split-window-vertically))
+     ;;                (h (window-height w)))
+     ;;           (select-window w)
+     ;;           (switch-to-buffer "*compilation*")
+     ;;           (shrink-window (- h compilation-window-height)))))))
 
-(add-hook 'compilation-mode-hook 'my-compilation-hook)
+     ;; (add-hook 'compilation-mode-hook 'my-compilation-hook)
 
-(global-set-key (kbd "C-x C-'") 'comment-or-uncomment-region)
+     ;; (global-set-key (kbd "C-x C-'") 'comment-or-uncomment-region)
 
-(provide 'init-golang)
-;;; init-golang.el ends here
+     (provide 'init-golang)
+     ;;; init-golang.el ends here
    #+end_src
 
 ** Init
@@ -1314,103 +1314,109 @@ ORIG is the advised function, which is called with its ARGS."
 
 ** LSP Mode
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-lsp.el
-;;; init-lsp.el --- Provides completion engine -*- lexical-binding: t -*-
-;;; Commentary:
-;; Intellisense like binding with lsp-mode
-;;; Code:
+     ;;; init-lsp.el --- Provides completion engine -*- lexical-binding: t -*-
+     ;;; Commentary:
+     ;; Intellisense like binding with lsp-mode
+     ;;; Code:
 
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
+     (unless (package-installed-p 'use-package)
+       (package-install 'use-package))
 
-(defun efs/lsp-mode-setup ()
-  "Show path to project."
-  (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
-  (lsp-headerline-breadcrumb-mode))
+     (defun efs/lsp-mode-setup ()
+       "Show path to project."
+       (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
+       (lsp-headerline-breadcrumb-mode))
 
-(use-package lsp-mode
-  :commands (lsp lsp-deferred)
-  :hook (lsp-mode . efs/lsp-mode-setup)
-  :init
-  (setq lsp-keymap-prefix "s-8"
-        lsp-idle-delay 0.1
-        lsp-headerline-breadcrumb-enable t)
-  :config
-  (lsp-enable-which-key-integration t))
+     (use-package lsp-mode
+       :commands (lsp lsp-deferred)
+       :hook (lsp-mode . efs/lsp-mode-setup)
+       :init
+       (setq lsp-keymap-prefix "s-8"
+             lsp-idle-delay 0.1
+             lsp-headerline-breadcrumb-enable t)
+       :config
+       (lsp-enable-which-key-integration t))
 
-(use-package lsp-ui
-  :diminish
-  :hook (lsp-mode . lsp-ui-mode)
-  :custom
-  (lsp-ui-doc-position 'bottom)
-  :config
-  (setq lsp-ui-doc-enable t
-        lsp-ui-peek-enable t
-        lsp-ui-sideline-enable t
-        lsp-ui-imenu-enable t
-        lsp-ui-flycheck-enable t))
+     (use-package lsp-ui
+       :diminish
+       :hook (lsp-mode . lsp-ui-mode)
+       :custom
+       (lsp-ui-doc-position 'bottom)
+       :config
+       (setq lsp-ui-doc-enable t
+             lsp-ui-peek-enable t
+             lsp-ui-sideline-enable t
+             lsp-ui-imenu-enable t
+             lsp-ui-flycheck-enable t))
 
-(use-package lsp-treemacs
-  :diminish
-  :after (lsp treemacs)
-  :commands (lsp-treemacs-errors-list)
-  :init
-  (lsp-treemacs-sync-mode 1))
+     (use-package lsp-treemacs
+       :diminish
+       :after (lsp treemacs)
+       :commands (lsp-treemacs-errors-list)
+       :init
+       (lsp-treemacs-sync-mode 1))
 
-(use-package lsp-ivy
-  :diminish
-  :after (lsp ivy))
+     (use-package lsp-ivy
+       :diminish
+       :after (lsp ivy))
 
-(use-package lsp-ui
-  :diminish
-  :commands (lsp-ui-mode))
+     (use-package lsp-ui
+       :diminish
+       :commands (lsp-ui-mode))
 
-(dolist (mode '(c++-mode-hook
-                c-mode-hook
-                css-mode-hook
-                dockerfile-mode-hook
-                js-mode-hook
-                less-css-mode-hook
-                php-mode-hook
-                sass-mode-hook
-                scss-mode-hook
-                typescript-mode-hook
-                web-mode-hook))
-  (add-hook mode #'lsp))
+     (dolist (mode '(c++-mode-hook
+                     c-mode-hook
+                     css-mode-hook
+                     dockerfile-mode-hook
+                     js-mode-hook
+                     less-css-mode-hook
+                     php-mode-hook
+                     sass-mode-hook
+                     scss-mode-hook
+                     typescript-mode-hook
+                     web-mode-hook))
+       (add-hook mode #'lsp))
 
-(use-package dap-mode
-  ;; Uncomment the config below if you want all UI panes to be hidden by default!
-  ;; :custom
-  ;; (lsp-enable-dap-auto-configure nil)
-  ;; :config
-  ;; (dap-ui-mode 1)
+     (use-package dap-mode
+       ;; Uncomment the config below if you want all UI panes to be hidden by default!
+       ;; :custom
+       ;; (lsp-enable-dap-auto-configure nil)
+       ;; :config
+       ;; (dap-ui-mode 1)
 
-  :after (python-mode)
-  :config
-  ;; Set up Node debugging
-  (require 'dap-chrome)
-  (require 'dap-cpptools)
-  (require 'dap-edge)
-  (require 'dap-firefox)
-  (require 'dap-gdb-lldb)
-  (require 'dap-go)
-  (require 'dap-node)
-  (require 'dap-php)
-  (dap-node-setup) ;; Automatically installs Node debug adapter if needed
+       :after (python-mode)
+       :config
+       ;; Set up Node debugging
+       (require 'dap-chrome)
+       (require 'dap-cpptools)
+       (require 'dap-edge)
+       (require 'dap-firefox)
+       (require 'dap-gdb-lldb)
+       (require 'dap-go)
+       (require 'dap-node)
+       (require 'dap-php)
+       (dap-node-setup) ;; Automatically installs Node debug adapter if needed
 
-  (setq dap-python-debugger 'debugpy)
-  ;; Bind `C-c l d` to `dap-hydra` for easy access
-  (general-define-key
-   :keymaps 'lsp-mode-map
-   :prefix lsp-keymap-prefix
-   "d" '(dap-hydra t :wk "debugger")))
+       (setq dap-python-debugger 'debugpy)
+       ;; Bind `C-c l d` to `dap-hydra` for easy access
+       (general-define-key
+        :keymaps 'lsp-mode-map
+        :prefix lsp-keymap-prefix
+        "d" '(dap-hydra t :wk "debugger")))
 
-(provide 'init-lsp)
-;;; init-lsp.el ends here
+     ;; Set up lsp-eslint
+     (setq lsp-eslint-server-command
+           '("node"
+             "/Users/randyburrell/.emacs.d/.extension/vscode/dbaeumer.vscode-eslint-2.1.19/extension/server/out/eslintServer.js"
+             "--stdio"))
+
+     (provide 'init-lsp)
+     ;;; init-lsp.el ends here
    #+end_src
 
 ** vc-darcs
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-darcs.el
-;;; init-darcs.el --- Support for the Darcs DVCS -*- lexical-binding: t -*-
+   ;;; init-darcs.el --- Support for the Darcs DVCS -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
 
@@ -2089,7 +2095,7 @@ ORIG is the advised function, which is called with its ARGS."
    (setq org-log-refile 'note)
 
    ;; Targets include this file and any file contributing to the agenda - up to 5 levels deep
-   (setq org-refile-targets '((nil :maxlevel . 5) (org-agenda-files :maxlevel . 5)))
+   (setq org-refile-targets '((nil :maxlevel . 1) (org-agenda-files :maxlevel . 1)))
 
    (with-eval-after-load 'org-agenda
      (add-to-list 'org-agenda-after-show-hook 'org-show-entry))
@@ -2589,6 +2595,7 @@ ORIG is the advised function, which is called with its ARGS."
    (setq org-agenda-files
          '("~/Dropbox/emacs/org"
            "~/Dropbox/emacs/org/work"
+           "~/Dropbox/emacs/org/work/Invoices/content/timesheet.org"
            "~/Dropbox/emacs/org/personal"))
 
    ;; Set org-modules I want to use
@@ -2616,13 +2623,12 @@ ORIG is the advised function, which is called with its ARGS."
    (define-skeleton org-skeleton
      "Header info for a emacs-org file."
      "Title: "
-     "#+TITLE:" str " \n"
+     "#+TITLE:" " \n"
      "#+AUTHOR: Your Name\n"
      "#+email: your-email@server.com\n"
      "#+INFOJS_OPT: \n"
      "#+BABEL: :session *R* :cache yes :results output graphics :exports both :tangle yes \n"
-     "-----"
-     )
+     "-----")
    (global-set-key [C-S-f4] 'org-skeleton)
 
    (use-package ob-async
@@ -2790,19 +2796,81 @@ Unless NO-PROMPT?"
    all my configuration for treemacs is stored.
 
  #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-treemacs.el
- ;;; init-treemacs.el --- loads treemacs package -*- lexical-binding: t -*-
- ;;; Commentary:
- ;;; Code:
+   ;;; init-treemacs.el --- loads treemacs package -*- lexical-binding: t -*-
+   ;;; Commentary:
+   ;;; Code:
 
- (unless (package-installed-p 'use-package)
-   (package-install 'use-package))
+   (unless (package-installed-p 'use-package)
+     (package-install 'use-package))
 
- (use-package treemacs
-   :defer t
-   :init
-   (with-eval-after-load 'winum
-     (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
-   :config
+   (use-package treemacs
+     :defer t
+     :init
+     (with-eval-after-load 'winum
+       (define-key winum-keymap (kbd "s-0") #'treemacs-select-window))
+     :config
+     (progn
+       (setq treemacs-collapse-dirs                 (if treemacs-python-executable 3 0)
+             treemacs-deferred-git-apply-delay      0.5
+             treemacs-directory-name-transformer    #'identity
+             treemacs-display-in-side-window        t
+             treemacs-eldoc-display                 t
+             treemacs-file-event-delay              5000
+             treemacs-file-extension-regex          treemacs-last-period-regex-value
+             treemacs-file-follow-delay             0.2
+             treemacs-file-name-transformer         #'identity
+             treemacs-follow-after-init             t
+             treemacs-git-command-pipe              ""
+             treemacs-goto-tag-strategy             'refetch-index
+             treemacs-indentation                   2
+             treemacs-indentation-string            " "
+             treemacs-is-never-other-window         nil
+             treemacs-max-git-entries               5000
+             treemacs-missing-project-action        'ask
+             treemacs-no-png-images                 nil
+             treemacs-no-delete-other-windows       t
+             treemacs-project-follow-cleanup        nil
+             treemacs-persist-file                  (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+             treemacs-position                      'left
+             treemacs-recenter-distance             0.1
+             treemacs-recenter-after-file-follow    nil
+             treemacs-recenter-after-tag-follow     nil
+             treemacs-recenter-after-project-jump   'always
+             treemacs-recenter-after-project-expand 'on-distance
+             treemacs-show-cursor                   nil
+             treemacs-show-hidden-files             t
+             treemacs-silent-filewatch              nil
+             treemacs-silent-refresh                nil
+             treemacs-sorting                       'alphabetic-asc
+             treemacs-space-between-root-nodes      t
+             treemacs-tag-follow-cleanup            t
+             treemacs-tag-follow-delay              1.5
+             treemacs-user-mode-line-format         nil
+             treemacs-width                         40)
+
+       (setf treemacs-read-string-input 'from-minibuffer)
+       ;; The default width and height of the icons is 22 pixels. If you are
+       ;; using a Hi-DPI display, uncomment this to double the icon size.
+       ;;(treemacs-resize-icons 44)
+
+       (treemacs-follow-mode t)
+       (treemacs-filewatch-mode t)
+       (treemacs-fringe-indicator-mode t)
+       (pcase (cons (not (null (executable-find "git")))
+                    (not (null treemacs-python-executable)))
+         (`(t . t)
+          (treemacs-git-mode 'deferred))
+         (`(t . _)
+          (treemacs-git-mode 'simple))))
+     :bind
+     (:map global-map
+           ("s-0"       . treemacs-select-window)
+           ("C-x t 1"   . treemacs-delete-other-windows)
+           ("C-x t t"   . treemacs)
+           ("C-x t B"   . treemacs-bookmark)
+           ("C-x t C-t" . treemacs-find-file)
+           ("C-x t M-t" . treemacs-find-tag)))
+
    (use-package treemacs-projectile
      :after (treemacs projectile))
 
@@ -2820,70 +2888,8 @@ Unless NO-PROMPT?"
    (use-package treemacs-evil
      :after (treemacs evil))
 
-   (progn
-     (setq treemacs-collapse-dirs                 (if treemacs-python-executable 3 0)
-           treemacs-deferred-git-apply-delay      0.5
-           treemacs-directory-name-transformer    #'identity
-           treemacs-display-in-side-window        t
-           treemacs-eldoc-display                 t
-           treemacs-file-event-delay              5000
-           treemacs-file-extension-regex          treemacs-last-period-regex-value
-           treemacs-file-follow-delay             0.2
-           treemacs-file-name-transformer         #'identity
-           treemacs-follow-after-init             t
-           treemacs-git-command-pipe              ""
-           treemacs-goto-tag-strategy             'refetch-index
-           treemacs-indentation                   2
-           treemacs-indentation-string            " "
-           treemacs-is-never-other-window         nil
-           treemacs-max-git-entries               5000
-           treemacs-missing-project-action        'ask
-           treemacs-no-png-images                 nil
-           treemacs-no-delete-other-windows       t
-           treemacs-project-follow-cleanup        nil
-           treemacs-persist-file                  (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
-           treemacs-position                      'left
-           treemacs-recenter-distance             0.1
-           treemacs-recenter-after-file-follow    nil
-           treemacs-recenter-after-tag-follow     nil
-           treemacs-recenter-after-project-jump   'always
-           treemacs-recenter-after-project-expand 'on-distance
-           treemacs-show-cursor                   nil
-           treemacs-show-hidden-files             t
-           treemacs-silent-filewatch              nil
-           treemacs-silent-refresh                nil
-           treemacs-sorting                       'alphabetic-asc
-           treemacs-space-between-root-nodes      t
-           treemacs-tag-follow-cleanup            t
-           treemacs-tag-follow-delay              1.5
-           treemacs-user-mode-line-format         nil
-           treemacs-width                         40)
-
-     (setf treemacs-read-string-input 'from-minibuffer)
-     ;; The default width and height of the icons is 22 pixels. If you are
-     ;; using a Hi-DPI display, uncomment this to double the icon size.
-     ;;(treemacs-resize-icons 44)
-
-     (treemacs-follow-mode t)
-     (treemacs-filewatch-mode t)
-     (treemacs-fringe-indicator-mode t)
-     (pcase (cons (not (null (executable-find "git")))
-                  (not (null treemacs-python-executable)))
-       (`(t . t)
-        (treemacs-git-mode 'deferred))
-       (`(t . _)
-        (treemacs-git-mode 'simple))))
-   :bind
-   (:map global-map
-         ("s-0"     . treemacs-select-window)
-         ("C-x t 1"   . treemacs-delete-other-windows)
-         ("C-x t t"   . treemacs)
-         ("C-x t B"   . treemacs-bookmark)
-         ("C-x t C-t" . treemacs-find-file)
-         ("C-x t M-t" . treemacs-find-tag)))
-
- (provide 'init-treemacs)
- ;;; init-treemacs.el ends here
+   (provide 'init-treemacs)
+   ;;; init-treemacs.el ends here
  #+end_src
 
 ** Security
@@ -3001,6 +3007,8 @@ Unless NO-PROMPT?"
         "--tab-width" "4"
         "--trailing-comma" "all"
         "--use-tabs" "false"
+        "--no-semi" "false"
+        "--write docs" "package.json"
         ))
 
 ;;--------------------------------------------------------------------------------
