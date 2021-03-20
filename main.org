@@ -32,6 +32,7 @@
   - [[#magit][Magit]]
   - [[#treemacs][Treemacs]]
   - [[#security][Security]]
+  - [[#pdf-viewer][PDF Viewer]]
   - [[#web-development-extras][Web Development Extras]]
   - [[#directory--file-management][Directory & File Management]]
 
@@ -1302,6 +1303,10 @@ ORIG is the advised function, which is called with its ARGS."
 ;;----------------------------------------------------------------------------
 (require 'init-shell)
 
+;;----------------------------------------------------------------------------
+;; pdf viewer
+;;----------------------------------------------------------------------------
+(require 'init-pdf)
 
 (provide 'init)
 
@@ -2620,14 +2625,15 @@ ORIG is the advised function, which is called with its ARGS."
      (add-hook 'org-mode-hook 'org-appear-mode))
 
    ;; Copied from https://orgmode.org/worg/org-contrib/babel/how-to-use-Org-Babel-for-R.html
+   ;; I think this would be better served within a snippet such as Yankpad/YaSnippet.
    (define-skeleton org-skeleton
      "Header info for a emacs-org file."
      "Title: "
-     "#+TITLE:" " \n"
-     "#+AUTHOR: Your Name\n"
-     "#+email: your-email@server.com\n"
+     "#+TITLE:" "Title of doc\n"
+     "#+AUTHOR: Randy Burrell\n"
+     "#+email: me@randyburrell.info\n"
      "#+INFOJS_OPT: \n"
-     "#+BABEL: :session *R* :cache yes :results output graphics :exports both :tangle yes \n"
+     "#+BABEL: :session *Lang* :cache yes :results output graphics :exports both :tangle yes \n"
      "-----")
    (global-set-key [C-S-f4] 'org-skeleton)
 
@@ -2903,7 +2909,23 @@ Unless NO-PROMPT?"
 (setq auth-sources '("~/.emacs.d/secrets/.authinfo.gpg"))
 
 (provide 'init-security)
-;;; init-security..el ends here
+;;; init-security.el ends here
+   #+end_src
+
+** PDF Viewer
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-pdf.el
+     ;;; init-pdf.el --- PDF Configurations -*- lexical-binding: t -*-
+     ;;; Commentary:
+     ;;; Code:
+
+     (unless (package-installed-p 'use-package)
+       (package-install 'use-package))
+
+     (use-package pdf-tools)
+
+     (use-package org-noter)
+     (provide 'init-pdf)
+     ;;; init-pdf.el ends here
    #+end_src
 
 ** Web Development Extras
@@ -3004,11 +3026,10 @@ Unless NO-PROMPT?"
         "--jsx-single-quote" "true"
         "--print-width" "80"
         "--single-quote" "true"
-        "--tab-width" "4"
+        "--tab-width" "2"
         "--trailing-comma" "all"
         "--use-tabs" "false"
         "--no-semi" "false"
-        "--write docs" "package.json"
         ))
 
 ;;--------------------------------------------------------------------------------
