@@ -2909,7 +2909,6 @@ Unless NO-PROMPT?"
        (package-install 'use-package))
 
      (use-package pdf-tools)
-
      (use-package org-noter)
      (provide 'init-pdf)
      ;;; init-pdf.el ends here
