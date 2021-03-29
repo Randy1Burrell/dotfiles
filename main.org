@@ -2624,19 +2624,6 @@ ORIG is the advised function, which is called with its ARGS."
      (require 'org-appear "~/.emacs.d/site-lisp/org-appear/org-appear.el")
      (add-hook 'org-mode-hook 'org-appear-mode))
 
-   ;; Copied from https://orgmode.org/worg/org-contrib/babel/how-to-use-Org-Babel-for-R.html
-   ;; I think this would be better served within a snippet such as Yankpad/YaSnippet.
-   (define-skeleton org-skeleton
-     "Header info for a emacs-org file."
-     "Title: "
-     "#+TITLE:" "Title of doc\n"
-     "#+AUTHOR: Randy Burrell\n"
-     "#+email: me@randyburrell.info\n"
-     "#+INFOJS_OPT: \n"
-     "#+BABEL: :session *Lang* :cache yes :results output graphics :exports both :tangle yes \n"
-     "-----")
-   (global-set-key [C-S-f4] 'org-skeleton)
-
    (use-package ob-async
      :init
      (setq ob-async-no-async-languages-alist '("ipython")))
