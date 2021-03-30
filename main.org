@@ -224,85 +224,85 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
 
 ** Company Mode
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-company.el
-;;; init-company.el --- Completion with company -*- lexical-binding: t -*-
-;;; Commentary:
-;;; Code:
+	 ;;; init-company.el --- Completion with company -*- lexical-binding: t -*-
+	 ;;; Commentary:
+	 ;;; Code:
 
-;; WAITING: haskell-mode sets tags-table-list globally, breaks tags-completion-at-point-function
-;; TODO Default sort order should place [a-z] before punctuation
+	 ;; WAITING: haskell-mode sets tags-table-list globally, breaks tags-completion-at-point-function
+	 ;; TODO Default sort order should place [a-z] before punctuation
 
-(setq tab-always-indent 'complete)
-(add-to-list 'completion-styles 'initials t)
+	 (setq tab-always-indent 'complete)
+	 (add-to-list 'completion-styles 'initials t)
 
-(when (maybe-require-package 'company)
-  (add-hook 'after-init-hook 'global-company-mode)
-  (with-eval-after-load 'company
-    (dolist (backend '(company-eclim company-semantic))
-      (delq backend company-backends))
-    (diminish 'company-mode)
-    (define-key company-mode-map (kbd "M-/") 'company-complete)
-    (define-key company-mode-map [remap completion-at-point] 'company-complete)
-    (define-key company-mode-map [remap indent-for-tab-command] 'company-indent-or-complete-common)
-    (define-key company-active-map (kbd "M-/") 'company-other-backend)
-    (define-key company-active-map (kbd "C-n") 'company-select-next)
-    (define-key company-active-map (kbd "C-p") 'company-select-previous)
-    (define-key company-active-map (kbd "C-d") 'company-show-doc-buffer)
-    (define-key company-active-map (kbd "M-.") 'company-show-location)
-    (setq-default company-dabbrev-other-buffers 'all
-                  company-tooltip-align-annotations t
-                  company-idle-delay 0.0
-                  company-tooltip-idle-delay 0.1
-                  company-minimum-prefix-length 1))
-  (global-set-key (kbd "M-C-/") 'company-complete)
-  (when (maybe-require-package 'company-quickhelp)
-    (add-hook 'after-init-hook 'company-quickhelp-mode)))
+	 (when (maybe-require-package 'company)
+	   (add-hook 'after-init-hook 'global-company-mode)
+	   (with-eval-after-load 'company
+		 (dolist (backend '(company-eclim company-semantic))
+		   (delq backend company-backends))
+		 (diminish 'company-mode)
+		 (define-key company-mode-map (kbd "M-/") 'company-complete)
+		 (define-key company-mode-map [remap completion-at-point] 'company-complete)
+		 (define-key company-mode-map [remap indent-for-tab-command] 'company-indent-or-complete-common)
+		 (define-key company-active-map (kbd "M-/") 'company-other-backend)
+		 (define-key company-active-map (kbd "C-n") 'company-select-next)
+		 (define-key company-active-map (kbd "C-p") 'company-select-previous)
+		 (define-key company-active-map (kbd "C-d") 'company-show-doc-buffer)
+		 (define-key company-active-map (kbd "M-.") 'company-show-location)
+		 (setq-default company-dabbrev-other-buffers 'all
+					   company-tooltip-align-annotations t
+					   company-idle-delay 0.0
+					   company-tooltip-idle-delay 0.1
+					   company-minimum-prefix-length 1))
+	   (global-set-key (kbd "M-C-/") 'company-complete)
+	   (when (maybe-require-package 'company-quickhelp)
+		 (add-hook 'after-init-hook 'company-quickhelp-mode)))
 
-;; Suspend page-break-lines-mode while company menu is active
-;; (see https://github.com/company-mode/company-mode/issues/416)
-(with-eval-after-load 'company
-  (with-eval-after-load 'page-break-lines
-    (defvar-local sanityinc/page-break-lines-on-p nil)
+	 ;; Suspend page-break-lines-mode while company menu is active
+	 ;; (see https://github.com/company-mode/company-mode/issues/416)
+	 (with-eval-after-load 'company
+	   (with-eval-after-load 'page-break-lines
+		 (defvar-local sanityinc/page-break-lines-on-p nil)
 
-    (defun sanityinc/page-break-lines-disable (&rest ignore)
-      (when (setq sanityinc/page-break-lines-on-p (bound-and-true-p page-break-lines-mode))
-        (page-break-lines-mode -1)))
+		 (defun sanityinc/page-break-lines-disable (&rest ignore)
+		   (when (setq sanityinc/page-break-lines-on-p (bound-and-true-p page-break-lines-mode))
+			 (page-break-lines-mode -1)))
 
-    (defun sanityinc/page-break-lines-maybe-reenable (&rest ignore)
-      (when sanityinc/page-break-lines-on-p
-        (page-break-lines-mode 1)))
+		 (defun sanityinc/page-break-lines-maybe-reenable (&rest ignore)
+		   (when sanityinc/page-break-lines-on-p
+			 (page-break-lines-mode 1)))
 
-    (add-hook 'company-completion-started-hook 'sanityinc/page-break-lines-disable)
-    (add-hook 'company-after-completion-hook 'sanityinc/page-break-lines-maybe-reenable)))
+		 (add-hook 'company-completion-started-hook 'sanityinc/page-break-lines-disable)
+		 (add-hook 'company-after-completion-hook 'sanityinc/page-break-lines-maybe-reenable)))
 
 
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
+	 (unless (package-installed-p 'use-package)
+	   (package-install 'use-package))
 
-(use-package company-box
-  :after (company)
-  :diminish
-  :hook (company-mode . company-box-mode))
+	 ;; (use-package company-box
+	 ;;   :after (company)
+	 ;;   :diminish
+	 ;;   :hook (company-mode . company-box-mode))
 
-(use-package company-emoji
-  :after (company)
-  :diminish
-  :config (add-to-list 'company-backends 'company-emoji)
-  (defun --set-emoji-font (frame)
-    "Adjust the font settings of FRAME so Emacs can display emoji properly."
-    (if (eq system-type 'darwin)
-        ;; For NS/Cocoa
-        (set-fontset-font t 'symbol (font-spec :family "Apple Color Emoji") frame 'prepend)
-      ;; For Linux
-      (set-fontset-font t 'symbol (font-spec :family "Symbola") frame 'prepend)))
+	 (use-package company-emoji
+	   :after (company)
+	   :diminish
+	   :config (add-to-list 'company-backends 'company-emoji)
+	   (defun --set-emoji-font (frame)
+		 "Adjust the font settings of FRAME so Emacs can display emoji properly."
+		 (if (eq system-type 'darwin)
+			 ;; For NS/Cocoa
+			 (set-fontset-font t 'symbol (font-spec :family "Apple Color Emoji") frame 'prepend)
+		   ;; For Linux
+		   (set-fontset-font t 'symbol (font-spec :family "Symbola") frame 'prepend)))
 
-  ;; For when Emacs is started in GUI mode:
-  (--set-emoji-font nil)
-  ;; Hook for when a frame is created with emacsclient
-  ;; see https://www.gnu.org/software/emacs/manual/html_node/elisp/Creating-Frames.html
-  (add-hook 'after-make-frame-functions '--set-emoji-font))
+	   ;; For when Emacs is started in GUI mode:
+	   (--set-emoji-font nil)
+	   ;; Hook for when a frame is created with emacsclient
+	   ;; see https://www.gnu.org/software/emacs/manual/html_node/elisp/Creating-Frames.html
+	   (add-hook 'after-make-frame-functions '--set-emoji-font))
 
-(provide 'init-company)
-;;; init-company.el ends here
+	 (provide 'init-company)
+	 ;;; init-company.el ends here
    #+end_src
 
 ** Compile
@@ -1060,7 +1060,6 @@ ORIG is the advised function, which is called with its ARGS."
   (message "Your Emacs is old, and some functionality in this config will be disabled. Please upgrade if possible."))
 
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(add-to-list 'load-path (expand-file-name "lisp-files" user-emacs-directory))
 (require 'init-benchmarking) ;; Measure startup time
 
 (defconst *spell-check-support-enabled* nil) ;; Enable with t if you prefer
@@ -1111,7 +1110,6 @@ ORIG is the advised function, which is called with its ARGS."
 (require 'init-evil)
 (require 'init-treemacs)
 (require 'init-master)
-(require 'init-ssh)
 (require 'init-csharp)
 ;;----------------------------------------------------------------------------
 ;; Original configurations
@@ -1549,7 +1547,7 @@ ORIG is the advised function, which is called with its ARGS."
    #+end_src
 
 ** dired
-   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-dired.el
+   #+begin_src emacs-lisp :tangle no
 ;;; init-dired.el --- Dired customisations -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
@@ -1592,8 +1590,6 @@ ORIG is the advised function, which is called with its ARGS."
     "H" 'dired-hide-dotfiles-mode))
 
 ;; While we're at it: Make dired, ‘dir’ectory ‘ed’itor, look pretty
-(use-package all-the-icons-dired
-  :hook (dired-mode . all-the-icons-dired-mode))
 
 (provide 'init-dired)
 ;;; init-dired.el ends here
@@ -1980,7 +1976,6 @@ ORIG is the advised function, which is called with its ARGS."
 
    (use-package org-pretty-tags
      :diminish org-pretty-tags-mode
-     :demand t
      :config
      (setq org-pretty-tags-surrogate-strings
            '(("Neato"    . "💡")
@@ -2967,6 +2962,7 @@ Unless NO-PROMPT?"
        (package-install 'use-package))
 
      (use-package pdf-tools)
+
      (use-package org-noter)
      (provide 'init-pdf)
      ;;; init-pdf.el ends here
@@ -3070,7 +3066,7 @@ Unless NO-PROMPT?"
         "--jsx-single-quote" "true"
         "--print-width" "80"
         "--single-quote" "true"
-        "--tab-width" "2"
+        "--tab-width" "1"
         "--trailing-comma" "all"
         "--use-tabs" "false"
         "--no-semi" "false"
