@@ -25,8 +25,8 @@
   - [[#dash][Dash]]
   - [[#defaults][Defaults]]
   - [[#dired][Dired]]
-  - [[#direnv][direnv]]
-  - [[#docker][docker]]
+  - [[#direnv][Direnv]]
+  - [[#docker][Docker]]
   - [[#org-mode][Org Mode]]
   - [[#magit][Magit]]
   - [[#treemacs][Treemacs]]
@@ -1648,7 +1648,7 @@ ORIG is the advised function, which is called with its ARGS."
 ;;; init-find-file-in-project.el ends here
     #+end_src
 
-** direnv
+** Direnv
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-direnv.el
 ;;; init-direnv.el --- Integrate with direnv -*- lexical-binding: t -*-
 ;;; Commentary:
@@ -1669,7 +1669,7 @@ ORIG is the advised function, which is called with its ARGS."
 ;;; init-direnv.el ends here
    #+end_src
 
-** docker
+** Docker
    #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-docker.el
 ;;; init-docker.el --- Work with Docker and its tools -*- lexical-binding: t -*-
 ;;; Commentary:
