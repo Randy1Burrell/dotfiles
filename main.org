@@ -982,7 +982,7 @@ ORIG is the advised function, which is called with its ARGS."
      (unless (package-installed-p 'lsp-mode)
        (package-install 'lsp-mode))
      (require 'lsp)
-     (add-hook 'go-mode-hook #'lsp-diferred)
+     ;; (add-hook 'go-mode-hook #'lsp-diferred)
 
      ;; Set up before-save hooks to format buffer and add/delete imports.
      ;; Make sure you don't have other gofmt/goimports hooks enabled.
