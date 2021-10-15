@@ -27,6 +27,7 @@
   - [[#org-mode][Org Mode]]
   - [[#magit][Magit]]
   - [[#security][Security]]
+  - [[#solidity][Solidity]]
   - [[#tramp][Tramp]]
   - [[#pdf-viewer][PDF Viewer]]
   - [[#web-development-extras][Web Development Extras]]
@@ -1293,6 +1294,11 @@ ORIG is the advised function, which is called with its ARGS."
      ;; pdf viewer
      ;;----------------------------------------------------------------------------
      (require 'init-pdf)
+
+     ;;----------------------------------------------------------------------------
+     ;; Support for solidity
+     ;;----------------------------------------------------------------------------
+     (require 'init-solidity)
 
      (provide 'init)
 
@@ -2664,6 +2670,31 @@ Unless NO-PROMPT?"
 
 (provide 'init-security)
 ;;; init-security.el ends here
+   #+end_src
+
+** Solidity
+   #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-solidity.el
+     ;;; init-solidity.el --- PDF Configurations -*- lexical-binding: t -*-
+     ;;; Commentary:
+     ;;; Code:
+
+     (unless (package-installed-p 'use-package)
+       (package-install 'use-package))
+
+     (use-package solidity-mode)
+
+     (use-package company-solidity
+       :ensure t
+       :after (company))
+
+     (add-hook 'solidity-mode-hook
+               (lambda ()
+                 (set (make-local-variable 'company-backends)
+                      (append '((company-solidity company-capf company-dabbrev-code))
+                              company-backends))))
+
+     (provide 'init-solidity)
+     ;;; init-solidity.el ends here
    #+end_src
 
 ** Tramp
