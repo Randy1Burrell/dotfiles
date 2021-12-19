@@ -995,6 +995,8 @@ ORIG is the advised function, which is called with its ARGS."
        (add-hook 'before-save-hook #'lsp-organize-imports t t))
      (add-hook 'go-mode-hook #'lsp-go-install-save-hooks)
 
+     (add-hook 'before-save-hook 'gofmt-before-save)
+
      (unless (package-installed-p 'go-eldoc)
        (package-install 'go-eldoc))
 
@@ -2648,6 +2650,10 @@ ORIG is the advised function, which is called with its ARGS."
      (remove-hook 'git-commit-setup-hook 'with-editor-usage-message)
      (add-hook 'git-commit-setup-hook 'magit-commit-prompt)
      (advice-add 'magit-commit :after 'use-magit-commit-prompt)
+
+     ;; Refresh magit buffer when files are changed in the respective repository
+     (with-eval-after-load 'magit-mode
+       (add-hook 'after-save-hook 'magit-after-save-refresh-status t))
 
      ;; MA: The todo keywords work in code too!
      (use-package magit-todos
