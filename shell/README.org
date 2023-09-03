@@ -48,17 +48,17 @@ configuration work with the different shells in an efficient way.
 
 *** Interactive file
   #+begin_src shell :tangle ~/.bash/interactive :mkdirp yes
-
+    . ~/.bash/interactive
   #+end_src
 
 *** Login file
   #+begin_src shell :tangle ~/.bash/login
-
+    . ~/.bash/login
   #+end_src
 
 *** Logout file
   #+begin_src shell :tangle ~/.bash/logout
-
+    . ~/.bash/logout
   #+end_src
 
 * Sh
