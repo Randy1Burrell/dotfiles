@@ -491,6 +491,7 @@ configuration work with the different shells in an efficient way.
 
   #+end_src
 
+*** Login
   #+begin_src shell :tangle ~/.shell/login
     # Personal Information
     export NAME='Randy Burrell'
@@ -522,6 +523,7 @@ configuration work with the different shells in an efficient way.
     }
   #+end_src
 
+*** Logout
   #+begin_src shell :tangle ~/.shell/logout
 
   #+end_src
