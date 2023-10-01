@@ -57,7 +57,7 @@ configuration work with the different shells in an efficient way.
   #+end_src
 
 *** Logout file
-  #+begin_src shell :tangle ~/.bash/logout
+  #+begin_src shell :tangle ~/.bash/logout :mkdirp yes
     . ~/.bash/logout
   #+end_src
 
