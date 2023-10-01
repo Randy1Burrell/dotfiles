@@ -1619,7 +1619,7 @@
   I don't believe that snippets have any specific languages so I have put this
   in vimel. I don't see this expanding right now.
   #+begin_src  vimrc :tangle ~/.config/nvim/UltiSnips/javascript.snippets :mkdirp yes
-    snippet st "INput inling tags"
+    snippet st "Input inling tags"
     <${1:em}>some text</${1/(\w+).*/$1/}>
     endsnippet
 
