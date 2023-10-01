@@ -19,141 +19,113 @@
   #+begin_src vimrc :tangle ~/.vimrc
     " plugins {{{
     " Contains vim plugins and installation methods
+    let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
+    if empty(glob(data_dir . '/autoload/plug.vim'))
+      silent execute '!curl -fLo '.data_dir.'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+      autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+    endif
 
-    " Set vundle repository manager
-    set rtp+=~/.vim/bundle/Vundle.vim
     " Set call for plugin to be installed
-    call vundle#begin()
+    call plug#begin('~/.vim/plugged')
 
     " Set plugins for installation
-    Plugin 'gmarik/Vundle.vim'
+    Plug 'gmarik/Vundle.vim'
 
-    " Plugin to help neovim with sudo
+    " Plug to help neovim with sudo
     " :w !sudo tee % > /dev/null trick does not work on neovim.
     " I get the error "sudo: no tty present and no askpass program specified"
     " Instead I need to run :w suda://% with this plugin installed
-    Plugin 'lambdalisue/suda.vim'
+    Plug 'lambdalisue/suda.vim'
 
     " Utility
-    Plugin 'Chiel92/vim-autoformat'
+    Plug 'Chiel92/vim-autoformat'
     if has('nvim')
-        Plugin 'autozimu/LanguageClient-neovim', {
+        Plug 'autozimu/LanguageClient-neovim', {
         \ 'branch': 'next',
         \ 'do': 'bash install.sh',
         \ }
-        Plugin 'Shougo/deoplete.nvim'
+        Plug 'Shougo/deoplete.nvim'
         if has('win32') || has('win64')
-          Plugin 'tbodt/deoplete-tabnine', { 'do': 'powershell.exe .\install.ps1' }
+          Plug 'tbodt/deoplete-tabnine', { 'do': 'powershell.exe .\install.ps1' }
         else
-          Plugin 'tbodt/deoplete-tabnine', { 'do': './install.sh' }
+          Plug 'tbodt/deoplete-tabnine', { 'do': './install.sh' }
         endif
     else
-        Plugin 'Shougo/deoplete.nvim'
-        Plugin 'roxma/nvim-yarp'
-        Plugin 'roxma/vim-hug-neovim-rpc'
+        Plug 'Shougo/deoplete.nvim'
+        Plug 'roxma/nvim-yarp'
+        Plug 'roxma/vim-hug-neovim-rpc'
     endif
 
-    Plugin 'KabbAmine/zeavim.vim'
-    Plugin 'Shougo/neocomplete.vim'
-    Plugin 'Shougo/vimproc.vim'
+    Plug 'KabbAmine/zeavim.vim'
+    Plug 'Shougo/neocomplete.vim'
+    Plug 'Shougo/vimproc.vim'
     " Can sometimes be buggy or maybe it's
     " just me not being able to configure this properly
-    " Plugin 'Valloric/YouCompleteMe'
-    Plugin 'ctrlpvim/ctrlp.vim'
-    Plugin 'davidhalter/jedi-vim'
-    Plugin 'editorconfig/editorconfig-vim'
-    Plugin 'flazz/vim-colorschemes'
-    Plugin 'godlygeek/tabular'
-    Plugin 'scrooloose/nerdtree'
-    Plugin 't9md/vim-choosewin'
-    Plugin 'thoughtbot/vim-rspec'
-    Plugin 'vim-airline/vim-airline'
-    Plugin 'vim-airline/vim-airline-themes'
-    Plugin 'vim-syntastic/syntastic'
-    " Plugin 'zxqfl/tabnine-vim'
-
-    " Removed because there is no support for neovim
-    "Plugin 'jeaye/color_coded'
-
-    " Ctags
-    " Plugin 'majutsushi/tagbar'
-    " Plugin 'kberov/ctags'
-    " Plugin 'vim-php/tagbar-phpctags.vim'
-    " Plugin 'ludovicchabant/vim-gutentags'
-    " Plugin 'skywind3000/gutentags_plus'
+    " Plug 'Valloric/YouCompleteMe'
+    Plug 'ctrlpvim/ctrlp.vim'
+    Plug 'davidhalter/jedi-vim'
+    Plug 'editorconfig/editorconfig-vim'
+    Plug 'flazz/vim-colorschemes'
+    Plug 'godlygeek/tabular'
+    Plug 'scrooloose/nerdtree'
+    Plug 't9md/vim-choosewin'
+    Plug 'thoughtbot/vim-rspec'
+    Plug 'vim-airline/vim-airline'
+    Plug 'vim-airline/vim-airline-themes'
+    Plug 'vim-syntastic/syntastic'
 
     " Git
-    Plugin 'Xuyuanp/nerdtree-git-plugin'
-    Plugin 'tpope/vim-fugitive'
+    Plug 'Xuyuanp/nerdtree-git-plugin'
+    Plug 'tpope/vim-fugitive'
 
     " General Programming
-    Plugin 'jiangmiao/auto-pairs'
-    Plugin 'bkad/CamelCaseMotion'
+    Plug 'jiangmiao/auto-pairs'
+    Plug 'bkad/CamelCaseMotion'
 
-    " Removed in favor of luchen1990/rainbow
-    "Plugin 'oblitum/rainbow'
-    Plugin 'luochen1990/rainbow'
+    Plug 'luochen1990/rainbow'
 
     " Angular
-    Plugin 'bdauria/angular-cli.vim'
-    Plugin 'curist/vim-angular-template'
+    Plug 'bdauria/angular-cli.vim'
+    Plug 'curist/vim-angular-template'
 
     " Linters
-    Plugin 'dense-analysis/ale'
-    " Plugin 'w0rp/ale'
-    " Plugin 'maximbaz/lightline-ale'
-    " Plugin 'itchyny/lightline.vim'
+    Plug 'dense-analysis/ale'
 
     " Java
-    Plugin 'artur-shaik/vim-javacomplete2'
+    Plug 'artur-shaik/vim-javacomplete2'
 
     " JavaScript
-    Plugin 'Quramy/vim-js-pretty-template'
-    Plugin 'pangloss/vim-javascript'
-    Plugin 'maksimr/vim-jsbeautify'
-    Plugin 'mxw/vim-jsx'
+    Plug 'Quramy/vim-js-pretty-template'
+    Plug 'pangloss/vim-javascript'
+    Plug 'maksimr/vim-jsbeautify'
+    Plug 'mxw/vim-jsx'
 
     " JSON
-    Plugin 'leshill/vim-json'
-
-    " PHP
-    Plugin 'StanAngeloff/php.vim'
-    "Plugin 'ncm2/ncm2'
-    Plugin 'phpactor/phpactor'
-    Plugin 'phpactor/ncm2-phpactor'
-    "Plugin 'roxma/nvim-yarp'
-    Plugin 'shawncplus/phpcomplete.vim'
+    Plug 'leshill/vim-json'
 
     " Snippets
-    "Plugin 'SirVer/ultisnips'
-    Plugin 'honza/vim-snippets'
+    Plug 'honza/vim-snippets'
 
     " TypeScript
-    Plugin 'leafgarland/typescript-vim'
+    Plug 'leafgarland/typescript-vim'
 
     " Tmux
-    Plugin 'christoomey/vim-tmux-navigator'
+    Plug 'christoomey/vim-tmux-navigator'
 
     " Vue
-    Plugin 'posva/vim-vue'
+    Plug 'posva/vim-vue'
 
     " Handling Buffers
-    Plugin 'moll/vim-bbye'
+    Plug 'moll/vim-bbye'
 
     " Comments
-    Plugin 'tpope/vim-commentary'
+    Plug 'tpope/vim-commentary'
 
     " Doc sets integration for vi
-    Plugin 'rizzatti/dash.vim'
+    Plug 'rizzatti/dash.vim'
 
     " End pluing installation with vundle here
-    call vundle#end()
-
-    " Set execution for pathogen
-    "execute pathogen#infect()
-    "filetype plugin indent on
-    "call pathogen#helptags()
-
+    call plug#end()
     " }}}
 
     " Settings for plugins {{{
@@ -298,59 +270,7 @@
     " angular_cli configuration
     autocmd FileType typescript,html call angular_cli#init()
 
-    " Settings for you complete me plugin {{{
-    "
-    " let g:ycm_global_ycm_extra_conf = '~/.vim/bundle/YouCompleteMe/.ycm_extra_conf.py'
-    " let g:ycm_clangd_args = [-background-index]
-    " let g:ycm_python_binary_path = 'python'
-    " let g:ycm_rust_src_path = '~/.cargo/registry/src/'
-    " let g:EclimFileTypeValidate = 0
-
-    " let g:ycm_filetype_blacklist = { 'php': 1, 'javascript.jsx': 1, 'javascript': 1}
-
-    " let g:ycm_language_server = [
-    "   \   {
-    "   \     'name': 'yaml',
-    "   \     'cmdline': [ 'node', expand( '$HOME/.vim/lsp/yaml/node_modules/.bin/yaml-language-server' ), '--stdio' ],
-    "   \     'filetypes': [ 'yaml' ],
-    "   \   },
-    "   \   {
-    "   \     'name': 'php',
-    "   \     'cmdline': [ 'php', expand( '$HOME/.vim/lsp/php/vendor/bin/php-language-server.php' ) ],
-    "   \     'filetypes': [ 'php' ],
-    "   \   },
-    "   \   {
-    "   \     'name': 'json',
-    "   \     'cmdline': [ 'node', expand( '$HOME/.vim/lsp/json/node_modules/.bin/vscode-json-languageserver' ), '--stdio' ],
-    "   \     'filetypes': [ 'json' ],
-    "   \   },
-    "   \   {
-    "   \     'name': 'ruby',
-    "   \     'cmdline': [ expand( '$HOME/.vim/lsp/ruby/bin/solargraph' ), 'stdio' ],
-    "   \     'filetypes': [ 'ruby' ],
-    "   \   },
-    "   \   { 'name': 'kotlin',
-    "   \     'filetypes': [ 'kotlin' ],
-    "   \     'cmdline': [ expand( '$HOME/.vim/lsp/kotlin/server/build/install/server/bin/server' ) ],
-    "   \   },
-    "   \   { 'name': 'd',
-    "   \     'filetypes': [ 'd' ],
-    "   \     'cmdline': [ expand( '$HOME/.vim/lsp/d/serve-d' ) ],
-    "   \   },
-    "   \   { 'name': 'vue',
-    "   \     'filetypes': [ 'vue' ],
-    "   \     'cmdline': [ expand( '$HOME/.vim/lsp/vue/node_modules/.bin/vls' ) ]
-    "   \   },
-    "   \   { 'name': 'docker',
-    "   \     'filetypes': [ 'dockerfile' ],
-    "   \     'cmdline': [ expand( '$HOME/.vim/lsp/docker/node_modules/.bin/docker-langserver' ), '--stdio' ]
-    "   \   },
-    "   \   { 'name': 'vim',
-    "   \     'filetypes': [ 'vim' ],
-    "   \     'cmdline': [ expand( '$HOME/.vim/lsp/viml/node_modules/.bin/vim-language-server' ), '--stdio' ]
-    "   \   },
-    "   \ ]
-    " }}}
+    let g:perl_host_prog = '/usr/bin/perl'
 
     " Eclim settings
     let g:EclimCompletionMethod = 'omnifunc'
@@ -377,63 +297,11 @@
     let g:javascript_conceal_noarg_arrow_function = "🞅"
     let g:javascript_conceal_underscore_arrow_function = "🞅"
 
-    " Configuration for maksimr/vim-jsbeautify
-    ".vimrc
-    "map <c-f> :call JsBeautify()<cr>
-    " or
-    "autocmd FileType javascript noremap <leader> js :call JsBeautify()<cr>
-    "autocmd FileType jsx noremap <leader> jsx :call JsxBeautify()<cr>
-
     " Configuration for MXW/vim-jsx
     let g:jsx_ext_required = 0
 
     " Configuration for rainbow
     let g:rainbow_active = 1
-
-    " CTags settings
-    " let g:Tlist_Ctags_Cmd='/usr/local/Cellar/ctags/5.8_1/bin/ctags'
-    "
-    " " enable gtags module
-    " let g:gutentags_modules = ['ctags', 'gtags_cscope']
-    "
-    " " config project root markers.
-    " let g:gutentags_project_root = ['.root']
-    "
-    " " generate datebases in my cache directory, prevent gtags files polluting my project
-    " let g:gutentags_cache_dir = expand('~/.cache/tags')
-    "
-    " " change focus to quickfix window after search (optional).
-    " let g:gutentags_plus_switch = 1
-    "
-    " " Remap default key settings
-    " let g:gutentags_plus_nomap = 1
-
-    " Key mappings for gutentags
-    " this plugin is currently not being used
-    " noremap <silent> <leader>gs :GscopeFind s <C-R><C-W><cr>
-    " noremap <silent> <leader>gg :GscopeFind g <C-R><C-W><cr>
-    " noremap <silent> <leader>gc :GscopeFind c <C-R><C-W><cr>
-    " noremap <silent> <leader>gt :GscopeFind t <C-R><C-W><cr>
-    " noremap <silent> <leader>ge :GscopeFind e <C-R><C-W><cr>
-    " noremap <silent> <leader>gf :GscopeFind f <C-R>=expand("<cfile>")<cr><cr>
-    " noremap <silent> <leader>gi :GscopeFind i <C-R>=expand("<cfile>")<cr><cr>
-    " noremap <silent> <leader>gd :GscopeFind d <C-R><C-W><cr>
-    " noremap <silent> <leader>ga :GscopeFind a <C-R><C-W><cr>
-
-    " Settings for ncm2-phpactor
-    "autocmd BufEnter * call ncm2#enable_for_buffer()
-    "set completeopt=noinsert,menuone,noselect
-    "
-    "" Settings for ultisnippets
-    "" Trigger configuration. Do not use <tab> if you use https://github.com/Valloric/YouCompleteMe.
-    "let g:UltiSnipsExpandTrigger="<leader><TAB>"
-    "let g:UltiSnipsListSnippets = "<leader><c-tab>"
-    "let g:UltiSnipsJumpForwardTrigger="<c-b>"
-    "let g:UltiSnipsJumpBackwardTrigger="<c-k>"
-    "let g:UltiSnipsSnippetsDir = "~/.config/nvim/UltiSnips"
-    "
-    "" If you want :UltiSnipsEdit to split your window.
-    "let g:UltiSnipsEditSplit="vertical"
 
     " Settings for phpcomplete
     let g:phpcomplete_relax_static_constraint = 1
@@ -579,20 +447,6 @@
       highlight DiffText   cterm=bold ctermfg=white ctermbg=DarkRed
     endfun
 
-    "let g:ulti_expand_or_jump_res = 0
-    ""let g:UltiSnipsEnableSnipMate = 1
-    "
-    "
-    "function! ExpandSnippetOrReturn()
-    "let snippet = UltiSnips#ExpandSnippetOrJump()
-    "if g:ulti_expand_or_jump_res > 0
-    "return snippet
-    "else
-    "return "<CR>"
-    "endif
-    "endfunction
-    "
-    "inoremap pumvisible() ? "=ExpandSnippetOrReturn()" : "<CR>"
     "" }}}
 
     " Mappings {{{
@@ -638,7 +492,7 @@
 
     " Source vimrc
     map <leader>v :source ~/.config/nvim/init.vim<cr> :e <cr>
-    map <leader>m :PluginInstall<cr>
+    map <leader>m :PlugInstall<cr>
 
     " Open ~/.vimrc
     map <leader>" :e ~/.vimrc<cr>
@@ -1611,7 +1465,11 @@
     set runtimepath+=~/.vim-plugins/LanguageClient-neovim
 
     let &packpath = &runtimepath
-
+    let g:python3_host_prog = '/usr/bin/python3'
+    " Disable perl, node and ruby providers
+    let g:loaded_perl_provider = 0
+    let g:loaded_node_provider = 0
+    let g:loaded_ruby_provider = 0
     source ~/.vimrc
   #+end_src
 
