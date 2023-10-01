@@ -413,7 +413,7 @@ configuration work with the different shells in an efficient way.
     # Direnv hook
     eval "$(direnv hook zsh)"
 
-    alias vi="vim"
+    alias vi="nvim"
     alias tmuxsrc="tmux source-file ~/.tmux.conf"
     alias tmuxkillall="tmux ls | cut -d : -f 1 | xargs -I {} tmux kill-session -t {}" # tmux kill all sessions
     alias ct="ctags -R --exclude=.git --exclude=node_modules"
@@ -491,7 +491,7 @@ configuration work with the different shells in an efficient way.
     export LSP_USE_PLISTS=true
 
     if [[ -n "$INSIDE_EMACS" ]]; then
-        # ssource ~/.shell/login
+        ssource ~/.shell/login
     else
         export TERM="xterm-256color"
     fi
