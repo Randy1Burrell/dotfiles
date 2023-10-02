@@ -88,6 +88,7 @@
     - [[#init-prismael][init-prisma.el]]
     - [[#init-projectileel][init-projectile.el]]
     - [[#init-protobufel][init-protobuf.el]]
+    - [[#init-purescriptel][init-purescript.el]]
     - [[#init-pythonel][init-python.el]]
     - [[#init-railsel][init-rails.el]]
     - [[#init-recentfel][init-recentf.el]]
@@ -937,20 +938,21 @@
   (use-package company-emoji
     :after (company)
     :diminish
-    :config (add-to-list 'company-backends 'company-emoji)
-    (defun --set-emoji-font (frame)
-      "Adjust the font settings of FRAME so Emacs can display emoji properly."
-      (if (eq system-type 'darwin)
-          ;; For NS/Cocoa
-          (set-fontset-font t 'symbol (font-spec :family "Apple Color Emoji") frame 'prepend)
-        ;; For Linux
-        (set-fontset-font t 'symbol (font-spec :family "Symbola") frame 'prepend)))
+    :config (add-to-list 'company-backends 'company-emoji))
 
-    ;; For when Emacs is started in GUI mode:
-    (--set-emoji-font nil)
-    ;; Hook for when a frame is created with emacsclient
-    ;; see https://www.gnu.org/software/emacs/manual/html_node/elisp/Creating-Frames.html
-    (add-hook 'after-make-frame-functions '--set-emoji-font))
+  ;; (defun --set-emoji-font (frame)
+  ;;     "Adjust the font settings of FRAME so Emacs can display emoji properly."
+  ;;     (if (eq system-type 'darwin)
+  ;;         ;; For NS/Cocoa
+  ;;         (set-fontset-font t 'symbol (font-spec :family "Apple Color Emoji") frame 'prepend)
+  ;;       ;; For Linux
+  ;;       (set-fontset-font t 'symbol (font-spec :family "Symbola") frame 'prepend)))
+
+  ;; For when Emacs is started in GUI mode:
+  ;; (--set-emoji-font nil)
+  ;; Hook for when a frame is created with emacsclient
+  ;; see https://www.gnu.org/software/emacs/manual/html_node/elisp/Creating-Frames.html
+  ;; (add-hook 'after-make-frame-functions '--set-emoji-font)
 
   (provide 'init-company)
   ;;; init-company.el ends here
@@ -4883,11 +4885,7 @@
         (define-key markdown-mode-map (kbd "\C-c\C-o") 'toc-org-markdown-follow-thing-at-point))
     (warn "toc-org not found"))
 
-  (add-to-list 'org-tag-alist '("TOC" . ?T))
-  (add-to-list 'org-tag-alist '("TOC_2" . ?T2))
-  (add-to-list 'org-tag-alist '("TOC_3" . ?T3))
-  (add-to-list 'org-tag-alist '("TOC_4" . ?T4))
-  (add-to-list 'org-tag-alist '("TOC_5" . ?T5))
+  (add-to-list 'org-tag-alist '("TOC_5" . ?T))
 
   (use-package org-sticky-header
     :hook (org-mode . org-sticky-header-mode)
@@ -5506,15 +5504,12 @@
        (gnuplot . t)
        (haskell . nil)
        (latex . t)
-       ;; (ledger . t)
        (ocaml . nil)
        (octave . t)
        (plantuml . t)
        (python . t)
        (ruby . t)
        (screen . nil)
-       ;; (,(if (locate-library "ob-shell") 'shell) . t)
-       ;; (,(if (locate-library "ob-shell") 'shell) . t)
        (shell . t)
        (sql . t)
        (sqlite . t))))
@@ -6047,8 +6042,10 @@
   (provide 'init-protobuf)
   ;;; init-protobuf.el ends here
 
-  ,#+end_src*** init-purescript.el
-  ,#+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-purescript.el :mkdirp yes
+  #+end_src
+
+*** init-purescript.el
+#+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-purescript.el :mkdirp yes
     ;;; init-purescript.el --- Support the Purescript language -*- lexical-binding: t -*-
     ;;; Commentary:
     ;;; Code:
