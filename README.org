@@ -27,6 +27,9 @@ listed here.
 
 ** [[file:emacs.d/README.org][Emacs Configuration]]
 
+   Contains all my Emacs configurations.
 ** [[file:vim/README.org][Vim Configuration]]
 
+   Contains some simple Vim configuration
 ** [[file:shell/README.org][Shell Configuration]]
+   What my shell environment looks like
