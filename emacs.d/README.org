@@ -1,4 +1,4 @@
-#+Title: My Dot File Configurations
+#+Title: Emacs Configurations
 #+CATEGORY: Configuration
 #+PROPERTY:  header-args:emacs-lisp :tangle yes :mkdirp yes
 #+STARTUP: overview
