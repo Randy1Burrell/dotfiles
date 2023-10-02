@@ -1,0 +1,24 @@
+#+Title: Configuration Files
+#+CATEGORY: Configuration
+#+DESCRIPTION: Herein contains my configuration files that configure my environment on different computer systems
+#+PROPERTY:  header-args:emacs-lisp :tangle yes :mkdirp yes
+#+STARTUP: overview
+
+
+* Configuration Files
+This repository holds all the configurations needed to run the different systems
+I generally use on any given day. To use this then emacs should generate all the
+necessary file using `org-babel` and create the necessary configuration
+folders. There are files that may store sensitive information and configuration
+such as keys needed to access servers, passwords/security tokens to Github or
+other accounts. Hence, for security purposes these files gets encrypted using
+[[https://www.gnupg.org/][The GNU Privacy Guard]] or [[https://github.com/AGWA/git-crypt][Git Crypt]] and are inaccessible, so they do not appear
+listed here.
+
+* Contents of this repository
+
+** [[file:emacs.d/README.org][Emacs Configuration]]
+
+** [[file:vim/README.org][Vim Configuration]]
+
+** [[file:shell/README.org][Shell Configuration]]
