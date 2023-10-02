@@ -5,6 +5,13 @@
 #+STARTUP: overview
 
 
+* Table of Contents                                                        :TOC_5:
+- [[#configuration-files][Configuration Files]]
+- [[#contents-of-this-repository][Contents of this repository]]
+  - [[#emacs-configuration][Emacs Configuration]]
+  - [[#vim-configuration][Vim Configuration]]
+  - [[#shell-configuration][Shell Configuration]]
+
 * Configuration Files
 This repository holds all the configurations needed to run the different systems
 I generally use on any given day. To use this then emacs should generate all the
