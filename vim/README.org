@@ -3,6 +3,12 @@
 #+PROPERTY: header-args:shell: :tangle yes :mkdirp yes
 #+STARTUP: overview
 
+* Table of Contents                                                        :TOC_5:
+- [[#vim][Vim]]
+  - [[#vimrc][VIMRC]]
+  - [[#neo-vim-config][Neo Vim Config]]
+  - [[#vim-snippet][Vim Snippet]]
+
 * Vim
 
 ** VIMRC
@@ -1453,7 +1459,6 @@
     "
     " }}}
   #+end_src
-
 
 ** Neo Vim Config
   This is my neovim configuration. This configuration is minimal and I want it
