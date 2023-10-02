@@ -6,13 +6,14 @@
 
 
 * Table of Contents                                                        :TOC_5:
-- [[#configuration-files][Configuration Files]]
+- [[#description-and-usage][Description and Usage]]
 - [[#contents-of-this-repository][Contents of this repository]]
   - [[#emacs-configuration][Emacs Configuration]]
   - [[#vim-configuration][Vim Configuration]]
   - [[#shell-configuration][Shell Configuration]]
 
-* Configuration Files
+* Description and Usage
+
 This repository holds all the configurations needed to run the different systems
 I generally use on any given day. To use this then emacs should generate all the
 necessary file using `org-babel` and create the necessary configuration
