@@ -4883,6 +4883,12 @@
         (define-key markdown-mode-map (kbd "\C-c\C-o") 'toc-org-markdown-follow-thing-at-point))
     (warn "toc-org not found"))
 
+  (add-to-list 'org-tag-alist '("TOC" . ?T))
+  (add-to-list 'org-tag-alist '("TOC_2" . ?T2))
+  (add-to-list 'org-tag-alist '("TOC_3" . ?T3))
+  (add-to-list 'org-tag-alist '("TOC_4" . ?T4))
+  (add-to-list 'org-tag-alist '("TOC_5" . ?T5))
+
   (use-package org-sticky-header
     :hook (org-mode . org-sticky-header-mode)
     :config
