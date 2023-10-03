@@ -54,7 +54,7 @@
       vtag = !git tag -v `git describe`
 
   [includeIf "gitdir:~/"]
-      path = .gitconfig-personal
+      path = ~/.gitconfig-personal
 
   [gitlab]
       user = randy1burrell
@@ -71,7 +71,7 @@
 #+end_src
 
 ** Work Sub-Configuration
-#+begin_src shell :tangle ~/.gitconfig-work
+#+begin_src shell :notangle ~/.gitconfig-work
   [user]
       email = randy.burrell@tacen.app
       name = randy1burrell
