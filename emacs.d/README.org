@@ -5631,6 +5631,30 @@
           "~/Dropbox/emacs/org/work/Invoices/content/timesheet.org"
           "~/Dropbox/emacs/org/personal"))
 
+  (require 'epa-file)
+  (epa-file-enable)
+
+  (require 'org-crypt)
+  (org-crypt-use-before-save-magic)
+  (setq org-tags-exclude-from-inheritance (quote ("crypt")))
+  ;; GPG key to use for encryption
+  ;; Either the Key ID or set to nil to use symmetric encryption.
+  (setq org-crypt-key "306FAA9223DD193A")
+
+  ;; This fixes the problem where org-crypt make org-babel-tangle fail
+  ;; because src blocks are encrypted before babel runs.
+  ;; Thanks to https://ag91.github.io/blog/2020/10/30/org-crypt-and-tangling-source-blocks/
+  (defun rb/reveal-and-move-back ()
+    (org-reveal)
+    (goto-char rb/old-point))
+  (defun rb/org-reveal-after-save-on ()
+    (setq rb/old-point (point))
+    (add-hook 'after-save-hook 'rb/reveal-and-move-back))
+  (defun rb/org-reveal-after-save-off ()
+    (remove-hook 'after-save-hook 'rb/reveal-and-move-back))
+  (add-hook 'org-babel-pre-tangle-hook 'rb/org-reveal-after-save-on)
+  (add-hook 'org-babel-post-tangle-hook 'rb/org-reveal-after-save-off)
+
   ;; Set org-modules I want to use
   (setq org-modules
         '(ol-bbdb
