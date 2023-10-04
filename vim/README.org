@@ -7,6 +7,7 @@
 - [[#vim][Vim]]
   - [[#vimrc][VIMRC]]
   - [[#neo-vim-config][Neo Vim Config]]
+  - [[#vim-local-plugins][Vim Local Plugins]]
   - [[#vim-snippet][Vim Snippet]]
 
 * Vim
@@ -1477,6 +1478,193 @@
     let g:loaded_ruby_provider = 0
     source ~/.vimrc
   #+end_src
+
+** Vim Local Plugins
+#+begin_src vimrc :tangle ~/.vim/plugin/BufOnly.vim :mkdirp yes
+  " BufOnly.vim  -  Delete all the buffers except the current/named buffer.
+  "
+  " Copyright November 2003 by Christian J. Robinson <infynity@onewest.net>
+  "
+  " Distributed under the terms of the Vim license.  See ":help license".
+  "
+  " Usage:
+  "
+  " :Bonly / :BOnly / :Bufonly / :BufOnly [buffer]
+  "
+  " Without any arguments the current buffer is kept.  With an argument the
+  " buffer name/number supplied is kept.
+
+  command! -nargs=? -complete=buffer -bang Bonly
+      \ :call BufOnly('<args>', '<bang>')
+  command! -nargs=? -complete=buffer -bang BOnly
+      \ :call BufOnly('<args>', '<bang>')
+  command! -nargs=? -complete=buffer -bang Bufonly
+      \ :call BufOnly('<args>', '<bang>')
+  command! -nargs=? -complete=buffer -bang BufOnly
+      \ :call BufOnly('<args>', '<bang>')
+
+  function! BufOnly(buffer, bang)
+      if a:buffer == ''
+          " No buffer provided, use the current buffer.
+          let buffer = bufnr('%')
+      elseif (a:buffer + 0) > 0
+          " A buffer number was provided.
+          let buffer = bufnr(a:buffer + 0)
+      else
+          " A buffer name was provided.
+          let buffer = bufnr(a:buffer)
+      endif
+
+      if buffer == -1
+          echohl ErrorMsg
+          echomsg "No matching buffer for" a:buffer
+          echohl None
+          return
+      endif
+
+      let last_buffer = bufnr('$')
+
+      let delete_count = 0
+      let n = 1
+      while n <= last_buffer
+          if n != buffer && buflisted(n)
+              if a:bang == '' && getbufvar(n, '&modified')
+                  echohl ErrorMsg
+                  echomsg 'No write since last change for buffer'
+                              \ n '(add ! to override)'
+                  echohl None
+              else
+                  silent exe 'bdel' . a:bang . ' ' . n
+                  if ! buflisted(n)
+                      let delete_count = delete_count+1
+                  endif
+              endif
+          endif
+          let n = n+1
+      endwhile
+
+      if delete_count == 1
+          echomsg delete_count "buffer deleted"
+      elseif delete_count > 1
+          echomsg delete_count "buffers deleted"
+      endif
+
+  endfunction
+#+end_src
+
+#+begin_src vimrc :tangle ~/.vim/plugin/scratch.vim :mkdirp yes
+  " File: scratch.vim
+  " Author: Yegappan Lakshmanan (yegappan AT yahoo DOT com)
+  " Version: 1.0
+  " Last Modified: June 3, 2003
+  "
+  " Overview
+  " --------
+  " You can use the scratch plugin to create a temporary scratch buffer to store
+  " and edit text that will be discarded when you quit/exit vim. The contents
+  " of the scratch buffer are not saved/stored in a file.
+  "
+  " Installation
+  " ------------
+  " 1. Copy the scratch.vim plugin to the $HOME/.vim/plugin directory. Refer to
+  "    the following Vim help topics for more information about Vim plugins:
+  "
+  "       :help add-plugin
+  "       :help add-global-plugin
+  "       :help runtimepath
+  "
+  " 2. Restart Vim.
+  "
+  " Usage
+  " -----
+  " You can use the following command to open/edit the scratch buffer:
+  "
+  "       :Scratch
+  "
+  " To open the scratch buffer in a new split window, use the following command:
+  "
+  "       :Sscratch
+  "
+  " When you close the scratch buffer window, the buffer will retain the
+  " contents. You can again edit the scratch buffer by openeing it using one of
+  " the above commands. There is no need to save the scatch buffer.
+  "
+  " When you quit/exit Vim, the contents of the scratch buffer will be lost.
+  " You will not be prompted to save the contents of the modified scratch
+  " buffer.
+  "
+  " You can have only one scratch buffer open in a single Vim instance. If the
+  " current buffer has unsaved modifications, then the scratch buffer will be
+  " opened in a new window
+  "
+  " ****************** Do not modify after this line ************************
+  if exists('loaded_scratch') || &cp
+      finish
+  endif
+  let loaded_scratch=1
+
+  " Scratch buffer name
+  let ScratchBufferName = "__Scratch__"
+
+  " ScratchBufferOpen
+  " Open the scratch buffer
+  function! s:ScratchBufferOpen(new_win)
+      let split_win = a:new_win
+
+      " If the current buffer is modified then open the scratch buffer in a new
+      " window
+      if !split_win && &modified
+          let split_win = 1
+      endif
+
+      " Check whether the scratch buffer is already created
+      let scr_bufnum = bufnr(g:ScratchBufferName)
+      if scr_bufnum == -1
+          " open a new scratch buffer
+          if split_win
+              exe "new " . g:ScratchBufferName
+          else
+              exe "edit " . g:ScratchBufferName
+          endif
+      else
+          " Scratch buffer is already created. Check whether it is open
+          " in one of the windows
+          let scr_winnum = bufwinnr(scr_bufnum)
+          if scr_winnum != -1
+              " Jump to the window which has the scratch buffer if we are not
+              " already in that window
+              if winnr() != scr_winnum
+                  exe scr_winnum . "wincmd w"
+              endif
+          else
+              " Create a new scratch buffer
+              if split_win
+                  exe "split +buffer" . scr_bufnum
+              else
+                  exe "buffer " . scr_bufnum
+              endif
+          endif
+      endif
+  endfunction
+
+  " ScratchMarkBuffer
+  " Mark a buffer as scratch
+  function! s:ScratchMarkBuffer()
+      setlocal buftype=nofile
+      setlocal bufhidden=hide
+      setlocal noswapfile
+      setlocal buflisted
+  endfunction
+
+  autocmd BufNewFile __Scratch__ call s:ScratchMarkBuffer()
+
+  " Command to edit the scratch buffer in the current window
+  command! -nargs=0 Scratch call s:ScratchBufferOpen(0)
+  " Command to open the scratch buffer in a new split window
+  command! -nargs=0 Sscratch call s:ScratchBufferOpen(1)
+
+
+#+end_src
 
 ** Vim Snippet
   I don't believe that snippets have any specific languages so I have put this
