@@ -9,8 +9,11 @@
 - [[#description-and-usage][Description and Usage]]
 - [[#contents-of-this-repository][Contents of this repository]]
   - [[#emacs-configuration][Emacs Configuration]]
-  - [[#vim-configuration][Vim Configuration]]
+  - [[#git-configurations][Git Configurations]]
+  - [[#gpg-configuration][GPG Configuration]]
   - [[#shell-configuration][Shell Configuration]]
+  - [[#vim-configuration][Vim Configuration]]
+  - [[#other-configurations][Other Configurations]]
 
 * Description and Usage
 
@@ -27,9 +30,24 @@ listed here.
 
 ** [[file:emacs.d/README.org][Emacs Configuration]]
 
-   Contains all my Emacs configurations.
+Contains all my Emacs configurations.
+
+** [[file:git_profile/README.org][Git Configurations]]
+
+ This is where I store my git personalisations.
+
+** [[file:gpg/README.org][GPG Configuration]]
+
+GPG configurations are stored here.
+
+** [[file:shell/README.org][Shell Configuration]]
+
+What my shell environment looks like
+
 ** [[file:vim/README.org][Vim Configuration]]
 
-   Contains some simple Vim configuration
-** [[file:shell/README.org][Shell Configuration]]
-   What my shell environment looks like
+Contains simple Vim configurations.
+
+** [[file:other_configs/README.org][Other Configurations]]
+
+This is where I store configurations that are not categorised.
