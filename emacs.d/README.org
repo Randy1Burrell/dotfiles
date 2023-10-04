@@ -5509,6 +5509,7 @@
        (octave . t)
        (plantuml . t)
        (python . t)
+       (js . t)
        (ruby . t)
        (screen . nil)
        (shell . t)
@@ -5522,7 +5523,8 @@
   (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
   (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
   (add-to-list 'org-structure-template-alist '("py" . "src python"))
-  (add-to-list 'org-structure-template-alist '("nj" . "src nodejs"))
+  (add-to-list 'org-structure-template-alist '("rb" . "src ruby"))
+  (add-to-list 'org-structure-template-alist '("js" . "src js"))
 
   (defun org-global-props (&optional rb/property)
     "Get the plists of global org properties of current buffer."
