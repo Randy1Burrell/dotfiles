@@ -12,116 +12,117 @@
     - [[#license][LICENSE]]
     - [[#customel][custom.el]]
     - [[#early-initel][early-init.el]]
-  - [[#lisp-folder][Lisp Folder]]
-    - [[#dir-localsel][.dir-locals.el]]
-    - [[#init-benchmarkingel][init-benchmarking.el]]
-    - [[#init-clojure-ciderel][init-clojure-cider.el]]
-    - [[#init-clojureel][init-clojure.el]]
-    - [[#init-common-lispel][init-common-lisp.el]]
-    - [[#init-companyel][init-company.el]]
-    - [[#init-compileel][init-compile.el]]
-    - [[#init-copilotel][init-copilot.el]]
-    - [[#init-corfuel][init-corfu.el]]
-    - [[#init-crontabel][init-crontab.el]]
-    - [[#init-csharpel][init-csharp.el]]
-    - [[#init-cssel][init-css.el]]
-    - [[#init-csvel][init-csv.el]]
-    - [[#init-darcsel][init-darcs.el]]
-    - [[#init-dashel][init-dash.el]]
-    - [[#init-defaultsel][init-defaults.el]]
-    - [[#init-diredel][init-dired.el]]
-    - [[#init-direnvel][init-direnv.el]]
-    - [[#init-dockerel][init-docker.el]]
-    - [[#init-editing-utilsel][init-editing-utils.el]]
-    - [[#init-elmel][init-elm.el]]
-    - [[#init-elpael][init-elpa.el]]
-    - [[#init-erlangel][init-erlang.el]]
-    - [[#init-evilel][init-evil.el]]
-    - [[#init-exec-pathel][init-exec-path.el]]
-    - [[#init-find-file-in-projectel][init-find-file-in-project.el]]
-    - [[#init-flycheckel][init-flycheck.el]]
-    - [[#init-foldingel][init-folding.el]]
-    - [[#init-frame-hooksel][init-frame-hooks.el]]
-    - [[#init-generalel][init-general.el]]
-    - [[#init-gitel][init-git.el]]
-    - [[#init-githubel][init-github.el]]
-    - [[#init-golangel][init-golang.el]]
-    - [[#init-graphqlel][init-graphql.el]]
-    - [[#init-grepel][init-grep.el]]
-    - [[#init-gui-framesel][init-gui-frames.el]]
-    - [[#init-hamlel][init-haml.el]]
-    - [[#init-haskellel][init-haskell.el]]
-    - [[#init-helper-packagesel][init-helper-packages.el]]
-    - [[#init-helpfulel][init-helpful.el]]
-    - [[#init-hippie-expandel][init-hippie-expand.el]]
-    - [[#init-htmlel][init-html.el]]
-    - [[#init-httpel][init-http.el]]
-    - [[#init-hydrael][init-hydra.el]]
-    - [[#init-ibufferel][init-ibuffer.el]]
-    - [[#init-iconsel][init-icons.el]]
-    - [[#init-isearchel][init-isearch.el]]
-    - [[#init-ivyel][init-ivy.el]]
-    - [[#init-javascriptel][init-javascript.el]]
-    - [[#init-journalel][init-journal.el]]
-    - [[#init-ledgerel][init-ledger.el]]
-    - [[#init-lispel][init-lisp.el]]
-    - [[#init-localesel][init-locales.el]]
-    - [[#init-lspel][init-lsp.el]]
-    - [[#init-magitel][init-magit.el]]
-    - [[#init-markdownel][init-markdown.el]]
-    - [[#init-masterel][init-master.el]]
-    - [[#init-miscel][init-misc.el]]
-    - [[#init-mmmel][init-mmm.el]]
-    - [[#init-my-themesel][init-my-themes.el]]
-    - [[#init-navigationel][init-navigation.el]]
-    - [[#init-nimel][init-nim.el]]
-    - [[#init-nixel][init-nix.el]]
-    - [[#init-nxmlel][init-nxml.el]]
-    - [[#init-ocamlel][init-ocaml.el]]
-    - [[#init-orgel][init-org.el]]
-    - [[#init-osx-keysel][init-osx-keys.el]]
-    - [[#init-pareditel][init-paredit.el]]
-    - [[#init-pdfel][init-pdf.el]]
-    - [[#init-perspectiveel][init-perspective.el]]
-    - [[#init-phpel][init-php.el]]
-    - [[#init-plantumlel][init-plantuml.el]]
-    - [[#init-prismael][init-prisma.el]]
-    - [[#init-projectileel][init-projectile.el]]
-    - [[#init-protobufel][init-protobuf.el]]
-    - [[#init-purescriptel][init-purescript.el]]
-    - [[#init-pythonel][init-python.el]]
-    - [[#init-railsel][init-rails.el]]
-    - [[#init-recentfel][init-recentf.el]]
-    - [[#init-restart-emacsel][init-restart-emacs.el]]
-    - [[#init-rubyel][init-ruby.el]]
-    - [[#init-rustel][init-rust.el]]
-    - [[#init-securityel][init-security.el]]
-    - [[#init-sessionsel][init-sessions.el]]
-    - [[#init-shellel][init-shell.el]]
-    - [[#init-site-lispel][init-site-lisp.el]]
-    - [[#init-slimeel][init-slime.el]]
-    - [[#init-smexel][init-smex.el]]
-    - [[#init-solidityel][init-solidity.el]]
-    - [[#init-spellingel][init-spelling.el]]
-    - [[#init-sqlel][init-sql.el]]
-    - [[#init-straightel][init-straight.el]]
-    - [[#init-tailwindel][init-tailwind.el]]
-    - [[#init-terraformel][init-terraform.el]]
-    - [[#init-textileel][init-textile.el]]
-    - [[#init-themesel][init-themes.el]]
-    - [[#init-tomlel][init-toml.el]]
-    - [[#init-trampel][init-tramp.el]]
-    - [[#init-treemacsel][init-treemacs.el]]
-    - [[#init-uniquifyel][init-uniquify.el]]
-    - [[#init-use-packageel][init-use-package.el]]
-    - [[#init-utilsel][init-utils.el]]
-    - [[#init-vcel][init-vc.el]]
-    - [[#init-webdevel][init-webdev.el]]
-    - [[#init-whitespaceel][init-whitespace.el]]
-    - [[#init-windowsel][init-windows.el]]
-    - [[#init-xtermel][init-xterm.el]]
-    - [[#init-yamlel][init-yaml.el]]
-  - [[#site-lisp-folder][Site Lisp Folder]]
+    - [[#lisp-folder][Lisp Folder]]
+      - [[#dir-localsel][.dir-locals.el]]
+      - [[#init-benchmarkingel][init-benchmarking.el]]
+      - [[#init-clojure-ciderel][init-clojure-cider.el]]
+      - [[#init-clojureel][init-clojure.el]]
+      - [[#init-common-lispel][init-common-lisp.el]]
+      - [[#init-companyel][init-company.el]]
+      - [[#init-compileel][init-compile.el]]
+      - [[#init-copilotel][init-copilot.el]]
+      - [[#init-corfuel][init-corfu.el]]
+      - [[#init-crontabel][init-crontab.el]]
+      - [[#init-csharpel][init-csharp.el]]
+      - [[#init-cssel][init-css.el]]
+      - [[#init-csvel][init-csv.el]]
+      - [[#init-darcsel][init-darcs.el]]
+      - [[#init-dashel][init-dash.el]]
+      - [[#init-defaultsel][init-defaults.el]]
+      - [[#init-diredel][init-dired.el]]
+      - [[#init-direnvel][init-direnv.el]]
+      - [[#init-dockerel][init-docker.el]]
+      - [[#init-editing-utilsel][init-editing-utils.el]]
+      - [[#init-elmel][init-elm.el]]
+      - [[#init-elpael][init-elpa.el]]
+      - [[#init-erlangel][init-erlang.el]]
+      - [[#init-evilel][init-evil.el]]
+      - [[#init-exec-pathel][init-exec-path.el]]
+      - [[#init-find-file-in-projectel][init-find-file-in-project.el]]
+      - [[#init-flycheckel][init-flycheck.el]]
+      - [[#init-foldingel][init-folding.el]]
+      - [[#init-frame-hooksel][init-frame-hooks.el]]
+      - [[#init-generalel][init-general.el]]
+      - [[#init-gitel][init-git.el]]
+      - [[#init-githubel][init-github.el]]
+      - [[#init-golangel][init-golang.el]]
+      - [[#init-graphqlel][init-graphql.el]]
+      - [[#init-grepel][init-grep.el]]
+      - [[#init-gui-framesel][init-gui-frames.el]]
+      - [[#init-hamlel][init-haml.el]]
+      - [[#init-haskellel][init-haskell.el]]
+      - [[#init-helper-packagesel][init-helper-packages.el]]
+      - [[#init-helpfulel][init-helpful.el]]
+      - [[#init-hippie-expandel][init-hippie-expand.el]]
+      - [[#init-htmlel][init-html.el]]
+      - [[#init-httpel][init-http.el]]
+      - [[#init-hydrael][init-hydra.el]]
+      - [[#init-ibufferel][init-ibuffer.el]]
+      - [[#init-iconsel][init-icons.el]]
+      - [[#init-isearchel][init-isearch.el]]
+      - [[#init-ivyel][init-ivy.el]]
+      - [[#init-javascriptel][init-javascript.el]]
+      - [[#init-journalel][init-journal.el]]
+      - [[#init-ledgerel][init-ledger.el]]
+      - [[#init-lispel][init-lisp.el]]
+      - [[#init-localesel][init-locales.el]]
+      - [[#init-lspel][init-lsp.el]]
+      - [[#init-magitel][init-magit.el]]
+      - [[#init-markdownel][init-markdown.el]]
+      - [[#init-masterel][init-master.el]]
+      - [[#init-miscel][init-misc.el]]
+      - [[#init-mmmel][init-mmm.el]]
+      - [[#init-my-themesel][init-my-themes.el]]
+      - [[#init-navigationel][init-navigation.el]]
+      - [[#init-nimel][init-nim.el]]
+      - [[#init-nixel][init-nix.el]]
+      - [[#init-nxmlel][init-nxml.el]]
+      - [[#init-ocamlel][init-ocaml.el]]
+      - [[#init-orgel][init-org.el]]
+      - [[#init-osx-keysel][init-osx-keys.el]]
+      - [[#init-pareditel][init-paredit.el]]
+      - [[#init-pdfel][init-pdf.el]]
+      - [[#init-perspectiveel][init-perspective.el]]
+      - [[#init-phpel][init-php.el]]
+      - [[#init-plantumlel][init-plantuml.el]]
+      - [[#init-prismael][init-prisma.el]]
+      - [[#init-projectileel][init-projectile.el]]
+      - [[#init-protobufel][init-protobuf.el]]
+      - [[#init-purescriptel][init-purescript.el]]
+      - [[#init-pythonel][init-python.el]]
+      - [[#init-railsel][init-rails.el]]
+      - [[#init-recentfel][init-recentf.el]]
+      - [[#init-restart-emacsel][init-restart-emacs.el]]
+      - [[#init-rubyel][init-ruby.el]]
+      - [[#init-rustel][init-rust.el]]
+      - [[#init-securityel][init-security.el]]
+      - [[#init-sessionsel][init-sessions.el]]
+      - [[#init-shellel][init-shell.el]]
+      - [[#init-site-lispel][init-site-lisp.el]]
+      - [[#init-slimeel][init-slime.el]]
+      - [[#init-smexel][init-smex.el]]
+      - [[#init-solidityel][init-solidity.el]]
+      - [[#init-spellingel][init-spelling.el]]
+      - [[#init-sqlel][init-sql.el]]
+      - [[#init-straightel][init-straight.el]]
+      - [[#init-tailwindel][init-tailwind.el]]
+      - [[#init-terraformel][init-terraform.el]]
+      - [[#init-textileel][init-textile.el]]
+      - [[#init-themesel][init-themes.el]]
+      - [[#init-tomlel][init-toml.el]]
+      - [[#init-trampel][init-tramp.el]]
+      - [[#init-treemacsel][init-treemacs.el]]
+      - [[#init-uniquifyel][init-uniquify.el]]
+      - [[#init-use-packageel][init-use-package.el]]
+      - [[#init-utilsel][init-utils.el]]
+      - [[#init-vcel][init-vc.el]]
+      - [[#init-webdevel][init-webdev.el]]
+      - [[#init-whitespaceel][init-whitespace.el]]
+      - [[#init-windowsel][init-windows.el]]
+      - [[#init-xtermel][init-xterm.el]]
+      - [[#init-yamlel][init-yaml.el]]
+    - [[#site-lisp-folder][Site Lisp Folder]]
+    - [[#secrets-folder][Secrets Folder]]
 
 * Emacs Configuration
 
@@ -672,8 +673,8 @@
   ;;; early-init.el ends here
 
 #+end_src
-** Lisp Folder
-*** .dir-locals.el
+*** Lisp Folder
+**** .dir-locals.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/.dir-locals.el :mkdirp yes
   ;;; Directory Local Variables
   ;;; For more information see (info "(emacs) Directory Variables")
@@ -683,7 +684,7 @@
 
 #+end_src
 
-*** init-benchmarking.el
+**** init-benchmarking.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-benchmarking.el :mkdirp yes
   ;;; init-benchmarking.el --- Measure startup and require times -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -766,7 +767,7 @@
 
 #+end_src
 
-*** init-clojure-cider.el
+**** init-clojure-cider.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-clojure-cider.el :mkdirp yes
   ;;; init-clojure-cider.el --- Cider support for clojure -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -793,7 +794,7 @@
 
 #+end_src
 
-*** init-clojure.el
+**** init-clojure.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-clojure.el :mkdirp yes
   ;;; init-clojure.el --- Clojure support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -815,7 +816,7 @@
 
 #+end_src
 
-*** init-common-lisp.el
+**** init-common-lisp.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-common-lisp.el :mkdirp yes
   ;;; init-common-lisp.el --- Common Lisp support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -872,7 +873,7 @@
 
 #+end_src
 
-*** init-company.el
+**** init-company.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-company.el :mkdirp yes
   ;;; init-company.el --- Completion with company -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -959,7 +960,7 @@
 
 #+end_src
 
-*** init-compile.el
+**** init-compile.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-compile.el :mkdirp yes
   ;;; init-compile.el --- Helpers for M-x compile -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1031,7 +1032,7 @@
 
 #+end_src
 
-*** init-copilot.el
+**** init-copilot.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-copilot.el :mkdirp yes
   ;;; init-copilot.el --- Github copilot integration -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1171,7 +1172,7 @@
 
 #+end_src
 
-*** init-corfu.el
+**** init-corfu.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-corfu.el :mkdirp yes
   ;;; init-corfu.el --- Completion with Corfu -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1278,7 +1279,7 @@
 
 #+end_src
 
-*** init-crontab.el
+**** init-crontab.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-crontab.el :mkdirp yes
   ;;; init-crontab.el --- Working with crontabs -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1292,7 +1293,7 @@
 
 #+end_src
 
-*** init-csharp.el
+**** init-csharp.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-csharp.el :mkdirp yes
   ;;; init-csharp.el --- Provides omnisharp -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1307,7 +1308,7 @@
 
 #+end_src
 
-*** init-css.el
+**** init-css.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-css.el :mkdirp yes
   ;;; init-css.el --- CSS/Less/SASS/SCSS support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1383,7 +1384,7 @@
 
 #+end_src
 
-*** init-csv.el
+**** init-csv.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-csv.el :mkdirp yes
   ;;; init-csv.el --- CSV files -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1400,7 +1401,7 @@
 
 #+end_src
 
-*** init-darcs.el
+**** init-darcs.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-darcs.el :mkdirp yes
   ;;; init-darcs.el --- Support for the Darcs DVCS -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1421,7 +1422,7 @@
 
 #+end_src
 
-*** init-dash.el
+**** init-dash.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-dash.el :mkdirp yes
   ;;; init-dash.el --- Integrate with the Mac app "Dash" -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1438,7 +1439,7 @@
 
 #+end_src
 
-*** init-defaults.el
+**** init-defaults.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-defaults.el :mkdirp yes
   ;;; init-defaults.el --- Support defaults -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1540,7 +1541,7 @@
 
 #+end_src
 
-*** init-dired.el
+**** init-dired.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-dired.el :mkdirp yes
   ;;; init-dired.el --- Dired customisations -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1604,7 +1605,7 @@
 
 #+end_src
 
-*** init-direnv.el
+**** init-direnv.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-direnv.el :mkdirp yes
   ;;; init-direnv.el --- Integrate with direnv -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1626,7 +1627,7 @@
 
 #+end_src
 
-*** init-docker.el
+**** init-docker.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-docker.el :mkdirp yes
   ;;; init-docker.el --- Work with Docker and its tools -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1644,7 +1645,7 @@
 
 #+end_src
 
-*** init-editing-utils.el
+**** init-editing-utils.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-editing-utils.el :mkdirp yes
   ;;; init-editing-utils.el --- Day-to-day editing helpers -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -1978,7 +1979,7 @@
 
 #+end_src
 
-*** init-elm.el
+**** init-elm.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-elm.el :mkdirp yes
   ;;; init-elm.el --- Support for the Elm language -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2003,7 +2004,7 @@
 
 #+end_src
 
-*** init-elpa.el
+**** init-elpa.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-elpa.el :mkdirp yes
   ;;; init-elpa.el --- Settings and helpers for package.el -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2131,7 +2132,7 @@
 
 #+end_src
 
-*** init-erlang.el
+**** init-erlang.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-erlang.el :mkdirp yes
   ;;; init-erlang.el --- Support for the Erlang language -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2146,7 +2147,7 @@
 
 #+end_src
 
-*** init-evil.el
+**** init-evil.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-evil.el :mkdirp yes
   ;;; init-evil.el --- Provides evil -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2222,7 +2223,7 @@
 
 #+end_src
 
-*** init-exec-path.el
+**** init-exec-path.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-exec-path.el :mkdirp yes
   ;;; init-exec-path.el --- Set up exec-path to help Emacs find programs  -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2246,7 +2247,7 @@
 
 #+end_src
 
-*** init-find-file-in-project.el
+**** init-find-file-in-project.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-find-file-in-project.el :mkdirp yes
   ;;; init-find-file-in-project.el --- loads treemacs package -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2261,7 +2262,7 @@
 
 #+end_src
 
-*** init-flycheck.el
+**** init-flycheck.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-flycheck.el :mkdirp yes
   ;;; init-flycheck.el --- Configure Flycheck global behaviour -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2281,7 +2282,7 @@
 
 #+end_src
 
-*** init-folding.el
+**** init-folding.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-folding.el :mkdirp yes
   ;;; init-folding.el --- Support code and region folding -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2298,7 +2299,7 @@
 
 #+end_src
 
-*** init-frame-hooks.el
+**** init-frame-hooks.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-frame-hooks.el :mkdirp yes
   ;;; init-frame-hooks.el --- Provide specific hooks for GUI/TTY frame creation -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2333,7 +2334,7 @@
 
 #+end_src
 
-*** init-general.el
+**** init-general.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-general.el :mkdirp yes
   ;;; init-general.el --- Provides shell  -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2425,7 +2426,7 @@
 
 #+end_src
 
-*** init-git.el
+**** init-git.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-git.el :mkdirp yes
   ;;; init-git.el --- Git SCM support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2533,7 +2534,7 @@
 
 #+end_src
 
-*** init-github.el
+**** init-github.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-github.el :mkdirp yes
   ;;; init-github.el --- Github integration -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2554,7 +2555,7 @@
 
 #+end_src
 
-*** init-golang.el
+**** init-golang.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-golang.el :mkdirp yes
   ;;; init-golang.el --- Support Golang files -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2627,7 +2628,7 @@
 
 #+end_src
 
-*** init-graphql.el
+**** init-graphql.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-graphql.el :mkdirp yes
   ;;; init-graphql.el --- GraphQL integration -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2646,7 +2647,7 @@
 
 #+end_src
 
-*** init-grep.el
+**** init-grep.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-grep.el :mkdirp yes
   ;;; init-grep.el --- Settings for grep and grep-like tools -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2679,7 +2680,7 @@
 
 #+end_src
 
-*** init-gui-frames.el
+**** init-gui-frames.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-gui-frames.el :mkdirp yes
   ;;; init-gui-frames.el --- Behaviour specific to non-TTY frames -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2777,7 +2778,7 @@
 
 #+end_src
 
-*** init-haml.el
+**** init-haml.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-haml.el :mkdirp yes
   ;;; init-haml.el --- Haml template support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2793,7 +2794,7 @@
 
 #+end_src
 
-*** init-haskell.el
+**** init-haskell.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-haskell.el :mkdirp yes
   ;;; init-haskell.el --- Support the Haskell language -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2875,7 +2876,7 @@
 
 #+end_src
 
-*** init-helper-packages.el
+**** init-helper-packages.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-helper-packages.el :mkdirp yes
   ;;; init-helper-packages.el --- Support defaults -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -2978,7 +2979,7 @@
 
 #+end_src
 
-*** init-helpful.el
+**** init-helpful.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-helpful.el :mkdirp yes
   ;;; init-helpful.el --- Provides helpful -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3003,7 +3004,7 @@
 
 #+end_src
 
-*** init-hippie-expand.el
+**** init-hippie-expand.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-hippie-expand.el :mkdirp yes
   ;;; init-hippie-expand.el --- Settings for hippie-expand -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3023,7 +3024,7 @@
 
 #+end_src
 
-*** init-html.el
+**** init-html.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-html.el :mkdirp yes
   ;;; init-html.el --- Editing HTML -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3047,7 +3048,7 @@
 
 #+end_src
 
-*** init-http.el
+**** init-http.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-http.el :mkdirp yes
   ;;; init-http.el --- Work with HTTP APIs -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3078,7 +3079,7 @@
 
 #+end_src
 
-*** init-hydra.el
+**** init-hydra.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-hydra.el :mkdirp yes
   ;;; init-hydra.el --- Support defaults -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3105,7 +3106,7 @@
 
 #+end_src
 
-*** init-ibuffer.el
+**** init-ibuffer.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-ibuffer.el :mkdirp yes
   ;;; init-ibuffer.el --- ibuffer settings -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3168,7 +3169,7 @@
 
 #+end_src
 
-*** init-icons.el
+**** init-icons.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-icons.el :mkdirp yes
   ;;; init-icons.el --- Support defaults -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3193,7 +3194,7 @@
 
 #+end_src
 
-*** init-isearch.el
+**** init-isearch.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-isearch.el :mkdirp yes
   ;;; init-isearch.el --- isearch settings -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3248,7 +3249,7 @@
 
 #+end_src
 
-*** init-ivy.el
+**** init-ivy.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-ivy.el :mkdirp yes
   ;;; init-ivy.el --- Use ivy for minibuffer completion and more -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3343,7 +3344,7 @@
 
 #+end_src
 
-*** init-javascript.el
+**** init-javascript.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-javascript.el :mkdirp yes
   ;;; init-javascript.el --- Support for Javascript and derivatives -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3462,7 +3463,7 @@
 
 #+end_src
 
-*** init-journal.el
+**** init-journal.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-journal.el :mkdirp yes
   ;;; init-journal.el --- journaling -*- lexical-binding: t -*-
   ;;; Commentary: I use this as my tool for journaling.
@@ -3516,7 +3517,7 @@
 
 #+end_src
 
-*** init-ledger.el
+**** init-ledger.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-ledger.el :mkdirp yes
   ;;; init-ledger.el --- Support for the ledger CLI accounting tool -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3546,7 +3547,7 @@
 
 #+end_src
 
-*** init-lisp.el
+**** init-lisp.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-lisp.el :mkdirp yes
   ;;; init-lisp.el --- Emacs lisp settings, and common config for other lisps -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3853,7 +3854,7 @@
 
 #+end_src
 
-*** init-locales.el
+**** init-locales.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-locales.el :mkdirp yes
   ;;; init-locales.el --- Configure default locale -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -3884,7 +3885,7 @@
 
 #+end_src
 
-*** init-lsp.el
+**** init-lsp.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-lsp.el :mkdirp yes
   ;;; init-lsp.el --- Provides completion engine -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4025,7 +4026,7 @@
 
 #+end_src
 
-*** init-magit.el
+**** init-magit.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-magit.el :mkdirp yes
   ;;; init-magit.el --- Support Yaml files -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4148,7 +4149,7 @@
 
 #+end_src
 
-*** init-markdown.el
+**** init-markdown.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-markdown.el :mkdirp yes
   ;;; init-markdown.el --- Markdown support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4165,7 +4166,7 @@
 
 #+end_src
 
-*** init-master.el
+**** init-master.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-master.el :mkdirp yes
   ;;; init-master.el --- loads init-master.el -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4388,7 +4389,7 @@
 
 #+end_src
 
-*** init-misc.el
+**** init-misc.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-misc.el :mkdirp yes
   ;;; init-misc.el --- Miscellaneous config -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4446,7 +4447,7 @@
 
 #+end_src
 
-*** init-mmm.el
+**** init-mmm.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-mmm.el :mkdirp yes
   ;;; init-mmm.el --- Multiple Major Modes support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4466,7 +4467,7 @@
 
 #+end_src
 
-*** init-my-themes.el
+**** init-my-themes.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-my-themes.el :mkdirp yes
   ;;; init-my-themes.el --- Support Yaml files -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4499,7 +4500,7 @@
 
 #+end_src
 
-*** init-navigation.el
+**** init-navigation.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-navigation.el :mkdirp yes
   ;;; init-navigation.el --- Support navigation commands -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4584,7 +4585,7 @@
 
 #+end_src
 
-*** init-nim.el
+**** init-nim.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-nim.el :mkdirp yes
   ;;; init-nim.el --- Nim programming support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4602,7 +4603,7 @@
 
 #+end_src
 
-*** init-nix.el
+**** init-nix.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-nix.el :mkdirp yes
   ;;; init-nix.el --- Support for the Nix package manager -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4635,7 +4636,7 @@
 
 #+end_src
 
-*** init-nxml.el
+**** init-nxml.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-nxml.el :mkdirp yes
   ;;; init-nxml.el --- Support for editing XML with NXML -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4691,7 +4692,7 @@
 
 #+end_src
 
-*** init-ocaml.el
+**** init-ocaml.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-ocaml.el :mkdirp yes
   ;;; init-ocaml.el --- Support the OCaml language -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4755,7 +4756,7 @@
 
 #+end_src
 
-*** init-org.el
+**** init-org.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-org.el :mkdirp yes
   ;;; init-org.el --- Org-mode config -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -5521,6 +5522,7 @@
   (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
   (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
   (add-to-list 'org-structure-template-alist '("py" . "src python"))
+  (add-to-list 'org-structure-template-alist '("nj" . "src nodejs"))
 
   (defun org-global-props (&optional rb/property)
     "Get the plists of global org properties of current buffer."
@@ -5776,7 +5778,7 @@
 
 #+end_src
 
-*** init-osx-keys.el
+**** init-osx-keys.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-osx-keys.el :mkdirp yes
   ;;; init-osx-keys.el --- Configure keys specific to MacOS -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -5807,7 +5809,7 @@
 
 #+end_src
 
-*** init-paredit.el
+**** init-paredit.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-paredit.el :mkdirp yes
   ;;; init-paredit.el --- Configure paredit structured editing -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -5855,7 +5857,7 @@
 
 #+end_src
 
-*** init-pdf.el
+**** init-pdf.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-pdf.el :mkdirp yes
   ;;; init-pdf.el --- PDF Configurations -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -5872,7 +5874,7 @@
 
 #+end_src
 
-*** init-perspective.el
+**** init-perspective.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-perspective.el :mkdirp yes
   ;;; init-perspective.el --- Provides omnisharp -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -5907,7 +5909,7 @@
 
 #+end_src
 
-*** init-php.el
+**** init-php.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-php.el :mkdirp yes
   ;;; init-php.el --- Support for working with PHP -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -5925,7 +5927,7 @@
 
 #+end_src
 
-*** init-plantuml.el
+**** init-plantuml.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-plantuml.el :mkdirp yes
   ;;; init-plantuml.el --- Provides plantuml-mode -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -5971,7 +5973,7 @@
 
 #+end_src
 
-*** init-prisma.el
+**** init-prisma.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-prisma.el :mkdirp yes
   ;;; init-prisma.el --- Prisma integration -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6012,7 +6014,7 @@
 
 #+end_src
 
-*** init-projectile.el
+**** init-projectile.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-projectile.el :mkdirp yes
   ;;; init-projectile.el --- Use Projectile for navigation within projects -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6051,7 +6053,7 @@
 
 #+end_src
 
-*** init-protobuf.el
+**** init-protobuf.el
 
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-protobuf.el :mkdirp yes
   ;;; init-protobuf.el --- Sets up mode for writing protocol buffer -*- lexical-binding: t -*-
@@ -6068,7 +6070,7 @@
 
   #+end_src
 
-*** init-purescript.el
+**** init-purescript.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-purescript.el :mkdirp yes
     ;;; init-purescript.el --- Support the Purescript language -*- lexical-binding: t -*-
     ;;; Commentary:
@@ -6141,7 +6143,7 @@
 
 #+end_src
 
-*** init-python.el
+**** init-python.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-python.el :mkdirp yes
   ;;; init-python.el --- Python editing -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6207,7 +6209,7 @@
 
 #+end_src
 
-*** init-rails.el
+**** init-rails.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-rails.el :mkdirp yes
   ;;; init-rails.el --- Ruby on Rails support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6224,7 +6226,7 @@
 #+end_src
 
 
-*** init-recentf.el
+**** init-recentf.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-recentf.el :mkdirp yes
   ;;; init-recentf.el --- Settings for tracking recent files -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6242,7 +6244,7 @@
 #+end_src
 
 
-*** init-restart-emacs.el
+**** init-restart-emacs.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-restart-emacs.el :mkdirp yes
   ;;; init-restart-emacs.el --- loads restart-emacs package -*- lexical-binding: t -*-
 
@@ -6260,7 +6262,7 @@
 #+end_src
 
 
-*** init-ruby.el
+**** init-ruby.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-ruby.el :mkdirp yes
   ;;; init-ruby.el --- Support for the Ruby language -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6399,7 +6401,7 @@
 #+end_src
 
 
-*** init-rust.el
+**** init-rust.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-rust.el :mkdirp yes
   ;;; init-rust.el --- Support for the Rust language -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6462,7 +6464,7 @@
 #+end_src
 
 
-*** init-security.el
+**** init-security.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-security.el :mkdirp yes
   ;;; init-security.el --- Security tools -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6478,7 +6480,7 @@
 #+end_src
 
 
-*** init-sessions.el
+**** init-sessions.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-sessions.el :mkdirp yes
   ;;; init-sessions.el --- Save and restore editor sessions between restarts -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6558,7 +6560,7 @@
 #+end_src
 
 
-*** init-shell.el
+**** init-shell.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-shell.el :mkdirp yes
   ;;; init-shell.el --- Provides shell  -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6644,7 +6646,7 @@
 #+end_src
 
 
-*** init-site-lisp.el
+**** init-site-lisp.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-site-lisp.el :mkdirp yes
   ;;; init-site-lisp.el --- Support elisp manually installed in the site-lisp dir -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6704,7 +6706,7 @@
 #+end_src
 
 
-*** init-slime.el
+**** init-slime.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-slime.el :mkdirp yes
   ;;; init-slime.el --- Slime support for Common Lisp -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6752,7 +6754,7 @@
 #+end_src
 
 
-*** init-smex.el
+**** init-smex.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-smex.el :mkdirp yes
   ;;; init-smex.el --- Use smex to improve M-x -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6770,7 +6772,7 @@
 #+end_src
 
 
-*** init-solidity.el
+**** init-solidity.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-solidity.el :mkdirp yes
   ;;; init-solidity.el --- PDF Configurations -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6797,7 +6799,7 @@
 #+end_src
 
 
-*** init-spelling.el
+**** init-spelling.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-spelling.el :mkdirp yes
   ;;; init-spelling.el --- Spell check settings -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6819,7 +6821,7 @@
 #+end_src
 
 
-*** init-sql.el
+**** init-sql.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-sql.el :mkdirp yes
   ;;; init-sql.el --- Support for SQL -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -6956,7 +6958,7 @@
 #+end_src
 
 
-*** init-straight.el
+**** init-straight.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-straight.el :mkdirp yes
   ;; init-straight.el --- Initialize straight.el -*- lexical-binding: t -*-
   (defvar bootstrap-version)
@@ -6981,7 +6983,7 @@
 #+end_src
 
 
-*** init-tailwind.el
+**** init-tailwind.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-tailwind.el :mkdirp yes
   ;;; init-tailwind.el --- Tailwind integration -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7000,7 +7002,7 @@
 #+end_src
 
 
-*** init-terraform.el
+**** init-terraform.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-terraform.el :mkdirp yes
   ;;; init-terraform.el --- Work with Terraform configurations -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7026,7 +7028,7 @@
 #+end_src
 
 
-*** init-textile.el
+**** init-textile.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-textile.el :mkdirp yes
   ;;; init-textile.el --- Edit Textile markup -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7044,7 +7046,7 @@
 #+end_src
 
 
-*** init-themes.el
+**** init-themes.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-themes.el :mkdirp yes
   ;;; init-themes.el --- Defaults for themes -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7108,7 +7110,7 @@
 #+end_src
 
 
-*** init-toml.el
+**** init-toml.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-toml.el :mkdirp yes
   ;;; init-toml.el --- Support TOML files -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7124,7 +7126,7 @@
 #+end_src
 
 
-*** init-tramp.el
+**** init-tramp.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-tramp.el :mkdirp yes
   ;;; init-tramp.el --- loads tramps package extras -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7155,7 +7157,7 @@
 #+end_src
 
 
-*** init-treemacs.el
+**** init-treemacs.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-treemacs.el :mkdirp yes
   ;;; init-treemacs.el --- loads treemacs package -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7255,7 +7257,7 @@
 #+end_src
 
 
-*** init-uniquify.el
+**** init-uniquify.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-uniquify.el :mkdirp yes
   ;;; init-uniquify.el --- Configure uniquification of buffer names -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7277,7 +7279,7 @@
 #+end_src
 
 
-*** init-use-package.el
+**** init-use-package.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-use-package.el :mkdirp yes
   ;;; init-use-package.el --- Provides omnisharp -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7302,7 +7304,7 @@
 #+end_src
 
 
-*** init-utils.el
+**** init-utils.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-utils.el :mkdirp yes
   ;;; init-utils.el --- Elisp helper functions and commands -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7390,7 +7392,7 @@
 #+end_src
 
 
-*** init-vc.el
+**** init-vc.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-vc.el :mkdirp yes
   ;;; init-vc.el --- Version control support -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7417,7 +7419,7 @@
 #+end_src
 
 
-*** init-webdev.el
+**** init-webdev.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-webdev.el :mkdirp yes
   ;;; init-webbed.el --- loads treemacs package -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7502,7 +7504,7 @@
 #+end_src
 
 
-*** init-whitespace.el
+**** init-whitespace.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-whitespace.el :mkdirp yes
   ;;; init-whitespace.el --- Special handling for whitespace -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7535,7 +7537,7 @@
 #+end_src
 
 
-*** init-windows.el
+**** init-windows.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-windows.el :mkdirp yes
   ;;; init-windows.el --- Working with windows within frames -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7653,7 +7655,7 @@
 #+end_src
 
 
-*** init-xterm.el
+**** init-xterm.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-xterm.el :mkdirp yes
   ;;; init-xterm.el --- Integrate with terminals such as xterm -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7680,7 +7682,7 @@
 #+end_src
 
 
-*** init-yaml.el
+**** init-yaml.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-yaml.el :mkdirp yes
   ;;; init-yaml.el --- Support Yaml files -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -7696,10 +7698,34 @@
 
 #+end_src
 
-** Site Lisp Folder
+*** Site Lisp Folder
 #+begin_src markdown :tangle ~/.emacs.d/site-lisp/README.md :mkdirp yes
   This is a place for 3rd party code which isn't available in MELPA or
   other package repositories. This directory and its immediate subdirectories
   will be added to load-path at start-up time.
 
 #+end_src
+
+*** Secrets Folder                              :crypt:
+-----BEGIN PGP MESSAGE-----
+
+hQIMA0W4l8nHGHn8ARAAg6PUhlXAYXGF6CpVp10W3LAFsn2W6p2bJa48xGdod0YW
+qTjGTk+Dr/ovn1LmWDNrmWZ6DfOKQwSlRL6izTo5CjU4o0+fLaOgL/9ZA2Wxxm+z
+Kzne/3miivdoErEoLRmxd1lYabfT/eqBFhlGS8P6REJVQDKGrFTtesms2JnnxPy7
+p3NTKDYlOXhTf9RO+w2+BB0Ot5P2Bhp7os9zXk5eTkH+B4TeZggcwChJZryVeidQ
+g0xrikQ4S04dW1oQ3JvlwlpTiPJr1H/Nr6YC8mY6e9/Inp1FCkqepUrSHEbdfpXk
+lhCvHn0QRzrFiA6LnuuSEFec8f2akICoS8+TWlvvn1V23xCD8Rs3XvZNwvn7zVM+
+QfWZF+cM/Wam7FLKHOX95tWZbuszsBZkdnmindTJKvdMWuwD3uQflA9ED5mzfTv2
+z7Cb8VYoPDRnceePvHFgKWf5ZFQbm22u10MnMDH+lVNHQvEiLLg8cx8RBQDCJtES
+q9EgkoPldH8GNeoZp/BexSNNV5TB0Whjv0zBES3in4VSVh3Dt6lgW5Pea5eAzW3t
+wJPqlcJSJlMrZcR0zE6ULyMpr0EFjN1Mmc0o0AtSTeSA+wM4HlBS/6lnkBs0e6k0
+HYgBelWOeCqiky4riAcZwX0+zQDRmHypEGZZQgXTVkrDbg1fsg59n2N6xddfpR7S
+wHQBDL5l+WYwmG52TBfxRRD2U12bdKmdeunfr9Ys+e/kVX3n2UU2ZvRCXOUGMtyM
+VJ0ttb273fU+QxC5nRuqSwDXuX+p4SVsKRRkCMK8VTzvct9nYxjyKdgfRgacrSwf
+Xgz+RCLaSiPZFfWKFKAppBQWw/E+879XDjlHtAy4WlthNhZUN3bgOp+mHUL/vfOc
+ITXowyw52w0i/ciNuSfwf6NcSivTSqYEIvnDh0CKN7TjorEu3RsIJAGsMv4VBgON
+nivmIyXxtLFUveMNVHubhqZu82/npFVN2zF8VhWl32UtOMNVynMUr/oY9xcqTwht
+UidjJlfLFLxYzfN8P/hNp9xv40Kb27lH50T597MiTvmlLt9PNJkkS6UnHbiU5xvI
+3Yb6JPeSc+9jw/OnMDVXV0vBdhP8EQ==
+=wBLa
+-----END PGP MESSAGE-----
