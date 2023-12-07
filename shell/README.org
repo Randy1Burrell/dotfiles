@@ -13,13 +13,10 @@ configuration work with the different shells in an efficient way.
     . ~/.bash/env
     . ~/.bash/interactive
   #+end_src
-** Bashprofile
+** Bash Profile
   #+begin_src shell :tangle ~/.bash_profile
-    . ~/.shell/env
-    # We need to do two things here:
-
-    # 1. Ensure ~/.bash/env gets run first
     . ~/.bash/env
+    # We need to do two things here:
 
     # 2. Prevent it from being run later, since we need to use $BASH_ENV for
     # non-login non-interactive shells.
@@ -30,8 +27,7 @@ configuration work with the different shells in an efficient way.
     # 3. Join the spanish inquisition. ;)
     # so much for only two things...
 
-    # 4. Run ~/.bash/login
-    . ~/.bash/login
+    export EA_EDITOR='/Applications/Emacs.app/Contents/MacOS/bin/emacsclient -a "" -c -d $DISPLAY'
 
     # 5. Run ~/.bash/interactive if this is an interactive shell.
     if [ "$PS1" ]; then
@@ -48,17 +44,17 @@ configuration work with the different shells in an efficient way.
 
 *** Interactive file
   #+begin_src shell :tangle ~/.bash/interactive :mkdirp yes
-    . ~/.bash/interactive
+https://    . ~/.shell/interactive
   #+end_src
 
 *** Login file
   #+begin_src shell :tangle ~/.bash/login
-    . ~/.bash/login
+    . ~/.shell/login
   #+end_src
 
 *** Logout file
   #+begin_src shell :tangle ~/.bash/logout :mkdirp yes
-    . ~/.bash/logout
+    . ~/.shell/logout
   #+end_src
 
 * Sh
@@ -129,19 +125,17 @@ configuration work with the different shells in an efficient way.
     # Set up ruby
     export GEM_HOME="/Users/randyburrell/.gem"
 
-    # Set up ruby include files
-    export CPPFLAGS="-I/usr/local/opt/ruby/include"
     export PKG_CONFIG_PATH="/usr/local/opt/ruby/lib/pkgconfig:/usr/local/Cellar/glib/2.66.4/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/Cellar/libffi/3.3/lib/pkgconfig"
 
     # PATH to java home MacOS
     export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk-11.0.2.jdk/Contents/Home"
 
     # LLVM flags
-    export LDFLAGS="-L/usr/local/opt/llvm/lib:-L/usr/local/opt/llvm@13/lib"
-    export CPPFLAGS="-I/usr/local/opt/llvm/include:-I/usr/local/opt/llvm@13/include"
+    export LDFLAGS="-L/usr/local/opt/llvm/lib:-L/usr/local/opt/llvm@13/lib:-L/opt/homebrew/opt/sqlite/lib"
+    export CPPFLAGS="-I/usr/local/opt/llvm/include:-I/usr/local/opt/llvm@13/include:-I/opt/homebrew/opt/sqlite/include:-I/usr/local/opt/ruby/include"
 
     # Path for sword
-    export SWORD_PATH="/Users/randyburrell/Library/Application Support/Sword"
+    export SWORD_PATH="/Users/randyburrell/Library/Application\ Support/Sword"
 
     # Set default language type
     export LANG=en_US.UTF-8
@@ -150,7 +144,7 @@ configuration work with the different shells in an efficient way.
     export GPG_TTY=$(tty)
 
     # Path to binary files
-    export PATH="/Users/randyburrell/Applications/google-cloud-sdk/bin:/usr/local/opt/gnupg@2.2/bin:/Users/randyburrell/.pyenv/shims:/opt/local/bin:/opt/local/sbin:/Users/randyburrell/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/sbin:/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.custom_scripts:/Users/randyburrell/.rvm/bin:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/usr/local/opt/ruby/bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/usr/local/opt/llvm/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/opt/llvm@13/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.rvm/bin:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/usr/local/opt/ruby/bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/usr/local/opt/llvm/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/opt/llvm@13/bin:/Users/randyburrell/.ghcup/bin"
+    export PATH="/Users/randyburrell/Applications/google-cloud-sdk/bin:/usr/local/opt/gnupg@2.2/bin:/Users/randyburrell/.pyenv/shims:/opt/local/bin:/opt/local/sbin:/Users/randyburrell/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/texlive/2023/bin/universal-darwin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/sbin:/usr/sbin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.custom_scripts:/Users/randyburrell/.rvm/bin:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/usr/local/opt/ruby/bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/usr/local/opt/llvm/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/opt/llvm@13/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.rvm/bin:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/usr/local/opt/ruby/bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/usr/local/opt/llvm/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/opt/llvm@13/bin:/Users/randyburrell/.ghcup/bin"
 
     # Kubernetes configuration document
     export KUBECONFIG=~/.kube/kube-configs/kubeconfig-tacen-dev-us-01-bare.yaml
@@ -366,7 +360,10 @@ configuration work with the different shells in an efficient way.
     # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
     # Example format: plugins=(rails git textmate ruby lighthouse)
     # Add wisely, as too many plugins slow down shell startup.
-    plugins=(git emacs)
+    plugins=(git emacs docker docker-compose nix-zsh-completions)
+
+    # Show nix prompt whenever I'm in a nix environment
+    # prompt_nix_shell_setup
 
     # Completion function for wordpress cli
     _wp_complete() {
@@ -473,30 +470,37 @@ configuration work with the different shells in an efficient way.
     export GREP_OPTIONS='--color=auto'
     export GREP_COLOR='0;31'
 
+    export LSP_USE_PLISTS=true
+
     export CLICOLOR=1
 
     # Exports for brew
     export HOMEBREW_INSTALL_BADGE="☕️ 🐸"
+    export HOMEBREW_NO_ENV_HINTS="true"
 
     function prompt_char {
         git branch >/dev/null 2>/dev/null && echo '±' && return
         hg root >/dev/null 2>/dev/null && echo '☿' && return
         echo '○'
     }
+
+
+    # Homebrew for mac with apple sillicon
+    eval "$(/opt/homebrew/bin/brew shellenv)"
     ssource $ZSH/oh-my-zsh.sh
 
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-    export LSP_USE_PLISTS=true
+    # export LSP_USE_PLISTS=true
+
 
     if [[ -n "$INSIDE_EMACS" ]]; then
         ssource ~/.shell/login
     else
         export TERM="xterm-256color"
     fi
-
   #+end_src
 
 *** Login
@@ -531,7 +535,7 @@ configuration work with the different shells in an efficient way.
     }
   #+end_src
 
-*** Logout
+**** Logout
   #+begin_src shell :tangle ~/.shell/logout
 
   #+end_src
@@ -565,7 +569,6 @@ configuration work with the different shells in an efficient way.
     # MacPorts Installer addition on 2021-05-17_at_22:01:45: adding an appropriate DISPLAY variable for use with MacPorts.
     export DISPLAY=:0
     # Finished adapting your DISPLAY environment variable for use with MacPorts.
-
   #+end_src
 
 ** ZSH Folders

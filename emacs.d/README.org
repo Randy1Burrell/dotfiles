@@ -69,7 +69,6 @@
       - [[#init-lspel][init-lsp.el]]
       - [[#init-magitel][init-magit.el]]
       - [[#init-markdownel][init-markdown.el]]
-      - [[#init-masterel][init-master.el]]
       - [[#init-miscel][init-misc.el]]
       - [[#init-mmmel][init-mmm.el]]
       - [[#init-my-themesel][init-my-themes.el]]
@@ -143,7 +142,7 @@
 
     (let ((minver "24.5"))
       (when (version< emacs-version minver)
-        (error "Your Emacs is too old -- this config requires v%s or higher" minver)))
+	(error "Your Emacs is too old -- this config requires v%s or higher" minver)))
     (when (version< emacs-version "25.1")
       (message "Your Emacs is old, and some functionality in this config will be disabled. Please upgrade if possible."))
 
@@ -157,10 +156,10 @@
     ;; Adjust garbage collection thresholds during startup, and thereafter
     ;;----------------------------------------------------------------------------
     (let ((normal-gc-cons-threshold (* 60 1024 1024))
-          (init-gc-cons-threshold (* 2 256 1024 1024)))
+	  (init-gc-cons-threshold (* 2 256 1024 1024)))
       (setq gc-cons-threshold init-gc-cons-threshold)
       (add-hook 'emacs-startup-hook
-                (lambda () (setq gc-cons-threshold normal-gc-cons-threshold))))
+		(lambda () (setq gc-cons-threshold normal-gc-cons-threshold))))
 
     ;;----------------------------------------------------------------------------
     ;; Bootstrap config
@@ -310,10 +309,10 @@
     ;; Allow access from emacsclient
     ;;----------------------------------------------------------------------------
     (add-hook 'after-init-hook
-              (lambda ()
-                (require 'server)
-                (unless (server-running-p)
-                  (server-start))))
+	      (lambda ()
+		(require 'server)
+		(unless (server-running-p)
+		  (server-start))))
 
     ;;----------------------------------------------------------------------------
     ;; Variables configured via the interactive 'customize' interface
@@ -333,11 +332,6 @@
     ;;----------------------------------------------------------------------------
     (require 'init-local nil t)
 
-
-    ;;----------------------------------------------------------------------------
-    ;; Get webdev here
-    ;;----------------------------------------------------------------------------
-    (require 'init-webdev)
 
     ;;----------------------------------------------------------------------------
     ;; Let's add some defaults here
@@ -410,9 +404,9 @@
     (require 'init-protobuf)
 
     ;;----------------------------------------------------------------------------
-    ;; Add Straight
+    ;; Get webdev here
     ;;----------------------------------------------------------------------------
-    (require 'init-straight)
+    (require 'init-webdev)
 
     ;;----------------------------------------------------------------------------
     ;; Support for copilot
@@ -588,7 +582,6 @@
   echo "Attempting startup..."
   ${EMACS:=emacs} -nw --batch \
                   --eval '(let ((debug-on-error t)
-                                (url-show-status nil)
                                 (user-emacs-directory default-directory)
                                 (user-init-file (expand-file-name "init.el"))
                                 (load-path (delq default-directory load-path)))
@@ -634,7 +627,7 @@
    ;; If there is more than one, they won't work right.
    '(custom-enabled-themes '(sanityinc-tomorrow-bright))
    '(package-selected-packages
-     '(envrc uptimes shfmt dotenv-mode daemons osx-location htmlize lua-mode gnuplot sudo-edit flycheck-ledger ledger-mode dash-at-point origami regex-tool info-colors flycheck-clojure cider elein cljsbuild-mode clojure-mode slime-company slime cask-mode flycheck-relint cl-libify flycheck-package highlight-quoted macrostep aggressive-indent immortal-scratch auto-compile ipretty elisp-slime-nav paredit nginx-mode nix-buffer nix-sandbox nixpkgs-fmt nix-mode company-terraform terraform-mode docker-compose-mode dockerfile-mode docker yaml-mode flycheck-rust racer rust-mode flycheck-nim nim-mode merlin-eldoc merlin tuareg sqlformat projectile-rails yard-mode bundler yari robe ruby-compilation inf-ruby rspec-mode ruby-hash-syntax psci psc-ide purescript-mode flycheck-elm elm-test-runner elm-mode dhall-mode dante haskell-mode reformatter toml-mode company-anaconda anaconda-mode pip-requirements restclient httprepl haml-mode css-eldoc skewer-less sass-mode rainbow-mode tagedit org-pomodoro writeroom-mode org-cliplink grab-mac-link company-php smarty-mode php-mode add-node-modules-path skewer-mode js-comint coffee-mode xref-js2 prettier-js typescript-mode js2-mode json-mode erlang csv-mode markdown-mode textile-mode crontab-mode alert ibuffer-projectile github-review forge github-clone bug-reference-github yagist git-commit magit-todos magit git-timemachine git-blamed vc-darcs browse-at-remote whitespace-cleanup-mode which-key highlight-escape-sequences whole-line-or-region move-dup page-break-lines multiple-cursors avy browse-kill-ring symbol-overlay rainbow-delimiters goto-line-preview beacon mode-line-bell vlf list-unicode-display unfill mmm-mode session windswap switch-window company-quickhelp company ivy-xref swiper projectile counsel ivy-rich ivy smex flycheck-color-mode-line flycheck ibuffer-vc rg wgrep-ag ag wgrep anzu diff-hl diredfl disable-mouse default-text-scale ns-auto-titlebar dimmer color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized command-log-mode scratch diminish exec-path-from-shell gnu-elpa-keyring-update fullframe seq dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode zlc yasnippet-snippets yankpad writegood-mode wordnut web-mode vterm vimrc-mode undo-tree treemacs-projectile treemacs-perspective treemacs-magit treemacs-icons-dired treemacs-evil toc-org synosaurus sqlite3 speed-type spaceline smartscan rustic restart-emacs protobuf-mode pretty-hydra plantuml-mode persp-projectile pdf-tools org-sticky-header org-pretty-tags org-noter org-journal org-fancy-priorities org-bullets omnisharp ob-async nov lorem-ipsum langtool indium helpful google-translate go-eldoc general fancy-battery evil-surround evil-nerd-commenter evil-collection eterm-256color eshell-git-prompt emojify emmet-mode editorconfig-generate editorconfig djvu dired-single dired-open dired-hide-dotfiles counsel-projectile company-solidity company-shell company-emoji company-box bui buffer-flip auto-package-update apheleia all-the-icons-gnus all-the-icons-dired))
+     '(envrc uptimes shfmt dotenv-mode daemons osx-location htmlize lua-mode gnuplot sudo-edit flycheck-ledger ledger-mode dash-at-point origami regex-tool info-colors flycheck-clojure cider elein cljsbuild-mode clojure-mode slime-company slime cask-mode flycheck-relint cl-libify flycheck-package highlight-quoted macrostep aggressive-indent immortal-scratch auto-compile ipretty elisp-slime-nav paredit nginx-mode nix-buffer nix-sandbox nixpkgs-fmt nix-mode company-terraform terraform-mode docker-compose-mode dockerfile-mode docker yaml-mode flycheck-rust racer rust-mode flycheck-nim nim-mode merlin-eldoc merlin tuareg sqlformat projectile-rails yard-mode bundler yari robe ruby-compilation inf-ruby rspec-mode ruby-hash-syntax psci psc-ide purescript-mode flycheck-elm elm-test-runner elm-mode dhall-mode dante haskell-mode reformatter toml-mode company-anaconda anaconda-mode pip-requirements restclient httprepl haml-mode css-eldoc skewer-less sass-mode rainbow-mode tagedit org-pomodoro writeroom-mode org-cliplink grab-mac-link company-php smarty-mode php-mode add-node-modules-path skewer-mode js-comint coffee-mode xref-js2 typescript-mode js2-mode json-mode erlang csv-mode markdown-mode textile-mode crontab-mode alert ibuffer-projectile github-review forge github-clone bug-reference-github yagist git-commit magit-todos magit git-timemachine git-blamed vc-darcs browse-at-remote whitespace-cleanup-mode which-key highlight-escape-sequences whole-line-or-region move-dup page-break-lines multiple-cursors avy browse-kill-ring symbol-overlay rainbow-delimiters goto-line-preview beacon mode-line-bell vlf list-unicode-display unfill mmm-mode session windswap switch-window company-quickhelp company ivy-xref swiper projectile counsel ivy-rich ivy smex flycheck-color-mode-line flycheck ibuffer-vc rg wgrep-ag ag wgrep anzu diff-hl diredfl disable-mouse default-text-scale ns-auto-titlebar dimmer color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized command-log-mode scratch diminish exec-path-from-shell gnu-elpa-keyring-update fullframe seq dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode zlc yasnippet-snippets yankpad writegood-mode wordnut vterm vimrc-mode undo-tree treemacs-projectile treemacs-perspective treemacs-magit treemacs-icons-dired treemacs-evil toc-org synosaurus speed-type spaceline smartscan rustic restart-emacs protobuf-mode pretty-hydra plantuml-mode persp-projectile pdf-tools org-sticky-header org-pretty-tags org-noter org-journal org-fancy-priorities org-bullets omnisharp ob-async nov lorem-ipsum langtool indium helpful google-translate go-eldoc general fancy-battery evil-surround evil-nerd-commenter evil-collection eterm-256color eshell-git-prompt emojify emmet-mode editorconfig-generate editorconfig djvu dired-single dired-open dired-hide-dotfiles counsel-projectile company-solidity company-shell company-emoji company-box bui buffer-flip auto-package-update apheleia all-the-icons-gnus all-the-icons-dired))
    '(session-use-package t nil (session)))
   (custom-set-faces
    ;; custom-set-faces was added by Custom.
@@ -2016,23 +2009,22 @@
   
   ;;; Install into separate package dirs for each Emacs version, to prevent bytecode incompatibility
   (setq package-user-dir
-        (expand-file-name (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
-                          user-emacs-directory))
+	(expand-file-name (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
+			  user-emacs-directory))
   (let ((versioned-package-dir
-         (expand-file-name (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
-                           user-emacs-directory)))
+	 (expand-file-name (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
+			   user-emacs-directory)))
     (setq package-user-dir versioned-package-dir))
 
   
   ;;; Standard package repositories
   ;; Make all commands of the “package” module present.
   (let* ((no-ssl (and (memq system-type '(windows-nt ms-dos))
-                      (not (gnutls-available-p))))
-         (proto (if no-ssl "http://" "https://")))
+		      (not (gnutls-available-p))))
+	 (proto (if no-ssl "http://" "https://")))
     (add-to-list 'package-archives (cons "org" (concat proto "orgmode.org/elpa/")) t)
     (add-to-list 'package-archives (cons "gnu" (concat proto "elpa.gnu.org/packages/")) t)
-    (add-to-list 'package-archives (cons "melpa" (concat proto "melpa.org/packages/")) t)
-    (add-to-list 'package-archives (cons "melpa-stable" (concat proto "stable.melpa.org/packages/")) t))
+    (add-to-list 'package-archives (cons "melpa" (concat proto "melpa.org/packages/")) t))
 
   
   ;; Work-around for https://debbugs.gnu.org/cgi/bugreport.cgi?bug=34341
@@ -2047,14 +2039,14 @@
   If NO-REFRESH is non-nil, the available package lists will not be
   re-downloaded in order to locate PACKAGE."
     (or (package-installed-p package min-version)
-        (let* ((known (cdr (assoc package package-archive-contents)))
-               (versions (mapcar #'package-desc-version known)))
-          (if (cl-some (lambda (v) (version-list-<= min-version v)) versions)
-              (package-install package)
-            (if no-refresh
-                (error "No version of %s >= %S is available" package min-version)
-              (package-refresh-contents)
-              (require-package package min-version t))))))
+	(let* ((known (cdr (assoc package package-archive-contents)))
+	       (versions (mapcar #'package-desc-version known)))
+	  (if (cl-some (lambda (v) (version-list-<= min-version v)) versions)
+	      (package-install package)
+	    (if no-refresh
+		(error "No version of %s >= %S is available" package min-version)
+	      (package-refresh-contents)
+	      (require-package package min-version t))))))
 
   (defun maybe-require-package (package &optional min-version no-refresh)
     "Try to install PACKAGE, and return non-nil if successful.
@@ -2063,7 +2055,7 @@
   available package lists will not be re-downloaded in order to
   locate PACKAGE."
     (condition-case err
-        (require-package package min-version no-refresh)
+	(require-package package min-version no-refresh)
       (error
        (message "Couldn't install optional package `%s': %S" package err)
        nil)))
@@ -2088,18 +2080,18 @@
   advice for `require-package', to which ARGS are passed."
     (let ((available (apply oldfun package args)))
       (prog1
-          available
-        (when available
-          (add-to-list 'sanityinc/required-packages package)))))
+	  available
+	(when available
+	  (add-to-list 'sanityinc/required-packages package)))))
 
   (advice-add 'require-package :around 'sanityinc/note-selected-package)
 
   (when (fboundp 'package--save-selected-packages)
     (require-package 'seq)
     (add-hook 'after-init-hook
-              (lambda ()
-                (package--save-selected-packages
-                 (seq-uniq (append sanityinc/required-packages package-selected-packages))))))
+	      (lambda ()
+		(package--save-selected-packages
+		 (seq-uniq (append sanityinc/required-packages package-selected-packages))))))
 
   
   (require-package 'fullframe)
@@ -2114,15 +2106,15 @@
     "Set any column with name COL-NAME to the given WIDTH."
     (when (> width (length col-name))
       (cl-loop for column across tabulated-list-format
-               when (string= col-name (car column))
-               do (setf (elt column 1) width))))
+	       when (string= col-name (car column))
+	       do (setf (elt column 1) width))))
 
   (defun sanityinc/maybe-widen-package-menu-columns ()
     "Widen some columns of the package menu table to avoid truncation."
     (when (boundp 'tabulated-list-format)
       (sanityinc/set-tabulated-list-column-width "Version" 13)
       (let ((longest-archive-name (apply 'max (mapcar 'length (mapcar 'car package-archives)))))
-        (sanityinc/set-tabulated-list-column-width "Archive" longest-archive-name))))
+	(sanityinc/set-tabulated-list-column-width "Archive" longest-archive-name))))
 
   (add-hook 'package-menu-mode-hook 'sanityinc/maybe-widen-package-menu-columns)
 
@@ -2234,8 +2226,6 @@
   (with-eval-after-load 'exec-path-from-shell
     (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH" "GOPATH" "LSP_USE_PLISTS"))
       (add-to-list 'exec-path-from-shell-variables var)))
-
-  (setq exec-path-from-shell-arguments nil)
 
   (when (or (memq window-system '(mac ns x))
             (unless (memq system-type '(ms-dos windows-nt))
@@ -2800,6 +2790,8 @@
   ;;; Commentary:
   ;;; Code:
 
+  (use-package lsp-haskell)
+
   (when (maybe-require-package 'haskell-mode)
     (add-hook 'haskell-mode-hook 'subword-mode)
     (add-hook 'haskell-cabal-mode 'subword-mode)
@@ -3353,7 +3345,7 @@
   (maybe-require-package 'json-mode)
   (maybe-require-package 'js2-mode)
   (maybe-require-package 'typescript-mode)
-  (maybe-require-package 'prettier-js)
+  ;; (maybe-require-package 'prettier-js)
 
   
   ;;; Basic js-mode setup
@@ -3892,8 +3884,7 @@
   ;; Intellisense like binding with lsp-mode
   ;;; Code:
 
-  (unless (package-installed-p 'use-package)
-    (package-install 'use-package))
+  (maybe-require-package 'use-package)
 
   ;; Lsp mode seems to require a large amount of memory to work properly
   (setq read-process-output-max (* 10 1024 1024))
@@ -3909,23 +3900,23 @@
 
   (use-package lsp-mode
     :commands (lsp lsp-deferred)
-    :hook  ((terraform-mode . lsp-deff) (lsp-mode . efs/lsp-mode-setup) )
-    :init
-    (setq lsp-idle-delay 0.1
-          ;; lsp-use-plists t
+    :hook  ((terraform-mode . lsp-deff) (lsp-mode . efs/lsp-mode-setup) (web-mode . lsp) (haskell-mode . lsp))
+    :custom
+    (lsp-eldoc-render-all t)
+    (lsp-idle-delay 0.5)
+    :after
+    (which-key)
+    :config
+    (setq lsp-idle-delay 0.5
+          lsp-use-plists t
           lsp-log-io nil
           lsp-eldoc-render-all t
           lsp-rust-analyzer-server-display-inlay-hints t
+          lsp-clients-typescript-log-verbosity "verbose"
           lsp-headerline-breadcrumb-enable t
-          lsp-enable-indentation nil
-          lsp-restart 'auto-restart)
-    :custom
-    (lsp-eldoc-render-all t)
-    (lsp-idle-delay 0.1)
-    :after (which-key)
-    ;; enable / disable the hints as you prefer:
-    :config
-    (require 'lsp-terraform)
+          lsp-enable-indentation t
+          lsp-restart 'auto-restart
+          )
     (lsp-enable-which-key-integration t)
     (setq lsp-keymap-prefix "s-8")
     (add-hook 'lsp-mode-hook 'lsp-ui-mode))
@@ -3967,7 +3958,6 @@
                   scss-mode-hook
                   terraform-mode-hook
                   typescript-mode-hook
-                  web-mode-hook
                   c++-mode-hook))
     (add-hook mode 'lsp))
 
@@ -4016,10 +4006,10 @@
 
   (setq lsp-keymap-prefix "s-8")
   ;; Set up lsp-eslint
-  (setq lsp-eslint-server-command
-        '("node"
-          "/Users/randyburrell/.emacs.d/.extension/vscode/dbaeumer.vscode-eslint-2.1.19/extension/server/out/eslintServer.js"
-          "--stdio"))
+  ;; (setq lsp-eslint-server-command
+  ;; '("node"
+  ;; "/Users/randyburrell/.emacs.d/.extension/vscode/dbaeumer.vscode-eslint-2.1.19/extension/server/out/eslintServer.js"
+  ;; "--stdio"))
 
   (provide 'init-lsp)
   ;;; init-lsp.el ends here
@@ -4166,7 +4156,7 @@
 
 #+end_src
 
-**** init-master.el
+**** COMMENT init-master.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-master.el :mkdirp yes
   ;;; init-master.el --- loads init-master.el -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -4275,8 +4265,8 @@
   (eval-after-load 'js-mode
     '(add-hook 'js-mode-hook #'add-node-modules-path))
 
-  (eval-after-load 'web-mode
-    '(add-hook 'web-mode-hook #'add-node-modules-path))
+  ;; (eval-after-load 'web-mode
+    ;; '(add-hook 'web-mode-hook #'add-node-modules-path))
 
   (maybe-clone "git@github.com:jorgenschaefer/pyvenv.git"
                "~/.emacs.d/site-lisp/pyvenv")
@@ -6952,7 +6942,7 @@
   (with-eval-after-load 'page-break-lines
     (add-to-list 'page-break-lines-modes 'sql-mode))
 
-  (use-package sqlite3)
+  (use-package emacsql-sqlite-builtin)
 
   (provide 'init-sql)
   ;;; init-sql.el ends here
@@ -6997,6 +6987,8 @@
           lsp-tailwindcss-add-on-mode t)
     :config
     (add-to-list 'lsp-language-id-configuration '(".*\\.erb$" . "html")))
+
+  (add-hook 'before-save-hook 'lsp-tailwindcss-rustywind-before-save)
 
   (provide 'init-tailwind)
   ;;; init-tailwind.el ends here
@@ -7434,12 +7426,17 @@
   ;; Set up web-mode
   ;;------------------------------------------------------------------------------
   (use-package web-mode
-    :init
-    (aggressive-indent-global-mode -1)
     :config
-    (setq global-aggressive-indent-mode -1))
+    (setq web-mode-attr-indent-offset 'standard-indent)
+    (setq web-mode-enable-auto-closing t)
+    (setq web-mode-enable-current-column-highlight t)
+    (setq web-mode-enable-current-element-highlight t))
 
-  (add-hook 'web-mode-hook #'(lambda () (aggressive-indent-mode -1)))
+  
+  (when (maybe-require-package 'add-node-modules-path)
+    (dolist (mode '(web-mode))
+      (add-hook (derived-mode-hook-name mode) 'add-node-modules-path)))
+
   ;;------------------------------------------------------------------------------
   ;; aligns annotation to the right hand side
   ;;------------------------------------------------------------------------------
@@ -7448,7 +7445,7 @@
   ;;------------------------------------------------------------------------------
   ;; formats the buffer before saving
   ;;------------------------------------------------------------------------------
-  (when (maybe-require-package 'flycheck))
+  ;; (when (maybe-require-package 'flycheck))
 
   (setq company-tooltip-align-annotations t)
   ;;------------------------------------------------------------------------------
@@ -7458,7 +7455,6 @@
     :config
     (apheleia-global-mode +1))
 
-  (add-hook 'apheleia-mode-hook #'(lambda () (aggressive-indent-mode -1)))
   ;;------------------------------------------------------------------------------
   ;; Add these files to web-mode list
   ;;------------------------------------------------------------------------------
@@ -7467,17 +7463,11 @@
     (mapc
      (lambda (x)
        (add-to-list 'auto-mode-alist (cons x 'web-mode)))
-     '("\\.json\\'" "\\.cjs\\'" "\\.mjs\\'" "\\.jsx\\'" "\\.js\\'" "\\.tsx\\'" "\\.ts\\'")))
+     '("\\.jsx\\'" "\\.tsx\\'")))
 
   (rb/web-mode)
 
-  ;;------------------------------------------------------------------------------
-  ;; Just in-case I missed these files run prettier in these modes
-  ;;------------------------------------------------------------------------------
-  (add-hook 'js2-mode-hook 'prettier-js-mode)
-  (add-hook 'web-mode-hook 'prettier-js-mode)
-
-  ;;------------------------------------------------------------------------------
+  ;; ------------------------------------------------------------------------------
   ;; Run emmet-mode in web-mode
   ;;------------------------------------------------------------------------------
   (use-package emmet-mode
@@ -7492,13 +7482,6 @@
 
   (unless (package-installed-p 'indium)
     (package-install 'indium))
-
-  ;;------------------------------------------------------------------------------
-  ;; Run indium interaction js-mode and web-mode
-  ;;------------------------------------------------------------------------------
-  ;; (add-hook 'js-mode-hook #'indium-interaction-mode)
-  ;; (add-hook 'js2-mode-hook #'indium-interaction-mode)
-  ;; (add-hook 'web-mode-hook #'indium-interaction-mode)
 
   (provide 'init-webdev)
   ;;; init-webdev.el ends here
@@ -7682,7 +7665,6 @@
   ;;; init-xterm.el ends here
 
 #+end_src
-
 
 **** init-yaml.el
 #+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-yaml.el :mkdirp yes
