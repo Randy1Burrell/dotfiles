@@ -468,7 +468,7 @@ https://    . ~/.shell/interactive
     ## SET UP COLOR
     # Change grep color options
     export GREP_OPTIONS='--color=auto'
-    export GREP_COLOR='0;31'
+    export GREP_COLOR='mt=0;31'
 
     export LSP_USE_PLISTS=true
 

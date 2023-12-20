@@ -3892,6 +3892,7 @@
   (defun efs/lsp-mode-setup ()
     "Show path to project."
     (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
+    (add-hook 'before-save-hook #'lsp-organize-imports t t)
     (lsp-headerline-breadcrumb-mode))
 
   (use-package terraform-mode
@@ -3903,7 +3904,7 @@
     :hook  ((terraform-mode . lsp-deff) (lsp-mode . efs/lsp-mode-setup) (web-mode . lsp) (haskell-mode . lsp))
     :custom
     (lsp-eldoc-render-all t)
-    (lsp-idle-delay 0.5)
+    (lsp-idle-delay 0.1)
     :after
     (which-key)
     :config
@@ -6942,7 +6943,7 @@
   (with-eval-after-load 'page-break-lines
     (add-to-list 'page-break-lines-modes 'sql-mode))
 
-  (use-package emacsql-sqlite-builtin)
+  (use-package emacsql-sqlite)
 
   (provide 'init-sql)
   ;;; init-sql.el ends here
@@ -6988,7 +6989,7 @@
     :config
     (add-to-list 'lsp-language-id-configuration '(".*\\.erb$" . "html")))
 
-  (add-hook 'before-save-hook 'lsp-tailwindcss-rustywind-before-save)
+  ;; (add-hook 'before-save-hook 'lsp-tailwindcss-rustywind-before-save)
 
   (provide 'init-tailwind)
   ;;; init-tailwind.el ends here
