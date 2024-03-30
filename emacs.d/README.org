@@ -27,6 +27,7 @@
       - [[#init-cssel][init-css.el]]
       - [[#init-csvel][init-csv.el]]
       - [[#init-darcsel][init-darcs.el]]
+      - [[#init-dart-flutter][init-dart-flutter]]
       - [[#init-dashel][init-dash.el]]
       - [[#init-defaultsel][init-defaults.el]]
       - [[#init-diredel][init-dired.el]]
@@ -142,7 +143,7 @@
 
     (let ((minver "24.5"))
       (when (version< emacs-version minver)
-	(error "Your Emacs is too old -- this config requires v%s or higher" minver)))
+    (error "Your Emacs is too old -- this config requires v%s or higher" minver)))
     (when (version< emacs-version "25.1")
       (message "Your Emacs is old, and some functionality in this config will be disabled. Please upgrade if possible."))
 
@@ -156,10 +157,10 @@
     ;; Adjust garbage collection thresholds during startup, and thereafter
     ;;----------------------------------------------------------------------------
     (let ((normal-gc-cons-threshold (* 60 1024 1024))
-	  (init-gc-cons-threshold (* 2 256 1024 1024)))
+      (init-gc-cons-threshold (* 2 256 1024 1024)))
       (setq gc-cons-threshold init-gc-cons-threshold)
       (add-hook 'emacs-startup-hook
-		(lambda () (setq gc-cons-threshold normal-gc-cons-threshold))))
+        (lambda () (setq gc-cons-threshold normal-gc-cons-threshold))))
 
     ;;----------------------------------------------------------------------------
     ;; Bootstrap config
@@ -309,10 +310,10 @@
     ;; Allow access from emacsclient
     ;;----------------------------------------------------------------------------
     (add-hook 'after-init-hook
-	      (lambda ()
-		(require 'server)
-		(unless (server-running-p)
-		  (server-start))))
+          (lambda ()
+        (require 'server)
+        (unless (server-running-p)
+          (server-start))))
 
     ;;----------------------------------------------------------------------------
     ;; Variables configured via the interactive 'customize' interface
@@ -414,19 +415,24 @@
     ;; (require 'init-copilot)
 
     ;;----------------------------------------------------------------------------
-    ;; Support for copilot
+    ;; Support for graphql
     ;;----------------------------------------------------------------------------
     (require 'init-graphql)
 
     ;;----------------------------------------------------------------------------
-    ;; Support for copilot
+    ;; Support for prisma
     ;;----------------------------------------------------------------------------
     (require 'init-prisma)
 
     ;;----------------------------------------------------------------------------
-    ;; Support for copilot
+    ;; Support for tailwind
     ;;----------------------------------------------------------------------------
     (require 'init-tailwind)
+
+    ;;----------------------------------------------------------------------------
+    ;; Support for dart and flutter
+    ;;----------------------------------------------------------------------------
+    (require 'init-dart)
 
     ;;----------------------------------------------------------------------------
     ;; Add svg capabilities - this is a fix for treemacs to be able to use svg
@@ -1412,6 +1418,30 @@
 
   (provide 'init-darcs)
   ;;; init-darcs.el ends here
+
+#+end_src
+
+**** init-dart-flutter
+#+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-dart.el :mkdirp yes
+  ;;; init-dart.el --- Support Dart files -*- lexical-binding: t -*-
+  ;;; Commentary:
+  ;;; Code:
+
+  ;; Assuming usage with dart-mode
+  (use-package dart-mode
+    ;; Optional
+    :hook (dart-mode . flutter-test-mode))
+
+  (use-package flutter
+    :after dart-mode
+    :bind (:map dart-mode-map
+                ("C-M-x" . #'flutter-run-or-hot-reload))
+    :custom
+    (flutter-sdk-path "~/Projects/Environments/flutter/"))
+
+
+  (provide 'init-dart)
+  ;;; init-dart.el ends here
 
 #+end_src
 
