@@ -59,7 +59,11 @@
   [gitlab]
       user = randy1burrell
       email = randy1burrell@yahoo.com
-
+  # Taken from https://emacsformacosx.com/tips
+  [merge]
+          tool = ediff
+  [mergetool "ediff"]
+          cmd = emacs --eval \"(ediff-merge-files-with-ancestor \\\"$LOCAL\\\" \\\"$REMOTE\\\" \\\"$BASE\\\" nil \\\"$MERGED\\\")\"
 #+end_src
 
 ** Personal Sub-Configuration

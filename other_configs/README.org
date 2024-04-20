@@ -51,16 +51,12 @@
 
   # Matched different files
   # Set default charset
-  [*.{js,java,html,php,py,rb,css,c,cpp,yml,conf,sh}]
+  [*.{ts,tsx,jsx,js,java,html,php,py,rb,css,c,cpp,yml,conf,sh}]
   # Insert a final new line for certain file types
   insert_final_newline = true
 
   # Indentation style for different program files
-  [*.{jade,json,js,html,htm,css,sh,py,rb,snippet}]
-  indent_style = space
-  indent_size = 2
-
-  [*.{py,rb,c,cpp,java,yml,conf}]
+  [*.{jade,json,js,html,htm,css,sh,py,rb,rs,snippet,c,cpp,java,yml,conf}]
   indent_style = space
   indent_size = 2
 

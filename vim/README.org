@@ -1466,7 +1466,8 @@
   to remain that way for now, since I have moved over to Emacs. I see no need to
   add to this yet because I do not intend to come back to vim and can manage
   most tasks without having the need to install any plugins.
-  #+begin_src vimrc :tangle ~/.config/nvim/init.vim :mkdirp yes
+  #+begin_src vimrc :notangle ~/.config/nvim/init.vim :mkdirp yes
+    " Installing this package instead  https://github.com/NvChad/NvChad?tab=readme-ov-file
     set runtimepath^=/.vim runtimepath+=~/.vim/after
     set runtimepath+=~/.vim-plugins/LanguageClient-neovim
 
@@ -1477,6 +1478,49 @@
     " let g:loaded_node_provider = 0
     " let g:loaded_ruby_provider = 0
     source ~/.vimrc
+  #+end_src
+
+  #+begin_src vimrc :tangle ~/.config/nvim/init.lua :mkdirp yes
+    vim.g.base46_cache = vim.fn.stdpath "data" .. "/nvchad/base46/"
+    vim.g.mapleader = " "
+
+    -- bootstrap lazy and all plugins
+    local lazypath = vim.fn.stdpath "data" .. "/lazy/lazy.nvim"
+
+    if not vim.loop.fs_stat(lazypath) then
+      local repo = "https://github.com/folke/lazy.nvim.git"
+      vim.fn.system { "git", "clone", "--filter=blob:none", repo, "--branch=stable", lazypath }
+    end
+
+    vim.opt.rtp:prepend(lazypath)
+
+    local lazy_config = require "configs.lazy"
+
+    -- load plugins
+    require("lazy").setup({
+      {
+        "NvChad/NvChad",
+        lazy = false,
+        branch = "v2.5",
+        import = "nvchad.plugins",
+        config = function()
+          require "options"
+        end,
+      },
+
+      { import = "plugins" },
+    }, lazy_config)
+
+    -- load theme
+    dofile(vim.g.base46_cache .. "defaults")
+    dofile(vim.g.base46_cache .. "statusline")
+
+    require "nvchad.autocmds"
+
+    vim.schedule(function()
+      require "mappings"
+    end)
+
   #+end_src
 
 ** Vim Local Plugins
