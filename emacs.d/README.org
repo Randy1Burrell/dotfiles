@@ -465,6 +465,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;; vim like bindings
   ;;; Code:
   (with-eval-after-load 'eglot
+    (add-to-list 'eglot-server-programs '((web-mode) . ("typescript-language-server")))
     (add-to-list 'eglot-server-programs '((rust-mode rust-ts-mode) . ("rust-analyzer"))))
 
   (dolist (mode '(bash-ts-mode-hook
@@ -483,6 +484,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
                   ruby-mode-hook
                   ruby-ts-mode-hook
                   rust-mode-hook
+                  go-mode-hook
+                  go-ts-mode-hook
+                  web-mode-hook
                   rust-ts-mode-hook
                   sass-mode-hook
                   scss-mode-hook
@@ -627,7 +631,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
       :global-prefix "s-SPC")
     (efs/leader-keys
       "t"  '(:ignore t :which-key "TOGGLES")
-      "tt" '(counsel-load-theme :which-key "Choose Theme")
+      ;; "tt" '(counsel-load-theme :which-key "Choose Theme")
       "tl" '(toggle-truncate-lines :which-key "Toggle Truncate Lines")))
 
   (unless (package-installed-p 'hydra)
@@ -664,7 +668,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (defhydra hydra-buffers                (:timeout 20)
     "Choose Buffer Function:"
-    ("c" persp-counsel-switch-buffer "Choose Buffer")
+    ;; ("c" persp-counsel-switch-buffer "Choose Buffer")
     ("h" buffer-flip-backward        "Backward"     )
     ("k" kill-this-buffer            "Kill Buffer"  )
     ("l" buffer-flip-forward         "Forward"      )
@@ -761,9 +765,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (package-install 'use-package))
 
   (use-package helpful
-    :custom
-    (counsel-describe-function-function #'helpful-callable)
-    (counsel-describe-variable-function #'helpful-variable)
+    ;; :custom
+    ;; (counsel-describe-function-function #'helpful-callable)
+    ;; (counsel-describe-variable-function #'helpful-variable)
     :bind
     ([remap describe-function] . helpful-function)
     ([remap describe-variable] . helpful-variable)
@@ -828,7 +832,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 #+end_src
 
 **** Ivy
-#+begin_src emacs-lisp :tangle ~/.emacs.d/custom/init-ivy.el :mkdirp yes
+#+begin_src emacs-lisp :notangle ~/.emacs.d/custom/init-ivy.el :mkdirp yes
   ;;; init-ivy.el --- Use ivy for minibuffer completion and more -*- lexical-binding: t -*-
   ;;; Commentary:
   ;;; Code:
@@ -1281,7 +1285,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;----------------------------------------------------------------------------
   ;; Buffer manipulation
   ;;----------------------------------------------------------------------------
-  (global-set-key (kbd "s-b") 'counsel-switch-buffer)
+  ;; (global-set-key (kbd "s-b") 'counsel-switch-buffer)
 
   ;;----------------------------------------------------------------------------
   ;; Kill this buffer.
@@ -2085,7 +2089,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     :init
     (persp-mode)
     :bind (("s-s" . persp-switch)
-           ("s-b" . persp-counsel-switch-buffer)
+           ("s-b" . persp-switch-to-buffer*)
            ("C-x b" . persp-switch-to-buffer*)
            ("C-x k" . persp-kill-buffer*)))
 
@@ -2178,9 +2182,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
-  (use-package counsel-projectile
-    :after projectile
-    :init (counsel-projectile-mode))
+  ;; (use-package counsel-projectile
+  ;; :after projectile
+  ;; :init (counsel-projectile-mode))
 
   (provide 'init-projectile-customizations)
   ;;; init-projectile-customizations.el ends here
@@ -2375,7 +2379,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (add-to-list 'eshell-output-filter-functions 'eshell-truncate-buffer)
 
     ;; Bind some useful keys for evil-mode
-    (evil-define-key '(normal insert visual) eshell-mode-map (kbd "C-r") 'counsel-esh-history)
+    ;; (evil-define-key '(normal insert visual) eshell-mode-map (kbd "C-r") 'counsel-esh-history)
     (evil-define-key '(normal insert visual) eshell-mode-map (kbd "<home>") 'eshell-bol)
     (evil-define-key '(normal insert visual) eshell-mode-map (kbd "C-a") 'eshell-bol)
     (evil-normalize-keymaps)
