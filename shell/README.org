@@ -3,16 +3,47 @@
 #+PROPERTY: header-args:shell: :tangle yes :mkdirp yes
 #+STARTUP: overview
 
-This configuration inherits teachings and philosophies from the blog [[https://blog.flowblok.id.au/2013-02/shell-startup-scripts.html][Shell
-startup scripts — flowblok’s blog]]. All files and exports tries to make the
-configuration work with the different shells in an efficient way.
-New set up here https://dev.to/devsk1207/how-to-setup-zsh-on-mac-terminal-37dj
+* Table of Contents                                                        :TOC_5:
+- [[#bash][Bash]]
+  - [[#bashrc][Bashrc]]
+  - [[#bash-profile][Bash Profile]]
+  - [[#bash-folder][Bash Folder]]
+    - [[#env-file][Env file]]
+    - [[#interactive-file][Interactive file]]
+    - [[#login-file][Login file]]
+    - [[#logout-file][Logout file]]
+- [[#sh][Sh]]
+  - [[#sh-profile][Sh Profile]]
+  - [[#sh-folder][Sh folder]]
+    - [[#env-file-1][Env file]]
+    - [[#interactive-file-1][Interactive file]]
+    - [[#login-file-1][Login file]]
+    - [[#logout-file-1][Logout file]]
+- [[#shell][Shell]]
+  - [[#folder][Folder]]
+    - [[#env][Env]]
+    - [[#env-locals][Env locals]]
+    - [[#functions][Functions]]
+    - [[#interactive][Interactive]]
+    - [[#login][Login]]
+      - [[#logout][Logout]]
+- [[#zsh][ZSH]]
+  - [[#zshenv][Zshenv]]
+  - [[#zsh-login][ZSH login]]
+  - [[#zsh-logout][ZSH logout]]
+  - [[#zshrc][Zshrc]]
+  - [[#zsh-profile][ZSH Profile]]
+  - [[#zsh-folders][ZSH Folders]]
+    - [[#env-1][Env]]
+    - [[#interactive-1][Interactive]]
+    - [[#login-1][Login]]
+    - [[#logout-1][Logout]]
+    - [[#power10k][Power10k]]
 
 * Bash
 ** Bashrc
   #+begin_src shell :tangle ~/.bashrc
     . ~/.bash/env
-    . ~/.bash/interactive
   #+end_src
 ** Bash Profile
   #+begin_src shell :tangle ~/.bash_profile
@@ -34,6 +65,8 @@ New set up here https://dev.to/devsk1207/how-to-setup-zsh-on-mac-terminal-37dj
     if [ "$PS1" ]; then
         . ~/.bash/interactive
     fi
+
+    . "/Users/randyburrell/.nix-profile/etc/profile.d/hm-session-vars.sh"
   #+end_src
 ** Bash Folder
 
@@ -45,7 +78,7 @@ New set up here https://dev.to/devsk1207/how-to-setup-zsh-on-mac-terminal-37dj
 
 *** Interactive file
   #+begin_src shell :tangle ~/.bash/interactive :mkdirp yes
-https://    . ~/.shell/interactive
+    . ~/.shell/interactive
   #+end_src
 
 *** Login file
@@ -64,6 +97,8 @@ https://    . ~/.shell/interactive
     # WARNING: if you delete .bash_profile, this file becomes part of bash's startup
     # sequence, which means this file suddenly has to cater for two different
     # shells.
+
+    . "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
 
     . ~/.sh/env
     . ~/.sh/login
@@ -92,7 +127,6 @@ https://    . ~/.shell/interactive
   #+begin_src shell :tangle ~/.sh/logout
     . ~/.shell/logout
   #+end_src
-
 * Shell
 ** Folder
 *** Env
@@ -144,17 +178,17 @@ https://    . ~/.shell/interactive
     export GPG_TTY=$(tty)
 
     # Pyenv configuration
-    export PYENV_ROOT="$HOME/.pyenv"
+    export PYENV_ROOT="/Users/randyburrell/.pyenv"
 
     # Path to binary files
-    export PATH="$HOME/.rvm/bin:$HOME/.volta/bin:$PYENV_ROOT/bin:$PYENV_ROOT/libexec/:/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/ruby/bin:/Users/randyburrell/Applications/google-cloud-sdk/bin:/usr/local/opt/gnupg@2.2/bin:/opt/local/bin:/opt/local/sbin:/Users/randyburrell/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/texlive/2023/bin/universal-darwin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/sbin:/usr/sbin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.custom_scripts:/Users/randyburrell/.rvm/bin:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/Users/randyburrell/.ghcup/bin:/Users/randyburrell/Projects/Environments/flutter/bin"
+    export PATH="/Users/randyburrell/.rvm/bin:/Users/randyburrell/.volta/bin:/Users/randyburrell/.pyenv/bin:/Users/randyburrell/.pyenv/libexec/:/opt/homebrew/opt/coreutils/libexec/gnubin:/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/ruby/bin:/Users/randyburrell/Applications/google-cloud-sdk/bin:/usr/local/opt/gnupg@2.2/bin:/opt/local/bin:/opt/local/sbin:/Users/randyburrell/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/texlive/2023/bin/universal-darwin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/sbin:/usr/sbin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.custom_scripts:/Users/randyburrell/.rvm/bin:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/Users/randyburrell/.ghcup/bin:/Users/randyburrell/Projects/Environments/flutter/bin"
 
     # Kubernetes configuration document
     export KUBECONFIG=~/.kube/kube-configs/kubeconfig-tacen-dev-us-01-bare.yaml
 
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
-    [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+    export NVM_DIR="/Users/randyburrell/.nvm"
+    # [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
+    # [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
   #+end_src
 
 *** Functions
@@ -226,8 +260,6 @@ https://    . ~/.shell/interactive
     autoload -U +X bashcompinit && bashcompinit
     autoload -U +X compinit && compinit
 
-    HISTSIZE=10000
-    SAVEHIST=9000
     HISTFILE=~/.shell/history
 
     # Zsh Hooks {{{
@@ -241,7 +273,6 @@ https://    . ~/.shell/interactive
     }
 
     # Auto Completion
-    autoload -U compinit && compinit
     zmodload -i zsh/complist
 
     # man zshcontrib
@@ -291,7 +322,6 @@ https://    . ~/.shell/interactive
     zstyle ':completion:*:ssh:*' group-order hosts-domain hosts-host users hosts-ipaddr
     zstyle '*' single-ignored show
 
-    # Specific to oh-my-zsh
     zstyle ':omz:update' mode auto
     zstyle ':omz:update' frequency 7
     zstyle ':omz:update' verbose silent # only errors
@@ -371,7 +401,7 @@ https://    . ~/.shell/interactive
     # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
     # Example format: plugins=(rails git textmate ruby lighthouse)
     # Add wisely, as too many plugins slow down shell startup.
-    plugins=(git rvm docker docker-compose nix-zsh-completions nvm zsh-autosuggestions zsh-syntax-highlighting web-search pyenv-lazy)
+    plugins=(git docker docker-compose nix-zsh-completions nvm zsh-autosuggestions zsh-syntax-highlighting web-search)
 
     # Show nix prompt whenever I'm in a nix environment
     # prompt_nix_shell_setup
@@ -486,8 +516,6 @@ https://    . ~/.shell/interactive
     export GREP_OPTIONS='--color=always'
     export GREP_COLOR='1;31;40'
 
-    export LSP_USE_PLISTS=true
-
     export CLICOLOR=1
 
     # Exports for brew
@@ -504,9 +532,6 @@ https://    . ~/.shell/interactive
     # Homebrew for mac with apple sillicon
     eval "$(/opt/homebrew/bin/brew shellenv)"
     ssource $ZSH/oh-my-zsh.sh
-
-    # export LSP_USE_PLISTS=true
-
 
     if [[ -n "$INSIDE_EMACS" ]]; then
         ssource ~/.shell/login
@@ -548,7 +573,7 @@ https://    . ~/.shell/interactive
     prompt_nix_shell_setup
 
     [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function*
-
+    . $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
   #+end_src
 
 **** Logout
@@ -580,7 +605,7 @@ https://    . ~/.shell/interactive
     # MacPorts Installer addition on 2021-05-17_at_22:01:45: adding an appropriate PATH variable for use with MacPorts.
     # export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
     # Finished adapting your PATH environment variable for use with MacPorts.
-
+    . "/Users/randyburrell/.nix-profile/etc/profile.d/hm-session-vars.sh"
 
     # MacPorts Installer addition on 2021-05-17_at_22:01:45: adding an appropriate DISPLAY variable for use with MacPorts.
     export DISPLAY=:0
@@ -600,12 +625,12 @@ https://    . ~/.shell/interactive
   #+end_src
 
 *** Login
-  #+begin_src shell :tangle ~/.zsh/login
+  #+begin_src shell :tangle ~/.zsh/login :mkdirp yes
     . ~/.shell/login
   #+end_src
 
 *** Logout
-  #+begin_src shell :tangle ~/.zsh/logout
+  #+begin_src shell :tangle ~/.zsh/logout :mkdirp yes
     . ~/.shell/logout
   #+end_src
 
@@ -647,7 +672,7 @@ https://    . ~/.shell/interactive
           os_icon                 # os identifier
           dir                     # current directory
           vcs                     # git status
-          # prompt_char           # prompt symbol
+          prompt_char             # prompt symbol
         )
 
         # The list of segments shown on the right. Fill it with less important segments.
@@ -667,14 +692,14 @@ https://    . ~/.shell/interactive
           nodenv                  # node.js version from nodenv (https://github.com/nodenv/nodenv)
           nvm                     # node.js version from nvm (https://github.com/nvm-sh/nvm)
           nodeenv                 # node.js environment (https://github.com/ekalinin/nodeenv)
-          # node_version          # node.js version
-          # go_version            # go version (https://golang.org)
-          # rust_version          # rustc version (https://www.rust-lang.org)
-          # dotnet_version        # .NET version (https://dotnet.microsoft.com)
-          # php_version           # php version (https://www.php.net/)
-          # laravel_version       # laravel php framework version (https://laravel.com/)
-          # java_version          # java version (https://www.java.com/)
-          # package               # name@version from package.json (https://docs.npmjs.com/files/package.json)
+          node_version            # node.js version
+          go_version              # go version (https://golang.org)
+          rust_version            # rustc version (https://www.rust-lang.org)
+          dotnet_version          # .NET version (https://dotnet.microsoft.com)
+          php_version             # php version (https://www.php.net/)
+          laravel_version         # laravel php framework version (https://laravel.com/)
+          java_version            # java version (https://www.java.com/)
+          package                 # name@version from package.json (https://docs.npmjs.com/files/package.json)
           rbenv                   # ruby version from rbenv (https://github.com/rbenv/rbenv)
           rvm                     # ruby version from rvm (https://rvm.io)
           fvm                     # flutter version management (https://github.com/leoafarias/fvm)
@@ -687,7 +712,7 @@ https://    . ~/.shell/interactive
           haskell_stack           # haskell version from stack (https://haskellstack.org/)
           kubecontext             # current kubernetes context (https://kubernetes.io/)
           terraform               # terraform workspace (https://www.terraform.io)
-          # terraform_version     # terraform version (https://www.terraform.io)
+          terraform_version       # terraform version (https://www.terraform.io)
           aws                     # aws profile (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)
           aws_eb_env              # aws elastic beanstalk environment (https://aws.amazon.com/elasticbeanstalk/)
           azure                   # azure account name (https://docs.microsoft.com/en-us/cli/azure)
@@ -706,23 +731,23 @@ https://    . ~/.shell/interactive
           nix_shell               # nix shell (https://nixos.org/nixos/nix-pills/developing-with-nix-shell.html)
           chezmoi_shell           # chezmoi shell (https://www.chezmoi.io/)
           vi_mode                 # vi mode (you don't need this if you've enabled prompt_char)
-          # vpn_ip                # virtual private network indicator
-          # load                  # CPU load
-          # disk_usage            # disk usage
-          # ram                   # free RAM
-          # swap                  # used swap
+          vpn_ip                  # virtual private network indicator
+          load                    # CPU load
+          disk_usage              # disk usage
+          ram                     # free RAM
+          swap                    # used swap
           todo                    # todo items (https://github.com/todotxt/todo.txt-cli)
           timewarrior             # timewarrior tracking status (https://timewarrior.net/)
           taskwarrior             # taskwarrior task count (https://taskwarrior.org/)
           per_directory_history   # Oh My Zsh per-directory-history local/global indicator
-          # cpu_arch              # CPU architecture
+          cpu_arch                # CPU architecture
           time                    # current time
-          # ip                    # ip address and bandwidth usage for a specified network interface
-          # public_ip             # public IP address
-          # proxy                 # system-wide http/https/ftp proxy
-          # battery               # internal battery
-          # wifi                  # wifi speed
-          # example               # example user-defined segment (see prompt_example function below)
+          ip                      # ip address and bandwidth usage for a specified network interface
+          public_ip               # public IP address
+          proxy                   # system-wide http/https/ftp proxy
+          battery                 # internal battery
+          wifi                    # wifi speed
+          example                 # example user-defined segment (see prompt_example function below)
         )
 
         # Defines character set used by powerlevel10k. It's best to let `p10k configure` set it for you.
@@ -801,7 +826,7 @@ https://    . ~/.shell/interactive
         typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=232
         typeset -g POWERLEVEL9K_OS_ICON_BACKGROUND=7
         # Custom icon.
-        # typeset -g POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='⭐'
+        typeset -g POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='⭐'
 
         ################################[ prompt_char: prompt symbol ]################################
         # Transparent background.

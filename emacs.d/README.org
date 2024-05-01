@@ -25,7 +25,6 @@
       - [[#helpful][Helpful]]
       - [[#hydra][Hydra]]
       - [[#icons][Icons]]
-      - [[#ivy][Ivy]]
       - [[#magit][Magit]]
       - [[#master-settings][Master Settings]]
       - [[#navigation-settings][Navigation Settings]]
@@ -831,7 +830,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
 #+end_src
 
-**** Ivy
+**** COMMENT Ivy
 #+begin_src emacs-lisp :notangle ~/.emacs.d/custom/init-ivy.el :mkdirp yes
   ;;; init-ivy.el --- Use ivy for minibuffer completion and more -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -968,11 +967,11 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (rb/pretty-magit "fix" "🔨")
   (rb/pretty-magit "style" "🔭")
   (rb/pretty-magit "refactor" "🐰")
-  (rb/pretty-magit-no-semi "[Feat]" "🆕")
-  (rb/pretty-magit-no-semi "[Docs]" "📁")
-  (rb/pretty-magit-no-semi "[Fix]" "🔨")
-  (rb/pretty-magit-no-semi "[Style]" "🔭")
-  (rb/pretty-magit-no-semi "[Refactor]" "🐰")
+  ;; (rb/pretty-magit-no-semi "[Feat]" "🆕")
+  ;; (rb/pretty-magit-no-semi "[Docs]" "📁")
+  ;; (rb/pretty-magit-no-semi "[Fix]" "🔨")
+  ;; (rb/pretty-magit-no-semi "[Style]" "🔭")
+  ;; (rb/pretty-magit-no-semi "[Refactor]" "🐰")
 
   ;; TODO: Figure out why I can't use certain key bindings in magit commit buffer
   (defun add-magit-faces ()
@@ -1003,10 +1002,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (interactive)
     (when use-magit-commit-prompt-p
       (setq use-magit-commit-prompt-p nil)
-      (insert (ivy-read "Commit Type " pretty-magit-prompt
-                        :require-match t :sort t :preselect "fix"))
+      (insert (completing-read "Commit Type " pretty-magit-prompt nil 'require-match ""))
       (add-magit-faces)
-      ;; (evil-insert 1)
+      (evil-insert 1)
       ))
 
   (remove-hook 'git-commit-setup-hook 'with-editor-usage-message)
@@ -1061,6 +1059,12 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;; Do not show the “Fill” indicator in the mode line.
   ;;--------------------------------------------------------------------------------
   (diminish 'auto-fill-function)
+
+  ;;--------------------------------------------------------------------------------
+  ;; Rebind the search keys to use consult
+  ;;--------------------------------------------------------------------------------
+  (global-set-key (kbd "C-r") 'consult-line)
+  (global-set-key (kbd "C-s") 'consult-line)
 
   ;;--------------------------------------------------------------------------------
   ;; Bent arrows at the end and start of long lines.
@@ -1811,6 +1815,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
   (add-to-list 'org-structure-template-alist '("py" . "src python"))
   (add-to-list 'org-structure-template-alist '("rb" . "src ruby"))
+  (add-to-list 'org-structure-template-alist '("ni" . "src nix"))
 
   (defun org-global-props (&optional rb/property)
     "Get the plists of global org properties of current buffer."
@@ -2089,7 +2094,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     :init
     (persp-mode)
     :bind (("s-s" . persp-switch)
-           ("s-b" . persp-switch-to-buffer*)
+           ("s-b" . consult-project-buffer)
            ("C-x b" . persp-switch-to-buffer*)
            ("C-x k" . persp-kill-buffer*)))
 
@@ -2319,7 +2324,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
           (file-name-history        . 100)
           (grep-find-history        . 30)
           (grep-history             . 30)
-          (ivy-history              . 100)
           (magit-revision-history   . 50)
           (minibuffer-history       . 50)
           (org-clock-history        . 50)
@@ -2556,6 +2560,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
           (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
           (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
           (yaml "https://github.com/ikatyang/tree-sitter-yaml")
+          (nix "https://github.com/nix-community/tree-sitter-nix")
           (prisma "https://github.com/victorhqc/tree-sitter-prisma")
           (rust "https://github.com/tree-sitter/tree-sitter-rust" )))
 
