@@ -28,16 +28,12 @@
     - [[#login][Login]]
       - [[#logout][Logout]]
 - [[#zsh][ZSH]]
-  - [[#zshenv][Zshenv]]
-  - [[#zsh-login][ZSH login]]
-  - [[#zsh-logout][ZSH logout]]
-  - [[#zshrc][Zshrc]]
-  - [[#zsh-profile][ZSH Profile]]
   - [[#zsh-folders][ZSH Folders]]
     - [[#env-1][Env]]
     - [[#interactive-1][Interactive]]
     - [[#login-1][Login]]
     - [[#logout-1][Logout]]
+    - [[#profile][Profile]]
     - [[#power10k][Power10k]]
 
 * Bash
@@ -260,7 +256,7 @@
     autoload -U +X bashcompinit && bashcompinit
     autoload -U +X compinit && compinit
 
-    HISTFILE=~/.shell/history
+    HISTFILE=~/.zsh/history
 
     # Zsh Hooks {{{
     function precmd {
@@ -328,7 +324,6 @@
 
     # Completion folder to put generated completion files
     fpath+=~/.zfunc
-    fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src
     fpath+=$(brew --prefix)/share/zsh/site-functions
 
     ENABLE_CORRECTION="true"
@@ -401,7 +396,7 @@
     # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
     # Example format: plugins=(rails git textmate ruby lighthouse)
     # Add wisely, as too many plugins slow down shell startup.
-    plugins=(git docker docker-compose nix-zsh-completions nvm zsh-autosuggestions zsh-syntax-highlighting web-search)
+    plugins=()
 
     # Show nix prompt whenever I'm in a nix environment
     # prompt_nix_shell_setup
@@ -570,10 +565,8 @@
         RAND_EMOJI_N=$(( $RANDOM % ${#emojis[@]} + 1))
         # prompt_segment black default "${emojis[$RAND_EMOJI_N]} "
     }
-    prompt_nix_shell_setup
 
     [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function*
-    . $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
   #+end_src
 
 **** Logout
@@ -582,36 +575,32 @@
   #+end_src
 
 * ZSH
-** Zshenv
+** COMMENT Zshenv
+    - =No longer needed=: This is now handled by Nix home manager.
+    - =TODO=: Remove this from file.
   #+begin_src shell :tangle ~/.zshenv
     . ~/.zsh/env
   #+end_src
-** ZSH login
+** COMMENT ZSH login
+    - =No longer needed=: This is now handled by Nix home manager.
+    - =TODO=: Remove this from file.
   #+begin_src shell :tangle ~/.zlogin
     . ~/.zsh/login
   #+end_src
 
-** ZSH logout
+** COMMENT ZSH logout
+    - =No longer needed=: This is now handled by Nix home manager.
+    - =TODO=: Remove this from file.
   #+begin_src shell :tangle ~/.zlogout
     . ~/.zsh/logout
   #+end_src
 
-** Zshrc
+** COMMENT Zshrc
+    - =No longer needed=: This is now handled by Nix home manager.
+    - =TODO=: Remove this from file.
   #+begin_src shell :tangle ~/.zshrc
     . ~/.zsh/interactive
   #+end_src
-** ZSH Profile
-  #+begin_src shell :tangle ~/.zprofile
-    # MacPorts Installer addition on 2021-05-17_at_22:01:45: adding an appropriate PATH variable for use with MacPorts.
-    # export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
-    # Finished adapting your PATH environment variable for use with MacPorts.
-    . "/Users/randyburrell/.nix-profile/etc/profile.d/hm-session-vars.sh"
-
-    # MacPorts Installer addition on 2021-05-17_at_22:01:45: adding an appropriate DISPLAY variable for use with MacPorts.
-    export DISPLAY=:0
-    # Finished adapting your DISPLAY environment variable for use with MacPorts.
-  #+end_src
-
 ** ZSH Folders
 *** Env
   #+begin_src shell :tangle ~/.zsh/env :mkdirp yes
@@ -632,6 +621,20 @@
 *** Logout
   #+begin_src shell :tangle ~/.zsh/logout :mkdirp yes
     . ~/.shell/logout
+  #+end_src
+
+*** Profile
+  #+begin_src shell :tangle ~/.zsh/profile :mkdirp yes
+    # MacPorts Installer addition on 2021-05-17_at_22:01:45: adding an appropriate PATH variable for use with MacPorts.
+    # export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
+    # Finished adapting your PATH environment variable for use with MacPorts.
+
+    # MacPorts Installer addition on 2021-05-17_at_22:01:45: adding an appropriate DISPLAY variable for use with MacPorts.
+    export DISPLAY=:0
+    # Finished adapting your DISPLAY environment variable for use with MacPorts.
+
+    # Source home-manager's user configuration file
+    . "/Users/randyburrell/.nix-profile/etc/profile.d/hm-session-vars.sh"
   #+end_src
 
 *** Power10k
@@ -826,7 +829,7 @@
         typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=232
         typeset -g POWERLEVEL9K_OS_ICON_BACKGROUND=7
         # Custom icon.
-        typeset -g POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='⭐'
+        # typeset -g POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='⭐'
 
         ################################[ prompt_char: prompt symbol ]################################
         # Transparent background.
