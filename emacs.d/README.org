@@ -321,7 +321,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
     :config
     ;; Info buffers to the right
-    (setq dape-buffer-window-arrangement 'left)
+    (setq dape-buffer-window-arrangement 'right)
 
     ;; Global bindings for setting breakpoints with mouse
     (dape-breakpoint-global-mode)
@@ -341,8 +341,39 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     ;; (add-hook 'dape-on-start-hooks (lambda () (save-some-buffers t t)))
 
     ;; Projectile users
-    (setq dape-cwd-fn 'projectile-project-root)
-    )
+    (setq dape-cwd-fn 'projectile-project-root))
+
+  (add-to-list
+   'dape-configs
+   `(tsx-debug-node
+     modes (tsx-ts-mode)
+     command "node"
+     command-args ("/Users/randyburrell/.emacs.d/debug-adapters/extension/dist/debugAdapter.js" :autoport)
+     port :autoport
+     :type "pwa-node"
+     :runtimeExecutable "ts-node"
+     :cwd dape-cwd
+     :program dape-buffer-default
+     :console "internalConsole"
+     :port 3031
+     ))
+
+
+  (add-to-list
+   'dape-configs
+   `(tsx-debug-node-attach
+     modes (tsx-ts-mode)
+     command "node"
+     command-args ("/Users/randyburrell/.emacs.d/debug-adapters/extension/dist/debugAdapter.js" :autoport)
+     port :autoport
+     :type "pwa-chrome"
+     :url "http://localhost:3000"
+     :web-root dape-cwd
+     :cwd dape-cwd
+     :program dape-buffer-default
+     :console "internalConsole"
+     :port 3031
+     ))
 
   (provide 'init-dedugger)
   ;;; init-lsp.el ends here
@@ -385,6 +416,13 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo")))
 
   (setq counsel-find-file-ignore-regexp "\\.~undo-tree~\\'")
+
+  ;; Show directories first
+  (setq dired-listing-switches "-aBhl --group-directories-first")
+
+  (when *is-a-mac*
+    (setq dired-use-ls-dired t
+          insert-directory-program "/opt/homebrew/opt/coreutils/libexec/gnubin/ls"))
 
   (provide 'init-dired-customizations)
   ;;; init-dired-customizations.el ends here
@@ -485,12 +523,13 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
                   rust-mode-hook
                   go-mode-hook
                   go-ts-mode-hook
-                  web-mode-hook
                   rust-ts-mode-hook
                   sass-mode-hook
                   scss-mode-hook
                   terraform-mode-hook
                   typescript-mode-hook
+                  tsx-ts-mode-hook
+                  ts-mode-hook
                   yaml-mode-hook
                   c++-mode-hook))
     (add-hook mode 'eglot-ensure))
@@ -2574,6 +2613,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (when (not (file-directory-p "~/.emacs.d/tree-sitter"))
     (mapc #'treesit-install-language-grammar (mapcar #'car treesit-language-source-alist)))
 
+  (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode))
+
+
   (provide 'init-treesitter-customizations)
   ;;; init-treesitter-customizations.el ends here
 
@@ -2711,22 +2753,52 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;------------------------------------------------------------------------------
   ;; Set up web-mode
   ;;------------------------------------------------------------------------------
-  (use-package web-mode
-    :config
-    (setq web-mode-attr-indent-offset 'standard-indent)
-    (setq web-mode-enable-auto-closing t)
-    (setq web-mode-enable-current-column-highlight t)
-    (setq web-mode-enable-current-element-highlight t))
+  ;; (use-package web-mode
+  ;;   :config
+  ;;   (setq web-mode-attr-indent-offset 'standard-indent)
+  ;;   (setq web-mode-enable-auto-closing t)
+  ;;   (setq web-mode-enable-current-column-highlight t)
+  ;;   (setq web-mode-enable-current-element-highlight t))
 
-  
+  ;; 
   (when (maybe-require-package 'add-node-modules-path)
-    (dolist (mode '(web-mode))
+    (dolist (mode '(ts-mode tsx-ts-mode js-mode js2-mode))
       (add-hook (derived-mode-hook-name mode) 'add-node-modules-path)))
 
   ;;------------------------------------------------------------------------------
   ;; Auto format language servers
   ;;------------------------------------------------------------------------------
   (use-package apheleia)
+
+  (dolist (mode '(bash-ts-mode-hook
+                  c-mode-hook
+                  closure-ts-mode-hook
+                  dockerfile-mode-hook
+                  php-mode-hook
+                  python-mode-hook
+                  python-ts-mode-hook
+                  prisma-ts-mode-hook
+                  ruby-mode-hook
+                  ruby-ts-mode-hook
+                  rust-mode-hook
+                  go-mode-hook
+                  go-ts-mode-hook
+                  rust-ts-mode-hook
+                  terraform-mode-hook
+                  yaml-mode-hook
+                  c++-mode-hook))
+    (add-hook mode 'apheleia-mode))
+
+  (use-package prettier
+    :hook (after-init . global-prettier-mode)
+    (tsx-ts-mode . prettier-mode)
+    (js-jsx-mode . prettier-mode)
+    (js-jsx-mode . prettier-mode)
+    (json-mode . prettier-mode)
+    (json-ts-mode . prettier-mode)
+    (typescript-ts-mode . prettier-mode))
+
+  (add-hook 'after-init-hook #'global-prettier-mode)
 
   ;;------------------------------------------------------------------------------
   ;; Add these files to web-mode list
@@ -2735,7 +2807,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     "Add some file to `auto-mode-alist'."
     (mapc
      (lambda (x)
-       (add-to-list 'auto-mode-alist (cons x 'web-mode)))
+       (add-to-list 'auto-mode-alist (cons x 'tsx-ts-mode)))
      '("\\.jsx\\'" "\\.tsx\\'")))
 
   (rb/web-mode)
