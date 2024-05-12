@@ -153,12 +153,12 @@
     export GOPATH="/Users/randyburrell/Projects/Environments/Go"
 
     # Set up ruby
-    # export GEM_HOME="/Users/randyburrell/.gem"
+    export GEM_HOME="/Users/randyburrell/.gem"
 
     export PKG_CONFIG_PATH="/opt/homebrew/opt/ruby/lib/pkgconfig:/usr/local/Cellar/glib/2.66.4/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/Cellar/libffi/3.3/lib/pkgconfig"
 
     # PATH to java home MacOS
-    export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk-11.0.2.jdk/Contents/Home"
+    export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk-22.jdk/Contents/Home"
 
     # Flags
     export LDFLAGS="-L/opt/homebrew/opt/llvm/lib -L/opt/homebrew/opt/sqlite/lib -L/opt/homebrew/opt/ruby/lib"
@@ -177,7 +177,7 @@
     export PYENV_ROOT="/Users/randyburrell/.pyenv"
 
     # Path to binary files
-    export PATH="/Users/randyburrell/.volta/bin:/Users/randyburrell/.pyenv/bin:/Users/randyburrell/.pyenv/libexec/:/opt/homebrew/opt/coreutils/libexec/gnubin:/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/ruby/bin:/Users/randyburrell/Applications/google-cloud-sdk/bin:/usr/local/opt/gnupg@2.2/bin:/opt/local/bin:/opt/local/sbin:/Users/randyburrell/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/texlive/2023/bin/universal-darwin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/sbin:/usr/sbin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.custom_scripts:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/Users/randyburrell/.ghcup/bin:/Users/randyburrell/Projects/Environments/flutter/bin"
+    export PATH="$GEM_HOME/bin:/Users/randyburrell/.volta/bin:/Users/randyburrell/.pyenv/bin:/Users/randyburrell/.pyenv/libexec/:/opt/homebrew/opt/coreutils/libexec/gnubin:/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/ruby/bin:/Users/randyburrell/Applications/google-cloud-sdk/bin:/usr/local/opt/gnupg@2.2/bin:/opt/local/bin:/opt/local/sbin:/Users/randyburrell/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/texlive/2023/bin/universal-darwin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/sbin:/usr/sbin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/Users/randyburrell/.custom_scripts:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/usr/local/bin:/sbin:/bin:/usr/games:/usr/local/games:/Library/Android/sdk/tools:/Library/Android/sdk/tools/bin:/Library/Android/sdk/emulator:/Library/Android/sdk/platform-tools:/usr/local/jaxrs-ri/ext:/usr/local/Cellar/go/1.17.2/libexec/bin:/Users/randyburrell/Projects/Environments/Go/bin:/Users/randyburrell/.yarn/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/bin:/usr/local/opt/openjdk@11/bin:/Users/randyburrell/.composer/vendor/bin:/Users/randyburrell/.config/yarn/global/node_modules/.bin:/Users/randyburrell/.cargo/bin:/Users/randyburrell/.cabal/bin:/Users/randyburrell/.ghcup/bin:/Users/randyburrell/Projects/Environments/flutter/bin"
 
     # Kubernetes configuration document
     export KUBECONFIG=~/.kube/kube-configs/kubeconfig-tacen-dev-us-01-bare.yaml
@@ -609,7 +609,7 @@
 *** Interactive
   #+begin_src shell :tangle ~/.zsh/interactive :mkdirp yes
     . ~/.shell/interactive
-    . ~/.p10k.zsh
+    . ~/.zsh/p10k.zsh
   #+end_src
 
 *** Login
@@ -637,7 +637,7 @@
   #+end_src
 
 *** Power10k
-    #+begin_src shell :tangle ~/.p10k.zsh :mkdirp yes
+    #+begin_src shell :tangle ~/.zsh/p10k.zsh :mkdirp yes
       # Generated by Powerlevel10k configuration wizard on 2024-04-13 at 20:37 EST.
       # Based on romkatv/powerlevel10k/config/p10k-rainbow.zsh, checksum 49778.
       # Wizard options: nerdfont-complete + powerline, small icons, rainbow, unicode,

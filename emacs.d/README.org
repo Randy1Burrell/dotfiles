@@ -19,6 +19,7 @@
       - [[#evil-mode][Evil Mode]]
       - [[#find-file-in-project][Find File In Project]]
       - [[#flutter][Flutter]]
+      - [[#nix-customizations][Nix Customizations]]
       - [[#general][General]]
       - [[#go][Go]]
       - [[#graphql][GraphQl]]
@@ -126,6 +127,7 @@
     (require 'init-org-customizations)
     (require 'init-eglot-customizations)
     (require 'init-pdf)
+    (require 'init-nix-customizations)
     ;; (require 'init-lsp)
     ;; (require 'init-tailwind)
     ;; (require 'init-plantuml)
@@ -415,8 +417,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo")))
 
-  (setq counsel-find-file-ignore-regexp "\\.~undo-tree~\\'")
-
   ;; Show directories first
   (setq dired-listing-switches "-aBhl --group-directories-first")
 
@@ -510,6 +510,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
                   css-mode-hook
                   css-ts-mode-hook
                   closure-ts-mode-hook
+                  dart-mode-hook
                   dockerfile-mode-hook
                   js-mode-hook
                   js-ts-mode-hook
@@ -618,9 +619,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; init-find-file-in-project.el --- loads treemacs package -*- lexical-binding: t -*-
   ;;; Commentary:
   ;;; Code:
-  (unless (package-installed-p 'use-package)
-      (package-install 'use-package))
-
   (use-package find-file-in-project
       :config
       (remove-hook 'file-name-at-point-functions 'ffap-guess-file-name-at-point))
@@ -646,9 +644,34 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     :custom
     (flutter-sdk-path "~/Projects/Environments/flutter/"))
 
+  (reformatter-define dart-format
+    :program "dart"
+    :args '("format"))
+
+  (with-eval-after-load "dart-mode"
+    (define-key dart-mode-map (kbd "C-c C-o") 'dart-format-buffer))
+
+  (add-hook 'dart-mode-hook (lambda () (add-hook 'after-save-hook 'dart-format-buffer nil t)))
+  (add-hook 'flutter-test-mode-hook (lambda () (add-hook 'after-save-hook #'flutter-run-or-hot-reload nil t)))
+  (add-hook 'flutter-mode-hook (lambda () (add-hook 'after-save-hook #'flutter-run-or-hot-reload nil t)))
 
   (provide 'init-dart)
   ;;; init-dart.el ends here
+
+#+end_src
+
+**** Nix Customizations
+#+begin_src emacs-lisp :tangle ~/.emacs.d/custom/init-nix-customizations.el :mkdirp yes
+  ;;; init-nix-customizations.el --- Support Nix files -*- lexical-binding: t -*-
+  ;;; Commentary:
+  ;;; Code:
+
+  (add-hook 'nix-ts-mode-hook ( lambda()(add-hook 'after-save-hook #'nixpkgs-fmt-buffer nil t) ))
+  (add-hook 'nix-mode-hook ( lambda()(add-hook 'after-save-hook #'nixpkgs-fmt-buffer nil t) ))
+
+
+  (provide 'init-nix-customizations)
+  ;;; init-nix-customizations.el ends here
 
 #+end_src
 
@@ -669,7 +692,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
       :global-prefix "s-SPC")
     (efs/leader-keys
       "t"  '(:ignore t :which-key "TOGGLES")
-      ;; "tt" '(counsel-load-theme :which-key "Choose Theme")
       "tl" '(toggle-truncate-lines :which-key "Toggle Truncate Lines")))
 
   (unless (package-installed-p 'hydra)
@@ -706,7 +728,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (defhydra hydra-buffers                (:timeout 20)
     "Choose Buffer Function:"
-    ;; ("c" persp-counsel-switch-buffer "Choose Buffer")
     ("h" buffer-flip-backward        "Backward"     )
     ("k" kill-this-buffer            "Kill Buffer"  )
     ("l" buffer-flip-forward         "Forward"      )
@@ -804,8 +825,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (use-package helpful
     ;; :custom
-    ;; (counsel-describe-function-function #'helpful-callable)
-    ;; (counsel-describe-variable-function #'helpful-variable)
     :bind
     ([remap describe-function] . helpful-function)
     ([remap describe-variable] . helpful-variable)
@@ -866,101 +885,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (provide 'init-icons)
   ;;; init-icons.el ends here
-
-#+end_src
-
-**** COMMENT Ivy
-#+begin_src emacs-lisp :notangle ~/.emacs.d/custom/init-ivy.el :mkdirp yes
-  ;;; init-ivy.el --- Use ivy for minibuffer completion and more -*- lexical-binding: t -*-
-  ;;; Commentary:
-  ;;; Code:
-
-  (when (maybe-require-package 'ivy)
-    (add-hook 'after-init-hook 'ivy-mode)
-    (with-eval-after-load 'ivy
-      (setq-default ivy-use-virtual-buffers t
-                    ivy-virtual-abbreviate 'fullpath
-                    ivy-count-format ""
-                    projectile-completion-system 'ivy
-                    ivy-magic-tilde nil
-                    ivy-dynamic-exhibit-delay-ms 150
-                    ivy-use-selectable-prompt t)
-
-      ;; IDO-style directory navigation
-      (define-key ivy-minibuffer-map (kbd "RET") #'ivy-alt-done)
-      (dolist (k '("C-j" "C-RET"))
-        (define-key ivy-minibuffer-map (kbd k) #'ivy-immediate-done))
-
-      (define-key ivy-minibuffer-map (kbd "<up>") #'ivy-previous-line-or-history)
-      (define-key ivy-minibuffer-map (kbd "<down>") #'ivy-next-line-or-history)
-
-      (define-key ivy-occur-mode-map (kbd "C-c C-q") #'ivy-wgrep-change-to-wgrep-mode)
-
-      (when (maybe-require-package 'diminish)
-        (diminish 'ivy-mode)))
-    (when (maybe-require-package 'ivy-rich)
-      (setq ivy-virtual-abbreviate 'abbreviate
-            ivy-rich-switch-buffer-align-virtual-buffer nil
-            ivy-rich-path-style 'abbrev)
-      (with-eval-after-load 'ivy
-        (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line))
-      (add-hook 'ivy-mode-hook (lambda () (ivy-rich-mode ivy-mode)))))
-
-  (when (maybe-require-package 'counsel)
-    (setq-default counsel-mode-override-describe-bindings t)
-    (with-eval-after-load 'counsel
-      (setq-default ivy-initial-inputs-alist
-                    '((Man-completion-table . "^")
-                      (woman . "^")))
-      ;; I prefer the default behaviour or cycling in place, or
-      ;; explicit use of browse-kill-ring
-      (define-key counsel-mode-map [remap yank-pop] nil))
-    (when (maybe-require-package 'diminish)
-      (with-eval-after-load 'counsel
-        (diminish 'counsel-mode)))
-    (add-hook 'after-init-hook 'counsel-mode)
-
-    (when (maybe-require-package 'projectile)
-      (let ((search-function
-             (cond
-              ((executable-find "rg") 'counsel-rg)
-              ((executable-find "ag") 'counsel-ag)
-              ((executable-find "pt") 'counsel-pt)
-              ((executable-find "ack") 'counsel-ack))))
-        (when search-function
-          (defun sanityinc/counsel-search-project (initial-input &optional use-current-dir)
-            "Search using `counsel-rg' or similar from the project root for INITIAL-INPUT.
-  If there is no project root, or if the prefix argument
-  USE-CURRENT-DIR is set, then search from the current directory
-  instead."
-            (interactive (list (let ((sym (thing-at-point 'symbol)))
-                                 (when sym (regexp-quote sym)))
-                               current-prefix-arg))
-            (let ((current-prefix-arg)
-                  (dir (if use-current-dir
-                           default-directory
-                         (condition-case err
-                             (projectile-project-root)
-                           (error default-directory)))))
-              (funcall search-function initial-input dir)))))
-      (with-eval-after-load 'ivy
-        (add-to-list 'ivy-height-alist (cons 'counsel-ag 20)))
-      (global-set-key (kbd "M-?") 'sanityinc/counsel-search-project)))
-
-
-  (when (maybe-require-package 'swiper)
-    (with-eval-after-load 'ivy
-      (define-key ivy-mode-map (kbd "M-s /") 'swiper-thing-at-point)
-      (define-key ivy-mode-map (kbd "C-s") 'swiper)
-      (define-key ivy-mode-map (kbd "C-r") 'swiper)))
-
-
-  (when (maybe-require-package 'ivy-xref)
-    (setq xref-show-xrefs-function 'ivy-xref-show-xrefs))
-
-
-  (provide 'init-ivy)
-  ;;; init-ivy.el ends here
 
 #+end_src
 
@@ -1324,11 +1248,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (global-set-key (kbd "s-/") 'split-window-vertically)
   (global-set-key (kbd "s-;") 'delete-window)
 
-
-  ;;----------------------------------------------------------------------------
-  ;; Buffer manipulation
-  ;;----------------------------------------------------------------------------
-  ;; (global-set-key (kbd "s-b") 'counsel-switch-buffer)
 
   ;;----------------------------------------------------------------------------
   ;; Kill this buffer.
@@ -2226,10 +2145,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
-  ;; (use-package counsel-projectile
-  ;; :after projectile
-  ;; :init (counsel-projectile-mode))
-
   (provide 'init-projectile-customizations)
   ;;; init-projectile-customizations.el ends here
 
@@ -2422,7 +2337,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (add-to-list 'eshell-output-filter-functions 'eshell-truncate-buffer)
 
     ;; Bind some useful keys for evil-mode
-    ;; (evil-define-key '(normal insert visual) eshell-mode-map (kbd "C-r") 'counsel-esh-history)
     (evil-define-key '(normal insert visual) eshell-mode-map (kbd "<home>") 'eshell-bol)
     (evil-define-key '(normal insert visual) eshell-mode-map (kbd "C-a") 'eshell-bol)
     (evil-normalize-keymaps)
@@ -2601,7 +2515,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
           (yaml "https://github.com/ikatyang/tree-sitter-yaml")
           (nix "https://github.com/nix-community/tree-sitter-nix")
           (prisma "https://github.com/victorhqc/tree-sitter-prisma")
-          (rust "https://github.com/tree-sitter/tree-sitter-rust" )))
+          (rust "https://github.com/tree-sitter/tree-sitter-rust" )
+          (dart "https://github.com/UserNobody14/tree-sitter-dart")))
 
 
 
