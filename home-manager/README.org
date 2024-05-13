@@ -64,7 +64,9 @@
 
     # The home.packages option allows you to install Nix packages into your
     # environment.
-    home.packages = [
+    home.packages = with pkgs; [
+      postgresql_jit
+      zulu17
       # # Adds the 'hello' command to your environment. It prints a friendly
       # # "Hello, world!" when run.
       # pkgs.hello
@@ -149,7 +151,6 @@
         # History configuration
         history = {
           expireDuplicatesFirst = true;
-          path = "~/.zsh/history";
           save = 60000;
           size = 70000;
           share = true;
@@ -181,5 +182,4 @@
       };
     };
   }
-
 #+end_src
