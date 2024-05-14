@@ -28,6 +28,14 @@
           JAVA_HOME = "${pkgs.zulu}";
         };
 
+        users = {
+          users = {
+            "randyburrell" = {
+              home = "/Users/randyburrell";
+            };
+          };
+        };
+
         # Auto upgrade nix package and the daemon service.
         services.nix-daemon.enable = true;
         # nix.package = pkgs.nix;
@@ -50,6 +58,7 @@
         nixpkgs.hostPlatform = "aarch64-darwin";
 
         homebrew = {
+          enable = true;
           taps = [ ];
           brews = [ "cowsay" ];
           casks = [ ];
@@ -224,6 +233,7 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.verbose = true;
+            home-manager.users.randyburrell = homeconfig;
           }
         ];
       };
