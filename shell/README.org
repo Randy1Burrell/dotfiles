@@ -158,7 +158,7 @@
     export PKG_CONFIG_PATH="/opt/homebrew/opt/ruby/lib/pkgconfig:/usr/local/Cellar/glib/2.66.4/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/Cellar/libffi/3.3/lib/pkgconfig"
 
     # PATH to java home MacOS
-    export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk-22.jdk/Contents/Home"
+    # export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk-22.jdk/Contents/Home"
 
     # Flags
     export LDFLAGS="-L/opt/homebrew/opt/llvm/lib -L/opt/homebrew/opt/sqlite/lib -L/opt/homebrew/opt/ruby/lib"
@@ -448,38 +448,6 @@
     # eval "$(pyenv init -)"
     # if which pyenv-virtualenv-init > /dev/null; then eval "$(pyenv virtualenv-init -)"; fi
 
-
-    alias vi="vim"
-    alias vim="nvim"
-    alias tmuxsrc="tmux source-file ~/.tmux.conf"
-    alias tmuxkillall="tmux ls | cut -d : -f 1 | xargs -I {} tmux kill-session -t {}" # tmux kill all sessions
-    alias ct="ctags -R --exclude=.git --exclude=node_modules"
-    alias dotfiles="ls -a | grep '^\.' | grep --invert-match '\.DS_Store\|\.$'"
-    alias python=python3
-
-    # convenience aliases for editing configs
-    alias ev='vi ~/.vimrc'
-    alias et='vi ~/.tmux.conf'
-    alias ez='vi ~/.zshrc'
-
-    # convenient aliases for updating prompt
-    alias sz='source ~/.zshrc'
-
-    # convenience aliases for editing configs
-    alias et='vi ~/.tmux.conf'
-
-    # Use the current version of emacsclient
-    alias emacsclient="/Applications/Emacs.app/Contents/MacOS/bin/emacsclient"
-
-    # Firiefox alias
-    alias firefox="open -a /Applications/Firefox.app"
-
-    # Chrome alias
-    alias chrome='open -a "Google Chrome"'
-    alias debug_chrome='"Google Chrome --remote-debugging-port=9222 https://localhost:3000"'
-
-    # Kubernetes
-    alias k=kubectl
 
     export PR_RED PR_GREEN PR_YELLOW PR_BLUE PR_WHITE PR_BLACK
     export PR_BOLD_RED PR_BOLD_GREEN PR_BOLD_YELLOW PR_BOLD_BLUE
