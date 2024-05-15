@@ -21,6 +21,7 @@
           neofetch
           vim
           zulu
+          mas
         ];
 
         # Place global environment variables here
@@ -39,6 +40,11 @@
         # Auto upgrade nix package and the daemon service.
         services.nix-daemon.enable = true;
         # nix.package = pkgs.nix;
+        services = {
+          emacs = {
+            package = pkgs.emacs-unstable;
+          };
+        };
 
         # Necessary for using flakes on this system.
         nix.settings.experimental-features = "nix-command flakes";
@@ -62,6 +68,24 @@
           taps = [ ];
           brews = [ "cowsay" ];
           casks = [ ];
+
+          masApps = {
+            "1Password for Safari" = 1569813296;
+            "1password" = 1333542190;
+            "Docs for Developers" = 1411232591;
+            "GarageBand" = 682658836;
+            "Grammarly for Safari" = 1462114288;
+            "Keynote" = 409183694;
+            "LG Screen Manager" = 1142051783;
+            "LimeChat" = 414030210;
+            "Microsoft Remote Desktop" = 1295203466;
+            "Numbers" = 409203825;
+            "Slack" = 803453959;
+            "Telegram" = 747648890;
+            "WhatsApp" = 310633997;
+            "Xcode" = 497799835;
+            "Yubico Authenticator" = 1497506650;
+          };
         };
       };
       homeconfig = { pkgs, ... }: {
