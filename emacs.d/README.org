@@ -50,6 +50,7 @@
       - [[#treesitter][Treesitter]]
       - [[#treemacs][Treemacs]]
       - [[#use-package][Use Package]]
+      - [[#vertico][Vertico]]
       - [[#web-dev][Web Dev]]
     - [[#secrets-folder][Secrets Folder]]
 
@@ -128,6 +129,7 @@
     (require 'init-eglot-customizations)
     (require 'init-pdf)
     (require 'init-nix-customizations)
+    (require 'init-minibuffer-customizations)
     ;; (require 'init-lsp)
     ;; (require 'init-tailwind)
     ;; (require 'init-plantuml)
@@ -2656,6 +2658,45 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (provide 'init-use-package)
   ;;; init-use-package.el ends here
+
+#+end_src
+
+**** Vertico
+#+begin_src emacs-lisp :tangle ~/.emacs.d/custom/init-use-package.el :mkdirp yes
+  ;;; init-minibuffer-customizations.el --- Provides omnisharp -*- lexical-binding: t -*-
+  ;;; Commentary:
+  ;; MiniBuffer customizations
+  ;;; Code:
+
+  ;; Configure directory extension.
+  (use-package vertico-directory
+    :after vertico
+    :ensure nil
+    ;; More convenient directory navigation commands
+    :bind (:map vertico-map
+                ("RET" . vertico-directory-enter)
+                ("DEL" . vertico-directory-delete-word)
+                ("M-DEL" . vertico-directory-delete-char))
+    ;; Tidy shadowed file names
+    :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
+
+  ;; Enable vertico-multiform
+  (vertico-multiform-mode)
+
+  ;; Configure the display per command.
+  ;; Use a buffer with indices for imenu
+  ;; and a flat (Ido-like) menu for M-x.
+  (setq vertico-multiform-commands
+        '((consult-imenu buffer indexed)))
+
+  ;; Configure the display per completion category.
+  ;; Use the grid display for files and a buffer
+  ;; for the consult-grep commands.
+  (setq vertico-multiform-categories
+        '((consult-grep buffer)))
+
+  (provide 'init-minibuffer-customizations)
+  ;;; init-minibuffer-customizations.el ends here
 
 #+end_src
 
