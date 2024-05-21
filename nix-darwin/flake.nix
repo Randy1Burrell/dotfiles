@@ -22,6 +22,7 @@
           vim
           zulu
           mas
+          cocoapods
         ];
 
         # Place global environment variables here

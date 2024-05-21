@@ -62,7 +62,7 @@
         . ~/.bash/interactive
     fi
 
-    . "/Users/randyburrell/.nix-profile/etc/profile.d/hm-session-vars.sh"
+    # . "/Users/randyburrell/.nix-profile/etc/profile.d/hm-session-vars.sh"
   #+end_src
 ** Bash Folder
 
@@ -460,7 +460,7 @@
     fi
 
     # Path to your oh-my-zsh installation.
-    export ZSH="/Users/randyburrell/.oh-my-zsh"
+    # export ZSH="/Users/randyburrell/.oh-my-zsh"
 
     # All sources for environment
 
@@ -468,7 +468,7 @@
     # it'll load a random theme each time that oh-my-zsh is loaded.
     # See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
     # export ZSH_THEME="agnoster"
-    export ZSH_THEME="powerlevel10k/powerlevel10k"
+    # export ZSH_THEME="powerlevel10k/powerlevel10k"
 
     # Set shells
     export ESHELL="/bin/zsh"
