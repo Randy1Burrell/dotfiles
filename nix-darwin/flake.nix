@@ -2,28 +2,90 @@
   description = "Randy's system flake";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nix-darwin.url = "github:LnL7/nix-darwin";
-    nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
+    nixpkgs = {
+      url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    agenix = {
+      url = "github:ryantm/agenix";
+    };
+    darwin = {
+      url = "github:LnL7/nix-darwin/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nix-homebrew = {
+      url = "github:zhaofengli-wip/nix-homebrew";
+    };
+    homebrew-bundle = {
+      url = "github:homebrew/homebrew-bundle";
+      flake = false;
+    };
+    homebrew-core = {
+      url = "github:homebrew/homebrew-core";
+      flake = false;
+    };
+    homebrew-cask = {
+      url = "github:homebrew/homebrew-cask";
+      flake = false;
+    };
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    secrets = {
+      url = "git+ssh://git@github.com/randy1burrell/secrets.git";
+      flake = false;
+    };
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager }:
+  outputs = { self, darwin, nix-homebrew, homebrew-bundle, homebrew-core, homebrew-cask, home-manager, nixpkgs, disko, agenix, secrets } @inputs:
     let
+      user = "randyburrell";
+      linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
+      darwinSystems = [ "aarch64-darwin" "x86_64-darwin" ];
+      forAllSystems = f: nixpkgs.lib.genAttrs (linuxSystems ++ darwinSystems) f;
+      devShell = system:
+        let pkgs = nixpkgs.legacyPackages.${system}; in {
+          default = with pkgs; mkShell {
+            nativeBuildInputs = with pkgs; [ bashInteractive git age age-plugin-yubikey ];
+            shellHook = with pkgs; ''
+              export EDITOR=emacs
+            '';
+          };
+        };
+      mkApp = scriptName: system: {
+        type = "app";
+        program = "${(nixpkgs.legacyPackages.${system}.writeScriptBin scriptName ''
+          #!/usr/bin/env bash
+          PATH=${nixpkgs.legacyPackages.${system}.git}/bin:$PATH
+          echo "Running ${scriptName} for ${system}"
+          exec ${self}/apps/${system}/${scriptName}
+        '')}/bin/${scriptName}";
+      };
+      mkLinuxApps = system: {
+        "apply" = mkApp "apply" system;
+        "build-switch" = mkApp "build-switch" system;
+        "copy-keys" = mkApp "copy-keys" system;
+        "create-keys" = mkApp "create-keys" system;
+        "check-keys" = mkApp "check-keys" system;
+        "install" = mkApp "install" system;
+        "install-with-secrets" = mkApp "install-with-secrets" system;
+      };
+      mkDarwinApps = system: {
+        "apply" = mkApp "apply" system;
+        "build" = mkApp "build" system;
+        "build-switch" = mkApp "build-switch" system;
+        "copy-keys" = mkApp "copy-keys" system;
+        "create-keys" = mkApp "create-keys" system;
+        "check-keys" = mkApp "check-keys" system;
+        "rollback" = mkApp "rollback" system;
+      };
       configuration = { pkgs, ... }: {
         # List packages installed in system profile. To search by name, run:
         # $ nix-env -qaP | grep wget
-        environment.systemPackages = with pkgs; [
-          nixpkgs-fmt
-          neofetch
-          vim
-          zulu
-          mas
-          cocoapods
-        ];
 
         # Place global environment variables here
         environment.variables = {
@@ -40,19 +102,10 @@
 
         # Auto upgrade nix package and the daemon service.
         services.nix-daemon.enable = true;
-        # nix.package = pkgs.nix;
-        services = {
-          emacs = {
-            package = pkgs.emacs-unstable;
-          };
-        };
+
 
         # Necessary for using flakes on this system.
         nix.settings.experimental-features = "nix-command flakes";
-
-        # Create /etc/zshrc that loads the nix-darwin environment.
-        programs.zsh.enable = true; # default shell on catalina
-        # programs.fish.enable = true;
 
         # Set Git commit hash for darwin-version.
         system.configurationRevision = self.rev or self.dirtyRev or null;
@@ -64,206 +117,59 @@
         # The platform the configuration will be used on.
         nixpkgs.hostPlatform = "aarch64-darwin";
 
-        homebrew = {
-          enable = true;
-          taps = [ ];
-          brews = [ "cowsay" ];
-          casks = [ ];
-
-          masApps = {
-            "1Password for Safari" = 1569813296;
-            "1password" = 1333542190;
-            "Docs for Developers" = 1411232591;
-            "GarageBand" = 682658836;
-            "Grammarly for Safari" = 1462114288;
-            "Keynote" = 409183694;
-            "LG Screen Manager" = 1142051783;
-            "LimeChat" = 414030210;
-            "Microsoft Remote Desktop" = 1295203466;
-            "Numbers" = 409203825;
-            "Slack" = 803453959;
-            "Telegram" = 747648890;
-            "WhatsApp" = 310633997;
-            "Xcode" = 497799835;
-            "Yubico Authenticator" = 1497506650;
-          };
-        };
       };
-      homeconfig = { pkgs, ... }: {
-        home = {
-          # This is an internal compatibility configuration for home-manager,
-          # only to be changed under very careful conditions.
-          stateVersion = "23.05";
-          sessionVariables = {
-            EDITOR = "emacs";
-          };
-        };
-
-        home = {
-          packages = with pkgs; [ ];
-        };
-
-        programs = {
-          home-manager.enable = true;
-
-          direnv = {
-            enable = true;
-            enableBashIntegration = true; # see note on other shells below
-            nix-direnv.enable = true;
-          };
-
-          git = {
-            enable = true;
-            userName = "randb1burrell";
-            userEmail = "me@randyburrell.info";
-            ignores = [ ".DS_Store" "*.~*" ".env" ".dir-locals.le" ];
-            includes = [{
-              path = "~/.gitconfig-personal";
-              condition = "gitdir:~/Projects";
-            }];
-
-            diff-so-fancy = {
-              enable = true;
-              changeHunkIndicators = true;
-              markEmptyLines = true;
-              rulerWidth = 1;
-              stripLeadingSymbols = true;
-              useUnicodeRuler = true;
-              pagerOpts = [
-                "--tabs=4"
-                "-RFX"
-              ];
-            };
-
-            # Enable GPG signing
-            signing = {
-              key = "306FAA9223DD193A";
-              signByDefault = true;
-            };
-
-            extraConfig = {
-              core = {
-                editor = "emacs";
-              };
-              init = {
-                defaultBranch = "main";
-              };
-              push = {
-                autoSetupRemote = true;
-              };
-              url = {
-                "ssh://git@github.com" = {
-                  insteadOf = "https://github.com";
-                };
-
-                "ssh://git@gitlab.com" = {
-                  insteadOf = "https://gitlab.com";
-                };
-
-                "ssh://git@bitbucket.org" = {
-                  insteadOf = "https://bitbucket.org";
-                };
-              };
-            };
-          };
-
-          zsh = {
-            enable = true; # see note on other shells below
-
-            autocd = true;
-            enableCompletion = true;
-            defaultKeymap = "emacs";
-
-            # Extra configurations modifiable by me
-            envExtra = ". ~/.zsh/env";
-            initExtra = ". ~/.zsh/interactive";
-            loginExtra = ". ~/.zsh/login";
-            logoutExtra = ". ~/.zsh/logout";
-            profileExtra = ". ~/.zsh/profile";
-
-            autosuggestion = {
-              enable = true;
-            };
-
-            # History configuration
-            history = {
-              expireDuplicatesFirst = true;
-              save = 60000;
-              size = 70000;
-              share = true;
-            };
-
-            historySubstringSearch = {
-              enable = true;
-              searchDownKey = "^S";
-              searchUpKey = "^R";
-            };
-
-            shellAliases = {
-              switch = "darwin-rebuild switch --flake ~/Projects/Work/Randy/Personal/Repos/dotfiles/nix-darwin";
-              vi = "vim";
-              vim = "nvim";
-              tmuxsrc = "tmux source-file ~/.tmux.conf";
-              # tmux kill all sessions
-              tmuxkillall = "tmux ls | cut -d : -f 1 | xargs -I {} tmux kill-session -t {}";
-              ct = "ctags -R --exclude=.git --exclude=node_modules";
-              dotfiles = "ls -a | grep '^\.' | grep --invert-match '\.DS_Store\|\.$'";
-              python = "python3";
-              # convenience es for editing configs;
-              ev = "vi ~/.vimrc";
-              et = "vi ~/.tmux.conf";
-              ez = "vi ~/.zshrc";
-              # convenient es for updating prompt;
-              sz = "source ~/.zshrc";
-              # Use the current version of emacsclient;
-              emacsclient = "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient";
-              # Firiefox ;
-              firefox = "open -a /Applications/Firefox.app";
-              # Chrome ;
-              chrome = "open - a \"Google Chrome\"";
-              debug_chrome = "\"Google Chrome --remote-debugging-port=9222 https://localhost:3000\"";
-              # Kubernetes;
-              k = "kubectl";
-            };
-
-            oh-my-zsh = {
-              enable = true;
-              plugins = [ "git" "docker" "docker-compose" "sudo" "nvm" ];
-            };
-
-            # Plugin Manager
-            zplug = {
-              enable = true;
-              plugins = [
-                { name = "zsh-users/zsh-autosuggestions"; } # Simple plugin installation
-                { name = "zsh-users/zsh-completions"; }
-                { name = "zsh-users/zsh-syntax-highlighting"; }
-                { name = "nix-community/nix-zsh-completions"; }
-                { name = "romkatv/powerlevel10k"; tags = [ as:theme depth:1 ]; } # Installations with additional options. For the list of options, please refer to Zplug README.
-              ];
-            };
-
-          };
-        };
-      };
+      homeconfig = { pkgs, ... }: { };
     in
     {
-      # Build darwin flake using:
-      # $ darwin-rebuild build --flake .#Mac-Studio
-      darwinConfigurations."Grundy-MacStudio" = nix-darwin.lib.darwinSystem {
-        modules = [
-          configuration
-          home-manager.darwinModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.verbose = true;
-            home-manager.users.randyburrell = homeconfig;
-          }
-        ];
-      };
+      devShells = forAllSystems devShell;
+      apps = nixpkgs.lib.genAttrs linuxSystems mkLinuxApps // nixpkgs.lib.genAttrs darwinSystems mkDarwinApps;
 
-      # Expose the package set, including overlays, for convenience.
-      darwinPackages = self.darwinConfigurations."Grundy-MacStudio".pkgs;
+      darwinConfigurations = nixpkgs.lib.genAttrs darwinSystems (system:
+        darwin.lib.darwinSystem {
+          inherit system;
+          specialArgs = inputs;
+          modules = [
+            home-manager.darwinModules.home-manager
+            configuration
+            home-manager.darwinModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.verbose = true;
+              home-manager.users.randyburrell = homeconfig;
+            }
+            nix-homebrew.darwinModules.nix-homebrew
+            {
+              nix-homebrew = {
+                inherit user;
+                enable = true;
+                taps = {
+                  "homebrew/homebrew-core" = homebrew-core;
+                  "homebrew/homebrew-cask" = homebrew-cask;
+                  "homebrew/homebrew-bundle" = homebrew-bundle;
+                };
+                mutableTaps = false;
+                autoMigrate = true;
+              };
+            }
+            ./hosts/darwin
+          ];
+        }
+      );
+
+      nixosConfigurations = nixpkgs.lib.genAttrs linuxSystems (system: nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = inputs;
+        modules = [
+          disko.nixosModules.disko
+          home-manager.nixosModules.home-manager
+          {
+            home-manager = {
+              users.${user} = import ./modules/nixos/home-manager.nix;
+            };
+          }
+          ./hosts/nixos
+        ];
+      });
     };
 }
