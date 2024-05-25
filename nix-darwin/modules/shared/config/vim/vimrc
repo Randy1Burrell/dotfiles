@@ -1,0 +1,1537 @@
+" plugins {{{
+" Contains vim plugins and installation methods
+let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
+if empty(glob(data_dir . '/autoload/plug.vim'))
+  silent execute '!curl -fLo '.data_dir.'/autoload/plug.vim --create-dirs  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+endif
+
+" Set call for plugin to be installed
+call plug#begin('~/.vim/plugged')
+
+" Set plugins for installation
+Plug 'gmarik/Vundle.vim'
+
+" Plug to help neovim with sudo
+" :w !sudo tee % > /dev/null trick does not work on neovim.
+" I get the error "sudo: no tty present and no askpass program specified"
+" Instead I need to run :w suda://% with this plugin installed
+Plug 'lambdalisue/suda.vim'
+
+" Utility
+Plug 'Chiel92/vim-autoformat'
+if has('nvim')
+    Plug 'autozimu/LanguageClient-neovim', {
+    \ 'branch': 'next',
+    \ 'do': 'bash install.sh',
+    \ }
+    Plug 'Shougo/deoplete.nvim'
+    if has('win32') || has('win64')
+      Plug 'tbodt/deoplete-tabnine', { 'do': 'powershell.exe .\install.ps1' }
+    else
+      Plug 'tbodt/deoplete-tabnine', { 'do': './install.sh' }
+    endif
+else
+    Plug 'Shougo/deoplete.nvim'
+    Plug 'roxma/nvim-yarp'
+    Plug 'roxma/vim-hug-neovim-rpc'
+endif
+
+Plug 'KabbAmine/zeavim.vim'
+Plug 'Shougo/neocomplete.vim'
+Plug 'Shougo/vimproc.vim'
+" Can sometimes be buggy or maybe it's
+" just me not being able to configure this properly
+" Plug 'Valloric/YouCompleteMe'
+Plug 'ctrlpvim/ctrlp.vim'
+Plug 'davidhalter/jedi-vim'
+Plug 'editorconfig/editorconfig-vim'
+Plug 'flazz/vim-colorschemes'
+Plug 'godlygeek/tabular'
+Plug 'scrooloose/nerdtree'
+Plug 't9md/vim-choosewin'
+Plug 'thoughtbot/vim-rspec'
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'
+Plug 'vim-syntastic/syntastic'
+
+" Git
+Plug 'Xuyuanp/nerdtree-git-plugin'
+Plug 'tpope/vim-fugitive'
+
+" General Programming
+Plug 'jiangmiao/auto-pairs'
+Plug 'bkad/CamelCaseMotion'
+
+Plug 'luochen1990/rainbow'
+
+" Angular
+Plug 'bdauria/angular-cli.vim'
+Plug 'curist/vim-angular-template'
+
+" Linters
+Plug 'dense-analysis/ale'
+
+" Java
+Plug 'artur-shaik/vim-javacomplete2'
+
+" JavaScript
+Plug 'Quramy/vim-js-pretty-template'
+Plug 'pangloss/vim-javascript'
+Plug 'maksimr/vim-jsbeautify'
+Plug 'mxw/vim-jsx'
+
+" JSON
+Plug 'leshill/vim-json'
+
+" Snippets
+Plug 'honza/vim-snippets'
+
+" TypeScript
+Plug 'leafgarland/typescript-vim'
+
+" Tmux
+Plug 'christoomey/vim-tmux-navigator'
+
+" Vue
+Plug 'posva/vim-vue'
+
+" Handling Buffers
+Plug 'moll/vim-bbye'
+
+" Comments
+Plug 'tpope/vim-commentary'
+
+" Doc sets integration for vi
+Plug 'rizzatti/dash.vim'
+
+" End pluing installation with vundle here
+call plug#end()
+" }}}
+
+" Settings for plugins {{{
+
+"" General
+set number
+set history=1000
+set nocompatible
+set modelines=0
+set encoding=utf-8
+set scrolloff=3
+set showmode
+set showcmd
+set hidden
+set wildmenu
+set wildmode=list:longest
+set cursorline
+set ttyfast
+set nowrap
+set ruler
+set backspace=indent,eol,start
+set laststatus=2
+set clipboard=autoselect
+
+" Dir stuff
+set nobackup
+set nowritebackup
+set noswapfile
+set backupdir=~/.config/vim/backups
+set directory=~/.config/vim/swap
+
+" Relative line numbers for easy movement
+set relativenumber
+set rnu
+
+"" Whitespace rules
+set tabstop=8
+set shiftwidth=2
+set softtabstop=2
+set expandtab
+
+"" Searching
+set incsearch
+set gdefault
+
+"" Statusbar
+set nocompatible " Disable vi-compatibility
+set laststatus=2 " Always show the statusline
+let g:airline_theme='bubblegum'
+let g:airline_powerline_fonts = 1
+
+"" Local keys and such
+let mapleader=","
+let maplocalleader=" "
+
+"" Change cursor on mode
+:autocmd InsertEnter * set cul
+:autocmd InsertLeave * set nocul
+
+"" File-type highlighting and configuration
+syntax on
+filetype on
+filetype plugin on
+filetype indent on
+
+"" Paste from clipboard
+nnoremap <Leader>, "+gP
+
+"" Copy from clipboard
+xnoremap <Leader>. "+y
+
+"" Move cursor by display lines when wrapping
+nnoremap j gj
+nnoremap k gk
+
+"" Map leader-q to quit out of window
+nnoremap <leader>q :q<cr>
+
+"" Move around split
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+"" Easier to yank entire line
+nnoremap Y y$
+
+"" Move buffers
+nnoremap <tab> :bnext<cr>
+nnoremap <S-tab> :bprev<cr>
+
+"" Like a boss, sudo AFTER opening the file to write
+cmap w!! w !sudo tee % >/dev/null
+
+let g:startify_lists = [
+  \ { 'type': 'dir',       'header': ['   Current Directory '. getcwd()] },
+  \ { 'type': 'sessions',  'header': ['   Sessions']       },
+  \ { 'type': 'bookmarks', 'header': ['   Bookmarks']      }
+  \ ]
+
+let g:startify_bookmarks = [
+  \ '~/.local/share/src',
+  \ ]
+
+let g:airline_theme='bubblegum'
+let g:airline_powerline_fonts = 1
+" Settings for .editorconfig plugin
+let g:EditorConfig_exclude_patterns = ['fugitive://.*']
+"let g:EditorConfig_core_mode = 'external_command'
+
+" Show lines above 80 character long
+highlight OverLength ctermbg=red ctermfg=white guibg=#592929
+au BufRead,BufNewFile *.py match OverLength /\%81v.\+/
+au BufRead,BufNewFile *.{py,php,js,rb} setlocal textwidth=120
+
+" Settings for syntastic plugin
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
+
+" Syntax checker settings
+let g:syntastic_javascipt_checkers = ['eslint', 'jslint', 'closure compiler']
+let g:syntastic_php_checkers = ['php', 'phpcs', 'phpmd']
+let g:syntastic_python_checkers = ['flake8', 'pyflakes', 'pylint']
+let g:syntastic_typescript_checkers = ['tsuquyomi']
+let g:syntastic_java_checkers = []
+
+let g:syntastic_html_tidy_ignore_errors=[
+      \   'attribute name',
+      \   'is not recognized',
+      \   'discarding unexpected'
+      \ ]
+let g:syntastic_html_tidy_ignore_warnings=['discarding unexpected']
+" Always open location window when errors occurs
+let g:syntastic_aggregate_errors = 1
+" Whenever I use buffer delete then close the location window
+"nnoremap <silent> <C-d> :lclose<CR>:bdelete<CR>
+cabbrev <silent> bd <C-r>=(getcmdtype()==#':' && getcmdpos()==1 ? 'lclose\|bdelete' : 'bd')<CR>
+
+" Set syntax highlight for conf files
+au BufNewFile,BufRead *.conf*,/etc/* setfiletype conf
+
+" configure nurdtree
+let g:nerdtreedirarrowexpandable = '▸'
+let g:nerdtreedirarrowcollapsible = '▾'
+
+" Configure git indicators for nerdtree
+let g:NERDTreeGitStatusIndicatorMapCustom = {
+      \ "Modified"  : "✹",
+      \ "Staged"    : "✚",
+      \ "Untracked" : "✭",
+      \ "Renamed"   : "➜",
+      \ "Unmerged"  : "═",
+      \ "Deleted"   : "✖",
+      \ "Dirty"     : "✗",
+      \ "Clean"     : "✔︎",
+      \ "Unknown"   : "?"
+      \ }
+
+" Theme
+set background=light
+
+" Ctrl settings
+let g:ctrlp_show_hidden=1
+let g:ctrlp_root_markers = ['*']
+let g:ctrlp_switch_buffer = 'et'
+let g:ctrlp_working_path_mode='ra'
+let g:ctrlp_max_height=30
+
+" CtrlP -> override <C-o> to provide options for how to open files
+let g:ctrlp_arg_map = 1
+
+" CtrlP -> files matched are ignored when expanding wildcards
+set wildignore+=*/.git/*,*/.hg/*,*/.svn/*.,*/.DS_Store
+
+" CtrlP -> use Ag for searching instead of VimScript
+" (might not work with ctrlp_show_hidden and ctrlp_custom_ignore)
+let g:ctrlp_user_command = 'find %s -type f' "ag %s -l --nocolor -g
+" CtrlP -> directories to ignore when fuzzy finding
+let g:ctrlp_custom_ignore = '\v[\/]((node_modules)|\.(git|svn|grunt|sass-cache))$'
+
+" Ack (uses Ag behind the scenes)
+let g:ackprg = 'ag --nogroup --nocolor --column'
+
+" Gist authorisation settings
+let g:github_user = $GITHUB_USER
+let g:github_token = $GITHUB_TOKEN
+let g:gist_detect_filetype = 1
+let g:gist_open_browser_after_post = 1
+" Related plugins:
+" https://github.com/mattn/webapi-vim
+" https://github.com/vim-scripts/Gist.vim
+" https://github.com/tpope/vim-fugitive
+
+" HTML generation using 'emmet-vim'
+" NORMAL mode Ctrl+y then , <C-y,>
+
+" Git gutter
+let g:gitgutter_enabled = 1
+let g:gitgutter_eager = 0
+let g:gitgutter_sign_column_always = 1
+highlight clear SignColumn
+
+" Sets airline defaults
+set laststatus=2
+let g:airline#extensions#tabline#enabled = 1
+let g:airline#extensions#tabline#left_sep = ' '
+let g:airline#extensions#tabline#left_alt_sep = '|'
+" Airline (status line)
+let g:airline_powerline_fonts = 1
+" Ailine theme
+let g:airline_theme='dark'
+
+" powerline setting
+" set laststatus=2
+
+" Autoformat files upon saving
+" au BufWrite * :Autoformat
+
+" Set vim-autoformat to run in verbose mode
+"let g:autoformat_verbosemode=1
+
+" Vue file syntax highlighting
+autocmd FileType vue syntax sync fromstart
+
+" Java completion configuration
+autocmd FileType java setlocal omnifunc=javacomplete#Complete
+
+" Typescript-vim comfiguration
+let g:typescript_indent_disable = 1
+let g:typescript_compiler_binary = 'tsc'
+let g:typescript_compiler_options = ''
+autocmd QuickFixCmdPost [^l]* nested cwindow
+autocmd QuickFixCmdPost    l* nested lwindow
+
+" Vim-js-pretty-template configuration
+autocmd FileType typescript JsPreTmpl html
+" autocmd FileType typescript syn clear foldBraces
+
+" angular_cli configuration
+autocmd FileType typescript,html call angular_cli#init()
+
+let g:perl_host_prog = '/usr/bin/perl'
+
+" Eclim settings
+let g:EclimCompletionMethod = 'omnifunc'
+
+" Configuration for php tags plugin
+let g:tagbar_phpctags_bin = '~/.vim/bundle/tagbar-phpctags.vim/bin'
+let g:tagbar_phpctags_memory_limit = '128M'
+
+" Configuration for pangloss/vim-javascript
+let g:javascript_plugin_jsdoc = 1
+let g:javascript_plugin_ngdoc = 1
+let g:javascript_plugin_flow = 1
+
+let g:javascript_conceal_function             = "ƒ"
+let g:javascript_conceal_null                 = "ø"
+let g:javascript_conceal_this                 = "@"
+let g:javascript_conceal_return               = "⇚"
+let g:javascript_conceal_undefined            = "¿"
+let g:javascript_conceal_NaN                  = "ℕ"
+let g:javascript_conceal_prototype            = "¶"
+let g:javascript_conceal_static               = "•"
+let g:javascript_conceal_super                = "Ω"
+let g:javascript_conceal_arrow_function       = "⇒"
+let g:javascript_conceal_noarg_arrow_function = "🞅"
+let g:javascript_conceal_underscore_arrow_function = "🞅"
+
+" Configuration for MXW/vim-jsx
+let g:jsx_ext_required = 0
+
+" Configuration for rainbow
+let g:rainbow_active = 1
+
+" Settings for phpcomplete
+let g:phpcomplete_relax_static_constraint = 1
+let g:phpcomplete_complete_for_unknown_classes = 1
+let g:phpcomplete_search_tags_for_variables = 1
+let g:phpcomplete_min_num_of_chars_for_namespace_completion = 1
+let g:phpcomplete_parse_docblock_comments = 1
+let g:phpcomplete_enhance_jump_to_definition = 1
+
+" Settings for deoplete
+let g:deoplete#enable_at_startup = 0
+
+let g:dash_activated = 0
+
+" }}}
+
+" Commands {{{
+" jump to last cursor
+autocmd BufReadPost *
+            \ if line("'\"") > 0 && line("'\"") <= line("$") |
+            \   exe "normal g`\"" |
+            \ endif
+
+" Removes trailing white spaces
+autocmd BufWritePre * call StripTrailingWhitespace()
+
+" file formats
+autocmd Filetype gitcommit setlocal spell textwidth=72
+autocmd Filetype markdown setlocal wrap linebreak nolist textwidth=0 wrapmargin=0 " http://vim.wikia.com/wiki/Word_wrap_without_line_breaks
+autocmd FileType sh,cucumber,ruby,yaml,zsh,vim setlocal shiftwidth=2 tabstop=2 expandtab
+
+" specify syntax highlighting for specific files
+autocmd Bufread,BufNewFile *.spv set filetype=php
+autocmd Bufread,BufNewFile *.md set filetype=markdown " Vim interprets .md as 'modula2' otherwise, see :set filetype?
+
+" Highlight words to avoid in tech writing
+" http://css-tricks.com/words-avoid-educational-writing/
+highlight TechWordsToAvoid ctermbg=red ctermfg=white
+match TechWordsToAvoid /\cobviously\|basically\|simply\|of\scourse\|clearly\|just\|everyone\sknows\|however\|so,\|easy/
+autocmd BufWinEnter * match TechWordsToAvoid /\cobviously\|basically\|simply\|of\scourse\|clearly\|just\|everyone\sknows\|however,\|so,\|easy/
+autocmd InsertEnter * match TechWordsToAvoid /\cobviously\|basically\|simply\|of\scourse\|clearly\|just\|everyone\sknows\|however,\|so,\|easy/
+autocmd InsertLeave * match TechWordsToAvoid /\cobviously\|basically\|simply\|of\scourse\|clearly\|just\|everyone\sknows\|however,\|so,\|easy/
+autocmd BufWinLeave * call clearmatches()
+
+" Create a 'scratch buffer' which is a temporary buffer Vim wont ask to save
+" http://vim.wikia.com/wiki/Display_output_of_shell_commands_in_new_window
+command! -complete=shellcmd -nargs=+ Shell call s:RunShellCommand(<q-args>)
+
+" Close all folds when opening a new buffer
+autocmd BufRead * setlocal foldmethod=marker
+autocmd BufRead * normal zM
+
+" Reset spelling colours when reading a new buffer
+" This works around an issue where the colorscheme is changed by .local.vimrc
+autocmd BufWinEnter * call SetSpellingColors()
+autocmd BufNewFile * call SetSpellingColors()
+autocmd BufRead * call SetSpellingColors()
+autocmd InsertEnter * call SetSpellingColors()
+autocmd InsertLeave * call SetSpellingColors()
+
+" Change colourscheme when diffing
+autocmd FilterWritePre * call SetDiffColors()
+
+" Toggles relative line number based on mode
+autocmd FocusLost * call ToggleRelativeOn()
+autocmd FocusGained * call ToggleRelativeOn()
+autocmd InsertEnter * call ToggleRelativeOn()
+autocmd InsertLeave * call ToggleRelativeOn()
+
+" Always highlight column 80 so it's easier to see where
+" cutoff appears on longer screens
+autocmd BufWinEnter * highlight ColorColumn ctermbg=DarkBlue
+
+" Fold JavaScript methods automatically
+augroup javascript_folding
+    au!
+    au FileType javascript setlocal foldmethod=syntax
+augroup END
+" }}}
+
+" Functions are found here {{{
+" This snippet was taken from https://github.com/colbycheeze/dotfiles/blob/master/vimrc
+" Toggle relative numbering, and set to absolute on loss of focus or insert mode
+function! ToggleNumbersOn()
+  set number!
+  set relativenumber
+endfunction
+function! ToggleRelativeOn()
+  set relativenumber!
+  set number
+endfunction
+
+" Removes trailing white spaces from end of lines
+fun! StripTrailingWhitespace()
+  " don't strip on these filetypes
+  if &ft =~ 'markdown'
+    return
+  endif
+  %s/\s\+$//e
+endfun
+
+" Create a 'scratch buffer' which is a temporary buffer Vim wont ask to save
+" http://vim.wikia.com/wiki/Display_output_of_shell_commands_in_new_window
+function! s:RunShellCommand(cmdline)
+  echo a:cmdline
+  let expanded_cmdline = a:cmdline
+  for part in split(a:cmdline, ' ')
+    if part[0] =~ '\v[%#<]'
+      let expanded_part = fnameescape(expand(part))
+      let expanded_cmdline = substitute(expanded_cmdline, part, expanded_part, '')
+    endif
+  endfor
+  botright new
+  setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile nowrap
+  call setline(1, 'You entered:    ' . a:cmdline)
+  call setline(2, 'Expanded Form:  ' .expanded_cmdline)
+  call setline(3,substitute(getline(2),'.','=','g'))
+  execute '$read !'. expanded_cmdline
+  setlocal nomodifiable
+  1
+endfunction
+
+" Rainbow parenthesis always on!
+if exists(':RainbowParenthesesToggle')
+  autocmd VimEnter * RainbowParenthesesToggle
+  autocmd Syntax * RainbowParenthesesLoadRound
+  autocmd Syntax * RainbowParenthesesLoadSquare
+  autocmd Syntax * RainbowParenthesesLoadBraces
+endif
+
+" Reset spelling colours when reading a new buffer
+" This works around an issue where the colorscheme is changed by .local.vimrc
+fun! SetSpellingColors()
+  highlight SpellBad cterm=bold ctermfg=white ctermbg=red
+  highlight SpellCap cterm=bold ctermfg=red ctermbg=white
+endfun
+
+" Change colourscheme when diffing
+fun! SetDiffColors()
+  highlight DiffAdd    cterm=bold ctermfg=white ctermbg=DarkGreen
+  highlight DiffDelete cterm=bold ctermfg=white ctermbg=DarkGrey
+  highlight DiffChange cterm=bold ctermfg=white ctermbg=DarkBlue
+  highlight DiffText   cterm=bold ctermfg=white ctermbg=DarkRed
+endfun
+
+"" }}}
+
+" Mappings {{{
+" Notes...
+"
+" :map     j gg (j will be mapped to gg)
+" :map     Q j  (Q will also be mapped to gg, because j will be expanded -> recursive mapping)
+" :noremap W j  (W will be mapped to j not to gg, because j will not be expanded -> non recursive)
+"
+" These mappings work in all modes. To have mappings work in only specific
+" modes then denote the mapping with the mode character.
+"
+" e.g.
+" to map something in just NORMAL mode use :nmap or :nnoremap
+" to map something in just VISUAL mode use :vmap or :vnoremap
+
+" Clear search buffer
+":nnoremap § :nohlsearch<cr>
+"
+" Command to use sudo when needed
+nmap <leader>! %!sudo tee > /dev/null %<cr>
+
+" File System Explorer (in horizontal split)
+map <leader>. :Sexplore<cr>
+
+" Buffers
+map <leader>yt :ls<cr>
+
+" Buffers (runs the delete buffer command on all open buffers)
+map <leader>yd :bufdo bd<cr>
+
+" Make handling vertical/linear Vim windows easier
+map <leader>w- <C-W>- " decrement height
+map <leader>w+ <C-W>+ " increment height
+map <leader>w] <C-W>_ " maximize height
+map <leader>w[ <C-W>= " equalize all windows
+
+" Moving around windows quickly
+map <leader>] <C-W>l " Move to right window
+map <leader>[ <C-W>h " Move to left window
+map <leader><cr> <C-W>j " Move to left window
+map <leader>= <C-W>k " Move to left window
+
+" Source vimrc
+map <leader>v :source ~/.config/nvim/init.vim<cr> :e <cr>
+map <leader>m :PlugInstall<cr>
+
+" Open ~/.vimrc
+map <leader>" :e ~/.vimrc<cr>
+
+" Handling horizontal Vim windows doesn't appear to be possible.
+" Attempting to map <C-W> < and > didn't work
+" Same with mapping <C-W>|
+
+" Make splitting Vim windows easier
+map <leader>; <C-W>s
+map <leader>` <C-W>v
+
+" Running Tests...
+" See also <https://gist.github.com/8114940>
+
+" Run currently open RSpec test file
+map <Leader>rf :w<cr>:!rspec % --format nested<cr>
+
+" Run current RSpec test
+" RSpec is clever enough to work out the test to run if the cursor is on any line within the test
+map <Leader>rl :w<cr>:exe "!rspec %" . ":" . line(".")<cr>
+
+" Run all RSpec tests
+map <Leader>rt :w<cr>:!rspec --format nested<cr>
+
+" Run currently open cucumber feature file
+map <Leader>cf :w<cr>:!cucumber %<cr>
+
+" Run current cucumber scenario
+map <Leader>cl :w<cr>:exe "!cucumber %" . ":" . line(".")<cr>
+
+" Run all cucumber feature files
+map <Leader>ct :w<cr>:!cucumber<cr>
+
+" Tmux style window selection
+map <Leader>ws :ChooseWin<cr>
+
+" Set command to help save file that need root privilage
+cmap w!! :w !sudo tee >/dev/null %
+:au FileChangedShell * e!
+
+" Key maps for git
+noremap <leader><F3> :Git add %<cr>
+noremap <leader><F4> :Gcommit<cr>i
+noremap <leader><F5> :wq<cr>:Gpush<cr>
+noremap <leader><F6> :Gstatus<cr>
+noremap <leader><F7> :Gpull<cr>
+noremap <leader><F8> :Git diff %<cr>
+noremap <leader><F9> :Git add %<cr>:Gcommit<cr>i
+noremap <leader><F2> :wq<cr>:Gpush<cr><cr>
+
+" Key maps for tabNext
+noremap <leader><F12> :tabNext<cr>
+
+" Key maps for saving and exiting vim
+map <leader>s :w<cr>
+map <leader>x :q<cr>
+
+" Paste from system buffer
+map <leader>i "*p
+
+" Buffer navigation key maps
+map <leader>n :bn<cr>
+map <leader>p :bp<cr>
+map <leader>b :b
+map <leader>l <C-^>
+
+" Maps ToggleRelativeOn function to \\ key call
+noremap <silent><leader>\ :call ToggleRelativeOn()<cr>
+
+" Searching the file system
+map <leader>' :NERDTreeToggle<cr>
+
+" Tabularize
+map <Leader>e :Tabularize /=<cr>
+map <Leader>c :Tabularize /:<cr>
+map <Leader>es :Tabularize /=\zs<cr>
+map <Leader>cs :Tabularize /:\zs<cr>
+
+" Camel Case Motion (for dealing with programming code)
+map <silent> w <Plug>CamelCaseMotion_w
+map <silent> b <Plug>CamelCaseMotion_b
+map <silent> e <Plug>CamelCaseMotion_e
+sunmap w
+sunmap b
+sunmap e
+
+" Settings for vim-autoformat
+" Maps F3 function key to autoformat
+noremap <leader><SPACE> :Autoformat<cr>
+
+" Map key to autoformat files
+map <leader>- gg=G``zz
+
+" F2 toggles paste mode
+nmap <PasteStart>  <nop>
+nmap <PasteEnd>    <nop>
+nnoremap <F2> :set invpaste paste?<cr>
+set pastetoggle=<F2>
+set showmode
+
+" CtrlP
+map <leader>t <C-p>
+map <leader>y :CtrlPBuffer<cr>
+
+" Settings for tagbar plugin
+nmap <F8> :TagbarToggle<cr>
+
+" Map for pangloss/vim-javascript plugin
+map <leader><TAB> :exec &conceallevel ? "set conceallevel=0" : "set conceallevel=1"<cr>
+
+" Mapping for zeavim
+nmap <leader>z <Plug>Zeavim
+vmap <leader>z <Plug>ZVVisSelection
+nmap gz <Plug>ZVOperator
+nmap <leader><leader>z <Plug>ZVKeyDocset
+
+" Mapping for js beautify
+map <leader>qs :call JsBeautify()<cr>
+map <leader>qx :call JsxBeautify()<cr>
+
+" Mapping for vim-bbye
+map <Leader>q :Bdelete<cr>
+
+" Mapping for Dash
+nmap <silent> <leader>d <Plug>DashSearch
+" }}}
+
+" Templates {{{
+" Loads templates from template files
+" This is from dynamica templates example at:
+" https://vim.fandom.com/wiki/Use_eval_to_create_dynamic_templates
+augroup templates
+  au!
+  " read in template files
+  autocmd BufNewFile *.* silent! execute '0r ~/.vim/templates/skeleton.'.expand("<afile>:e")
+  " parse special text in the templates after the read
+  autocmd BufNewFile * %substitute#\[:VIM_EVAL:\]\(.\{-\}\)\[:END_EVAL:\]#\=eval(submatch(1))#ge
+augroup END
+" }}}
+
+" Tagbar settings {{{
+" Ada Settings {{{
+let g:tagbar_type_ada = {
+      \ 'ctagstype': 'ada',
+      \ 'kinds' : [
+      \'P:package specs',
+      \'p:packages',
+      \'t:type',
+      \'u:subtypes',
+      \'c:record type components',
+      \'l:enum type literals',
+      \'v:variables',
+      \'f:formal parameters',
+      \'n:constants',
+      \'x:exceptions',
+      \'R:subprogram specs',
+      \'r:subprograms',
+      \'K:task specs',
+      \'k:tasks',
+      \'O:protected data specs',
+      \'o:protected data',
+      \'e:entries',
+      \'b:labels',
+      \'i:identifiers'
+      \]
+      \}
+" }}}
+
+" Ansible settings {{{
+let g:tagbar_type_ansible = {
+      \ 'ctagstype' : 'ansible',
+      \ 'kinds' : [
+      \ 't:tasks'
+      \ ],
+      \ 'sort' : 0
+      \ }
+" }}}
+
+" Asm settings {{{
+let g:tagbar_type_armasm = {
+      \ 'ctagsbin'  : 'ctags',
+      \ 'ctagsargs' : '-f- --format=2 --excmd=pattern --fields=nksSa --extra= --sort=no --language-force=asm',
+      \ 'kinds' : [
+      \ 'm:macros:0:1',
+      \ 't:types:0:1',
+      \ 'd:defines:0:1',
+      \ 'l:labels:0:1'
+      \ ]
+      \}
+" }}}
+
+" AsciiDoc settings {{{
+let g:tagbar_type_asciidoc = {
+      \ 'ctagstype' : 'asciidoc',
+      \ 'kinds' : [
+      \ 'h:table of contents',
+      \ 'a:anchors:1',
+      \ 't:titles:1',
+      \ 'n:includes:1',
+      \ 'i:images:1',
+      \ 'I:inline images:1'
+      \ ],
+      \ 'sort' : 0
+      \ }
+" }}}
+
+" Bib settings {{{
+let g:tagbar_type_bib = {
+      \ 'ctagstype' : 'bib',
+      \ 'kinds'     : [
+      \ 'a:Articles',
+      \ 'b:Books',
+      \ 'L:Booklets',
+      \ 'c:Conferences',
+      \ 'B:Inbook',
+      \ 'C:Incollection',
+      \ 'P:Inproceedings',
+      \ 'm:Manuals',
+      \ 'T:Masterstheses',
+      \ 'M:Misc',
+      \ 't:Phdtheses',
+      \ 'p:Proceedings',
+      \ 'r:Techreports',
+      \ 'u:Unpublished',
+      \ ]
+      \ }
+" }}}
+
+" CofeeScript settings {{{
+let g:tagbar_type_coffee = {
+      \ 'ctagstype' : 'coffee',
+      \ 'kinds'     : [
+      \ 'c:classes',
+      \ 'm:methods',
+      \ 'f:functions',
+      \ 'v:variables',
+      \ 'f:fields',
+      \ ]
+      \ }
+" }}}
+
+" Css settings {{{
+let g:tagbar_type_css = {
+      \ 'ctagstype' : 'Css',
+      \ 'kinds'     : [
+      \ 'c:classes',
+      \ 's:selectors',
+      \ 'i:identities'
+      \ ]
+      \ }
+" }}}
+
+" D settings {{{
+let g:tagbar_type_d = {
+      \ 'ctagstype' : 'd',
+      \ 'kinds'     : [
+      \ 'c:classes:1:1',
+      \ 'f:functions:1:1',
+      \ 'T:template:1:1',
+      \ 'g:enums:1:1',
+      \ 'e:enumerators:0:0',
+      \ 'u:unions:1:1',
+      \ 's:structs:1:1',
+      \ 'v:variables:1:0',
+      \ 'i:interfaces:1:1',
+      \ 'm:members',
+      \ 'a:alias'
+      \ ],
+      \'sro': '.',
+      \ 'kind2scope' : {
+      \ 'c' : 'class',
+      \ 'g' : 'enum',
+      \ 's' : 'struct',
+      \ 'u' : 'union',
+      \ 'T' : 'template'
+      \},
+      \ 'scope2kind' : {
+      \ 'enum'      : 'g',
+      \ 'class'     : 'c',
+      \ 'struct'    : 's',
+      \ 'union'     : 'u',
+      \ 'template'  : 'T'
+      \ },
+      \ 'ctagsbin' : 'dscanner',
+      \ 'ctagsargs' : ['--ctags']
+      \ }
+
+let g:tagbar_type_d = {
+      \ 'ctagstype' : 'd',
+      \ 'kinds'     : [
+      \ 'c:classes:0:1',
+      \ 'f:functions',
+      \ 'g:enums',
+      \ 'u:unions',
+      \ 's:structs',
+      \ 'm:members'
+      \ ],
+      \'sro': '.',
+      \ 'kind2scope' : {
+      \ 'c' : 'class',
+      \ 'g' : 'enum',
+      \ 's' : 'struct',
+      \ 'u' : 'union'
+      \},
+      \ 'scope2kind' : {
+      \ 'enum'      : 'g',
+      \ 'class'     : 'c',
+      \ 'struct'    : 's',
+      \ 'union'     : 'u'
+      \ }
+      \ }
+" }}}
+
+" Elixir settings {{{
+let g:tagbar_type_elixir = {
+      \ 'ctagstype' : 'elixir',
+      \ 'kinds' : [
+      \ 'f:functions',
+      \ 'functions:functions',
+      \ 'c:callbacks',
+      \ 'd:delegates',
+      \ 'e:exceptions',
+      \ 'i:implementations',
+      \ 'a:macros',
+      \ 'o:operators',
+      \ 'm:modules',
+      \ 'p:protocols',
+      \ 'r:records',
+      \ 't:tests'
+      \ ]
+      \ }
+" }}}
+
+" Google Go settings {{{
+let g:tagbar_type_go = {
+      \ 'ctagstype': 'go',
+      \ 'kinds' : [
+      \'p:package',
+      \'f:function',
+      \'v:variables',
+      \'t:type',
+      \'c:const'
+      \]
+      \}
+" }}}
+
+" Groovy settings {{{
+let g:tagbar_type_groovy = {
+      \ 'ctagstype' : 'groovy',
+      \ 'kinds'     : [
+      \ 'p:package:1',
+      \ 'c:classes',
+      \ 'i:interfaces',
+      \ 't:traits',
+      \ 'e:enums',
+      \ 'm:methods',
+      \ 'f:fields:1'
+      \ ]
+      \ }
+" }}}
+
+" Haskel settings {{{
+let g:tagbar_type_haskell = {
+      \ 'ctagsbin'  : 'hasktags',
+      \ 'ctagsargs' : '-x -c -o-',
+      \ 'kinds'     : [
+      \  'm:modules:0:1',
+      \  'd:data: 0:1',
+      \  'd_gadt: data gadt:0:1',
+      \  't:type names:0:1',
+      \  'nt:new types:0:1',
+      \  'c:classes:0:1',
+      \  'cons:constructors:1:1',
+      \  'c_gadt:constructor gadt:1:1',
+      \  'c_a:constructor accessors:1:1',
+      \  'ft:function types:1:1',
+      \  'fi:function implementations:0:1',
+      \  'o:others:0:1'
+      \ ],
+      \ 'sro'        : '.',
+      \ 'kind2scope' : {
+      \ 'm' : 'module',
+      \ 'c' : 'class',
+      \ 'd' : 'data',
+      \ 't' : 'type'
+      \ },
+      \ 'scope2kind' : {
+      \ 'module' : 'm',
+      \ 'class'  : 'c',
+      \ 'data'   : 'd',
+      \ 'type'   : 't'
+      \ }
+      \ }
+" }}}
+
+" IDL (Interactive Data Language) settings {{{
+let g:tagbar_type_idlang = {
+      \ 'ctagstype' : 'IDL',
+      \ 'kinds' : [
+      \ 'p:Procedures',
+      \ 'f:Functions',
+      \ 'c:Common Blocks'
+      \ ]
+      \ }
+" }}}
+
+" Julia settings {{{
+let g:tagbar_type_julia = {
+      \ 'ctagstype' : 'julia',
+      \ 'kinds'     : [
+      \ 't:struct', 'f:function', 'm:macro', 'c:const']
+      \ }
+" }}}
+
+" Makefile Targets settings {{{
+let g:tagbar_type_make = {
+      \ 'kinds':[
+      \ 'm:macros',
+      \ 't:targets'
+      \ ]
+      \}
+" }}}
+
+" Markdown settings {{{
+let g:tagbar_type_markdown = {
+      \ 'ctagstype' : 'markdown',
+      \ 'kinds' : [
+      \ 'h:Heading_L1',
+      \ 'i:Heading_L2',
+      \ 'k:Heading_L3'
+      \ ]
+      \ }
+
+let g:tagbar_type_markdown = {
+      \ 'ctagstype': 'markdown',
+      \ 'ctagsbin' : '/path/to/markdown2ctags.py',
+      \ 'ctagsargs' : '-f - --sort=yes',
+      \ 'kinds' : [
+      \ 's:sections',
+      \ 'i:images'
+      \ ],
+      \ 'sro' : '|',
+      \ 'kind2scope' : {
+      \ 's' : 'section',
+      \ },
+      \ 'sort': 0,
+      \ }
+" }}}
+
+" Media Wiki settings {{{
+let g:tagbar_type_mediawiki = {
+      \ 'ctagstype' : 'mediawiki',
+      \ 'kinds' : [
+      \'h:chapters',
+      \'s:sections',
+      \'u:subsections',
+      \'b:subsubsections',
+      \]
+      \}
+" }}}
+
+" NASL settings {{{
+let g:tagbar_type_nasl = {
+      \ 'ctagstype' : 'nasl',
+      \ 'kinds'     : [
+      \ 'f:function',
+      \ 'u:public function',
+      \ 'r:private function',
+      \ 'v:variables',
+      \ 'n:namespace',
+      \ 'g:globals',
+      \ ]
+      \ }
+" }}}
+
+" Obj-C settings {{{
+let g:tagbar_type_objc = {
+      \ 'ctagstype' : 'ObjectiveC',
+      \ 'kinds'     : [
+      \ 'i:interface',
+      \ 'I:implementation',
+      \ 'p:Protocol',
+      \ 'm:Object_method',
+      \ 'c:Class_method',
+      \ 'v:Global_variable',
+      \ 'F:Object field',
+      \ 'f:function',
+      \ 'p:property',
+      \ 't:type_alias',
+      \ 's:type_structure',
+      \ 'e:enumeration',
+      \ 'M:preprocessor_macro',
+      \ ],
+      \ 'sro'        : ' ',
+      \ 'kind2scope' : {
+      \ 'i' : 'interface',
+      \ 'I' : 'implementation',
+      \ 'p' : 'Protocol',
+      \ 's' : 'type_structure',
+      \ 'e' : 'enumeration'
+      \ },
+      \ 'scope2kind' : {
+      \ 'interface'      : 'i',
+      \ 'implementation' : 'I',
+      \ 'Protocol'       : 'p',
+      \ 'type_structure' : 's',
+      \ 'enumeration'    : 'e'
+      \ }
+      \ }
+" }}}
+
+" Pearl settings {{{
+let g:tagbar_type_perl = {
+      \ 'ctagstype' : 'perl',
+      \ 'kinds'     : [
+      \ 'p:package:0:0',
+      \ 'w:roles:0:0',
+      \ 'e:extends:0:0',
+      \ 'u:uses:0:0',
+      \ 'r:requires:0:0',
+      \ 'o:ours:0:0',
+      \ 'a:properties:0:0',
+      \ 'b:aliases:0:0',
+      \ 'h:helpers:0:0',
+      \ 's:subroutines:0:0',
+      \ 'd:POD:1:0'
+      \ ]
+      \ }
+" }}}
+
+" Powershell settings {{{
+let g:tagbar_type_ps1 = {
+      \ 'ctagstype' : 'powershell',
+      \ 'kinds'     : [
+      \ 'f:function',
+      \ 'i:filter',
+      \ 'a:alias'
+      \ ]
+      \ }
+" }}}
+
+" Puppet settings {{{
+let g:tagbar_type_puppet = {
+      \ 'ctagstype': 'puppet',
+      \ 'kinds': [
+      \'c:class',
+      \'s:site',
+      \'n:node',
+      \'d:definition'
+      \]
+      \}
+" }}}
+
+" R settings {{{
+let g:tagbar_type_r = {
+      \ 'ctagstype' : 'r',
+      \ 'kinds'     : [
+      \ 'f:Functions',
+      \ 'g:GlobalVariables',
+      \ 'v:FunctionVariables',
+      \ ]
+      \ }
+" }}}
+
+" Rst settings {{{
+let g:tagbar_type_rst = {
+      \ 'ctagstype': 'rst',
+      \ 'ctagsbin' : '/path/to/rst2ctags.py',
+      \ 'ctagsargs' : '-f - --sort=yes',
+      \ 'kinds' : [
+      \ 's:sections',
+      \ 'i:images'
+      \ ],
+      \ 'sro' : '|',
+      \ 'kind2scope' : {
+      \ 's' : 'section',
+      \ },
+      \ 'sort': 0,
+      \ }
+" }}}
+
+" Ruby settings {{{
+let g:tagbar_type_ruby = {
+      \ 'kinds' : [
+      \ 'm:modules',
+      \ 'c:classes',
+      \ 'd:describes',
+      \ 'C:contexts',
+      \ 'f:methods',
+      \ 'F:singleton methods'
+      \ ]
+      \ }
+" }}}
+
+" Ruby with riptags settings {{{
+if executable('ripper-tags')
+  let g:tagbar_type_ruby = {
+        \ 'kinds'      : ['m:modules',
+        \ 'c:classes',
+        \ 'C:constants',
+        \ 'F:singleton methods',
+        \ 'f:methods',
+        \ 'a:aliases'],
+        \ 'kind2scope' : { 'c' : 'class',
+        \ 'm' : 'class' },
+        \ 'scope2kind' : { 'class' : 'c' },
+        \ 'ctagsbin'   : 'ripper-tags',
+        \ 'ctagsargs'  : ['-f', '-']
+        \ }
+endif
+" }}}
+
+" Rust settings {{{
+let g:tagbar_type_rust = {
+      \ 'ctagstype' : 'rust',
+      \ 'kinds' : [
+      \'T:types,type definitions',
+      \'f:functions,function definitions',
+      \'g:enum,enumeration names',
+      \'s:structure names',
+      \'m:modules,module names',
+      \'c:consts,static constants',
+      \'t:traits',
+      \'i:impls,trait implementations',
+      \]
+      \}
+" }}}
+
+" Scala settings {{{
+let g:tagbar_type_scala = {
+      \ 'ctagstype' : 'scala',
+      \ 'sro'       : '.',
+      \ 'kinds'     : [
+      \ 'p:packages',
+      \ 'T:types:1',
+      \ 't:traits',
+      \ 'o:objects',
+      \ 'O:case objects',
+      \ 'c:classes',
+      \ 'C:case classes',
+      \ 'm:methods',
+      \ 'V:values:1',
+      \ 'v:variables:1'
+      \ ]
+      \ }
+" }}}
+
+" Systemverilog settings {{{
+let g:tagbar_type_systemverilog = {
+      \ 'ctagstype': 'systemverilog',
+      \ 'kinds' : [
+      \'A:assertions',
+      \'C:classes',
+      \'E:enumerators',
+      \'I:interfaces',
+      \'K:packages',
+      \'M:modports',
+      \'P:programs',
+      \'Q:prototypes',
+      \'R:properties',
+      \'S:structs and unions',
+      \'T:type declarations',
+      \'V:covergroups',
+      \'b:blocks',
+      \'c:constants',
+      \'e:events',
+      \'f:functions',
+      \'m:modules',
+      \'n:net data types',
+      \'p:ports',
+      \'r:register data types',
+      \'t:tasks',
+      \],
+      \ 'sro': '.',
+      \ 'kind2scope' : {
+      \ 'K' : 'package',
+      \ 'C' : 'class',
+      \ 'm' : 'module',
+      \ 'P' : 'program',
+      \ 'I' : 'interface',
+      \ 'M' : 'modport',
+      \ 'f' : 'function',
+      \ 't' : 'task',
+      \},
+      \ 'scope2kind' : {
+      \ 'package'   : 'K',
+      \ 'class'     : 'C',
+      \ 'module'    : 'm',
+      \ 'program'   : 'P',
+      \ 'interface' : 'I',
+      \ 'modport'   : 'M',
+      \ 'function'  : 'f',
+      \ 'task'      : 't',
+      \ },
+      \}
+" }}}
+
+" TypeScript settings {{{
+let g:tagbar_type_typescript = {
+      \ 'ctagsbin' : 'tstags',
+      \ 'ctagsargs' : '-f-',
+      \ 'kinds': [
+      \ 'e:enums:0:1',
+      \ 'f:function:0:1',
+      \ 't:typealias:0:1',
+      \ 'M:Module:0:1',
+      \ 'I:import:0:1',
+      \ 'i:interface:0:1',
+      \ 'C:class:0:1',
+      \ 'm:method:0:1',
+      \ 'p:property:0:1',
+      \ 'v:variable:0:1',
+      \ 'c:const:0:1',
+      \ ],
+      \ 'sort' : 0
+      \ }
+" }}}
+
+" TypeScript (vanilla) settings {{{
+let g:tagbar_type_typescript = {
+      \ 'ctagstype': 'typescript',
+      \ 'kinds': [
+      \ 'c:classes',
+      \ 'n:modules',
+      \ 'f:functions',
+      \ 'v:variables',
+      \ 'v:varlambdas',
+      \ 'm:members',
+      \ 'i:interfaces',
+      \ 'e:enums',
+      \ ]
+      \ }
+" }}}
+
+" Util snipps settings {{{
+let g:tagbar_type_snippets = {
+      \ 'ctagstype' : 'snippets',
+      \ 'kinds' : [
+      \ 's:snippets',
+      \ ]
+      \ }
+" }}}
+
+" VHDL settings {{{
+let g:tagbar_type_vhdl = {
+      \ 'ctagstype': 'vhdl',
+      \ 'kinds' : [
+      \'d:prototypes',
+      \'b:package bodies',
+      \'e:entities',
+      \'a:architectures',
+      \'t:types',
+      \'p:processes',
+      \'f:functions',
+      \'r:procedures',
+      \'c:constants',
+      \'T:subtypes',
+      \'r:records',
+      \'C:components',
+      \'P:packages',
+      \'l:locals'
+      \]
+      \}
+" }}}
+
+" WSDL settings {{{
+let g:tagbar_type_xml = {
+      \ 'ctagstype' : 'WSDL',
+      \ 'kinds'     : [
+      \ 'n:namespaces',
+      \ 'm:messages',
+      \ 'p:portType',
+      \ 'o:operations',
+      \ 'b:bindings',
+      \ 's:service'
+      \ ]
+      \ }
+" }}}
+
+" Xquery settings {{{
+let g:tagbar_type_xquery = {
+      \ 'ctagstype' : 'xquery',
+      \ 'kinds'     : [
+      \ 'f:function',
+      \ 'v:variable',
+      \ 'm:module',
+      \ ]
+      \ }
+" }}}
+
+" XSD settings {{{
+let g:tagbar_type_xsd = {
+      \ 'ctagstype' : 'XSD',
+      \ 'kinds'     : [
+      \ 'e:elements',
+      \ 'c:complexTypes',
+      \ 's:simpleTypes'
+      \ ]
+      \ }
+" }}}
+
+" XSLT settings {{{
+let g:tagbar_type_xslt = {
+      \ 'ctagstype' : 'xslt',
+      \ 'kinds' : [
+      \ 'v:variables',
+      \ 't:templates'
+      \ ]
+      \}
+" }}}
+" }}}
+
+" Default settings {{{
+
+" Set specific color for file type
+"filetype plugin on
+
+" Sel terminal color
+" set term=screen-256color
+set t_Co=256
+
+" Set auto indent to keep current indentation
+set autoindent
+
+" Set my color scheme
+" colorscheme spacegray
+colorscheme solarized8_dark
+
+" Switch syntax highlighting on, when the terminal has colors
+syntax on
+
+" Use vim, not vi api
+set nocompatible
+
+" No backup files
+set nobackup
+
+" No write backup
+set nowritebackup
+
+" No swap file
+set noswapfile
+
+" Command history
+set history=100
+
+" Always show cursor
+set ruler
+
+" Show incomplete commands
+set showcmd
+
+" Incremental searching (search as you type)
+set incsearch
+
+" Highlight search matches
+set hlsearch
+
+" Ignore case in search
+set smartcase
+
+" Make sure any searches /searchPhrase doesn't need the \c escape character
+set ignorecase
+
+" A buffer is marked as ‘hidden’ if it has unsaved changes, and it is not currently loaded in a window
+" if you try and quit Vim while there are hidden buffers, you will raise an error:
+" E162: No write since last change for buffer “a.txt”
+set hidden
+
+" Turn word wrap off
+set nowrap
+
+" Allow backspace to delete end of line, indent and start of line characters
+set backspace=indent,eol,start
+
+" Convert tabs to spaces
+set expandtab
+
+" Set tab size in spaces (this is for manual indenting)
+set tabstop=2
+
+" The number of spaces inserted for a tab (used for auto indenting)
+set shiftwidth=2
+
+" Enable mouse
+set mouse=a
+
+" Turn on line numbers
+set number
+
+" Turn on relative line numbers
+set relativenumber
+
+" scriptencoding utf-8
+" set encoding=utf-8
+" Highlight tailing whitespace
+" Set list character types
+set list listchars=tab:▸\ ,eol:¬,trail:·
+
+" Get rid of the delay when pressing O (for example)
+" http://stackoverflow.com/questions/2158516/vim-delay-before-o-opens-a-new-line
+set timeout timeoutlen=1000 ttimeoutlen=100
+
+" Always show status bar
+set laststatus=2
+
+" Set the status line to something useful
+set statusline=%f\ %=L:%l/%L\ %c\ (%p%%)
+
+" Hide the toolbar
+set guioptions-=T
+
+" UTF encoding
+set encoding=utf-8
+
+" Autoload files that have changed outside of vim
+set autoread
+
+" Use system clipboard
+" http://stackoverflow.com/questions/8134647/copy-and-paste-in-vim-via-keyboard-between-different-mac-terminals
+set clipboard+=unnamed
+
+" Don't show intro
+set shortmess+=I
+
+" Better splits (new windows appear below and to the right)
+set splitbelow
+set splitright
+
+" Highlight the current line
+set cursorline
+
+" Ensure Vim doesn't beep at you every time you make a mistype
+set visualbell
+
+" Visual autocomplete for command menu (e.g. :e ~/path/to/file)
+set wildmenu
+
+" redraw only when we need to (i.e. don't redraw when executing a macro)
+set lazyredraw
+
+" highlight a matching [{()}] when cursor is placed on start/end character
+set showmatch
+
+" Set built-in file system explorer to use layout similar to the NERDTree plugin
+let g:netrw_liststyle=3
+
+" Always highlight column 80 so it's easier to see where
+" cutoff appears on longer screens
+set colorcolumn=80
+
+" Change cursor in different modes
+let &t_SI = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=1\x7\<Esc>\\"
+let &t_SR = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=2\x7\<Esc>\\"
+let &t_EI = "\<Esc>Ptmux;\<Esc>\<Esc>]50;CursorShape=0\x7\<Esc>\\""
+"
+"
+" }}}
