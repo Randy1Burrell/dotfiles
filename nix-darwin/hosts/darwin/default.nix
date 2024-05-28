@@ -140,6 +140,7 @@ let user = "randyburrell"; in
       loginwindow = {
         GuestEnabled = false;
         LoginwindowText = "Grundy";
+        SHOWFULLNAME = false;
         ShutDownDisabledWhileLoggedIn = true;
       };
 
