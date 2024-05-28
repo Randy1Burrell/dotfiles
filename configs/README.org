@@ -2524,7 +2524,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
 **** Treesitter
 #+begin_src emacs-lisp :tangle ~/.emacs.d/custom/init-treesitter-customizations.el :mkdirp yes
-  ;;; init-treesitter-customizations.el --- Completion with Corfu -*- lexical-binding: t -*-
+  ;;; init-treesitter-customizations.el --- Treesit language -*- lexical-binding: t -*-
   ;;; Commentary:
   ;;; Code:
 
