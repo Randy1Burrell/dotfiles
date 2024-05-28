@@ -157,7 +157,6 @@ let user = "randyburrell"; in
 
     keyboard = {
       enableKeyMapping = true;
-      # swapLeftCommandAndLeftAlt = true;
     };
   };
 }
