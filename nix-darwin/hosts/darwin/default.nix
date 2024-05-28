@@ -132,7 +132,7 @@ let user = "randyburrell"; in
 
       trackpad = {
         Clicking = true;
-        TrackpadThreeFingerDrag = true;
+        TrackpadThreeFingerDrag = false;
         Dragging = true;
         TrackpadRightClick = true;
       };
@@ -140,7 +140,6 @@ let user = "randyburrell"; in
       loginwindow = {
         GuestEnabled = false;
         LoginwindowText = "Grundy";
-        SHOWFULLNAME = true;
         ShutDownDisabledWhileLoggedIn = true;
       };
 

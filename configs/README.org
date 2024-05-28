@@ -3160,10 +3160,16 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     zstyle ':omz:update' mode auto
     zstyle ':omz:update' frequency 7
     zstyle ':omz:update' verbose silent # only errors
-
+    # ZSH_DISABLE_COMPFIX="true"
     # Completion folder to put generated completion files
     fpath+=~/.zfunc
-    fpath+=$(brew --prefix)/share/zsh/site-functions
+    if type brew &>/dev/null
+    then
+        FPATH="$(brew --prefix)/share/zsh/site-functions:$(brew --prefix)/share/zsh-completions:${FPATH}"
+        autoload -Uz compinit
+        compinit
+    fi
+
 
     ENABLE_CORRECTION="true"
     COMPLETION_WAITING_DOTS="true"
