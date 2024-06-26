@@ -24,6 +24,7 @@
       - [[#go][Go]]
       - [[#graphql][GraphQl]]
       - [[#helpful][Helpful]]
+      - [[#helpers][Helpers]]
       - [[#hydra][Hydra]]
       - [[#icons][Icons]]
       - [[#magit][Magit]]
@@ -114,9 +115,10 @@
     ;;----------------------------------------------------------------------------
     ;; Adjust garbage collection thresholds during startup, and thereafter
     ;;----------------------------------------------------------------------------
-    (let ((normal-gc-cons-threshold (* 60 1024 1024))
+    (let ((normal-gc-cons-threshold (* 100 1024 1024))
           (init-gc-cons-threshold (* 2 256 1024 1024)))
-      (setq gc-cons-threshold init-gc-cons-threshold)
+      (setq gc-cons-threshold init-gc-cons-threshold
+            read-process-output-max (* 1024 1024))
       (add-hook 'emacs-startup-hook
                 (lambda () (setq gc-cons-threshold normal-gc-cons-threshold))))
 
@@ -667,7 +669,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
-  ;; Assuming usage with dart-mode
   (use-package dart-mode
     ;; Optional
     :hook (dart-mode . flutter-test-mode))
@@ -675,7 +676,13 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (use-package flutter
     :after dart-mode
     :bind (:map dart-mode-map
-                ("C-M-x" . #'flutter-run-or-hot-reload)))
+                ("C-M-x" . #'flutter-run-or-hot-reload))
+    :custom
+    (flutter-sdk-path "/opt/homebrew/bin/flutter"))
+
+  (with-eval-after-load "eglot" (add-to-list 'eglot-server-programs '(dart-mode . ("dart" "language-server"))))
+
+  (add-hook 'dart-mode-hook 'eglot-ensure)
 
   (reformatter-define dart-format
     :program "dart"
@@ -687,6 +694,10 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (add-hook 'dart-mode-hook (lambda () (add-hook 'after-save-hook 'dart-format-buffer nil t)))
   (add-hook 'flutter-test-mode-hook (lambda () (add-hook 'after-save-hook #'flutter-run-or-hot-reload nil t)))
   (add-hook 'flutter-mode-hook (lambda () (add-hook 'after-save-hook #'flutter-run-or-hot-reload nil t)))
+
+  (with-eval-after-load 'projectile
+    (add-to-list 'projectile-project-root-files-bottom-up "pubspec.yaml")
+    (add-to-list 'projectile-project-root-files-bottom-up "BUILD"))
 
   (provide 'init-dart)
   ;;; init-dart.el ends here
@@ -867,6 +878,99 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (provide 'init-helpful)
   ;;; init-helpful.el ends here
 
+#+end_src
+
+**** Helpers
+#+begin_src emacs-lisp :tangle ~/.emacs.d/custom/init-helper-packages.el :mkdirp yes
+  ;;; init-helper-packages.el --- Support defaults -*- lexical-binding: t -*-
+  ;;; Commentary:
+  ;;; Code:-
+
+  (use-package undo-tree
+    :diminish
+    :config
+    ;; Always have it on
+    (global-undo-tree-mode)
+    ;; Each node in the undo tree should have a timestamp.
+    (setq undo-tree-visualizer-timestamps t)
+    ;; Show a diff window displaying changes between undo nodes.
+    (setq undo-tree-visualizer-diff t))
+
+  (use-package emojify
+    :config (setq emojify-display-style 'image)
+    :init (global-emojify-mode 1)) ;; This will install missing images if needed.
+
+  (use-package synosaurus
+    :diminish synosaurus-mode
+    :init    (synosaurus-mode)
+    :config  (setq synosaurus-choose-method 'popup) ;; 'ido is default.
+    (global-set-key (kbd "M-#") 'synosaurus-choose-and-replace))
+
+  (use-package s)
+
+  (use-package f)
+
+  (use-package lorem-ipsum)
+
+  (use-package origami
+    ;; In Lisp languages, by default only function definitions are folded.
+    :hook ((agda2-mode lisp-mode c-mode) . origami-mode)
+    :config
+    (push '(agda2-mode . (origami-markers-parser "{-" "-}"))
+          origami-parser-alist))
+
+  (use-package writegood-mode
+    ;; Load this whenver I'm composing prose.
+    :hook (text-mode org-mode)
+    ;; Don't show me the “Wg” marker in the mode line
+    :diminish
+    ;; Some additional weasel words.
+    :config
+    (--map (push it writegood-weasel-words)
+           '("some" "simple" "simply" "easy" "often" "easily" "probably"
+             "clearly"               ;; Is the premise undeniably true?
+             "experience shows"      ;; Whose? What kind? How does it do so?
+             "may have"              ;; It may also have not!
+             "it turns out that")))  ;; How does it turn out so?
+  ;; ↯ What is the evidence of highighted phrase? ↯
+
+  (use-package smartscan
+    :defer t
+    :config
+    (global-set-key (kbd "M-'") 'rb/symbol-replace))
+
+  (defun rb/symbol-replace (replacement)
+    "REPLACEMENT of all standalone symbols in the buffer matching the one at point."
+    (interactive  (list (read-from-minibuffer "Replacement for thing at point: " nil)))
+    (save-excursion
+      (let ((symbol (or (thing-at-point 'symbol) (error "No symbol at point!"))))
+        (beginning-of-buffer)
+        ;; (query-replace-regexp symbol replacement)
+        (replace-regexp (format "\\b%s\\b" (regexp-quote symbol)) replacement))))
+
+  (use-package goto-chg
+    :defer t
+    :custom (glc-default-span 0))
+
+  ;; Yet another snippet extension program
+  (use-package yasnippet
+    :diminish yas-minor-mode
+    :config
+    ;; (yas-global-mode 1) ;; Always have this on for when using yasnippet syntax within yankpad
+    ;; respect the spacing in my snippet declarations
+    (setq yas-indent-line 'fixed))
+
+  (use-package yasnippet-snippets)
+
+  (use-package yankpad
+    :defer 10
+    :config
+    (bind-key "<f9>" 'yankpad-map)
+    (bind-key "<f12>" 'yankpad-expand)
+    (bind-key "C-c s" 'yankpad-insert))
+
+  (provide 'init-helper-packages)
+  ;;; init-helper-packages.el ends here
 #+end_src
 
 **** Hydra
@@ -3162,7 +3266,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     zstyle ':omz:update' verbose silent # only errors
     # ZSH_DISABLE_COMPFIX="true"
     # Completion folder to put generated completion files
-    fpath+=~/.zfunc
+    FPATH+=~/.zfunc
     if type brew &>/dev/null
     then
         FPATH="$(brew --prefix)/share/zsh/site-functions:$(brew --prefix)/share/zsh-completions:${FPATH}"

@@ -18,6 +18,9 @@ _:
   # Graphic Editing
   "gimp"
 
+  # Software installation utilities
+  "setapp"
+
   # Utility Tools
   "cyberduck"
   "logitech-camera-settings"

@@ -131,5 +131,6 @@ _:
   "xz"
   "z3"
   "zlib"
+  "zsh-completions"
   "zstd"
 ]

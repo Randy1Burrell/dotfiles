@@ -42,6 +42,7 @@ with pkgs; [
   # Node.js development tools
   nodePackages.npm # globally install npm
   nodePackages.prettier
+            nodePackages_latest.typescript-language-server
   nodejs
 
   # Text and terminal utilities
