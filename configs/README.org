@@ -572,6 +572,13 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
                   c++-mode-hook))
     (add-hook mode 'eglot-ensure))
 
+  ;; Added from https://www.reddit.com/r/emacs/comments/185fkg6/emacs_lagging_help_me_understand_this_profiler/
+  (setq eglot-autoshutdown t)
+  (setq eglot-sync-connect 0)
+  (setq eglot-events-buffer-size nil)
+  (fset #'jsonrpc--log-event #'ignore)
+  (add-hook 'focus-out-hook 'garbage-collect)
+
   (provide 'init-eglot-customizations)
   ;;; init-eglot-customizations.el ends here
 #+end_src

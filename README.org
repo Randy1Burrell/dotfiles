@@ -37,20 +37,20 @@ Contains all my Emacs configurations.
 
 ** GPG Configuration
 
-GPG configurations are stored here.
+ GPG configurations are stored here.
 
 ** Shell Configuration
 
-What my shell environment looks like
+ What my shell environment looks like
 
 ** Vim Configuration
 
-Contains simple Vim configurations.
+ Contains simple Vim configurations.
 
 ** Other Configurations
 
-This is where I store configurations that are not categorised.
+ This is where I store configurations that are not categorised.
 
 ** Nix Configurations
 
-In this configuration declare how to setup my environment.
+ In this configuration declare how to setup my environment.
