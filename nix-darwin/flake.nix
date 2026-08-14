@@ -13,6 +13,10 @@
     };
     agenix = {
       url = "github:ryantm/agenix";
+      # Keep agenix's CLI on the same supported package set as the system.
+      # Its older independent lock supplied age 1.1.1, whose Darwin binary is
+      # rejected by current macOS releases for lacking an LC_UUID command.
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     darwin = {
       url = "github:nix-darwin/nix-darwin/nix-darwin-26.05";
