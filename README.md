@@ -108,15 +108,18 @@ Change `DOTFILES_DIR` to any destination.  The script finds `nix-darwin/flake.ni
 relative to its own resolved location, so it does not depend on the current
 working directory and can also be launched through a symlink.
 
-On macOS and generic Linux, `switch` installs Nix with the Determinate Nix
-Installer when Nix is missing.  `curl`, Git, and administrator access must
-already be available.  On NixOS, Nix is part of the operating system and
+On macOS and generic Linux, `switch` installs upstream Nix with the official
+NixOS installer when Nix is missing.  `curl`, Git, and administrator access
+must already be available.  On NixOS, Nix is part of the operating system and
 `setup` will not attempt to replace it.
 
-Run `./setup install-nix` explicitly to install Nix or to reinstall an existing
-installer-managed Nix installation.  Reinstallation is intentionally guarded:
-it requires typing `reinstall` and removes the Nix store, installed packages,
-and saved system generations before installing Nix again.
+Run `./setup install-nix` explicitly to install upstream Nix or replace an
+existing receipt-managed Nix installation.  Replacement is intentionally
+guarded: it requires typing `reinstall`, removes nix-darwin first, and then
+removes the Nix store, installed packages, and saved system generations.  It
+finishes with upstream Nix only; nix-darwin is not restored by this action.
+Running `./setup switch` later will install nix-darwin again because the macOS
+system configuration in this repository declares it.
 
 ### Private inputs
 
@@ -158,7 +161,7 @@ and when copying diagnostic output.
 | `./setup switch` | Builds and activates the selected configuration. |
 | `./setup apply` | Personalizes template values on macOS/NixOS; on generic Linux it is equivalent to `switch`. |
 | `./setup clean` | Deletes generations older than seven days and optimizes the applicable Nix store/profile. |
-| `./setup install-nix` | Installs Nix or offers a guarded reinstall. |
+| `./setup install-nix` | Installs upstream Nix or offers a guarded replacement that leaves nix-darwin uninstalled. |
 | `./setup update-secrets` | Encrypts and pushes local secrets, then refreshes their lock entry. |
 | `./setup pull-secrets` | Downloads and decrypts secrets into `~/.ssh`, backing up replaced files. |
 | `./setup refresh-secrets-lock` | Refreshes only the private `secrets` entry in `flake.lock`. |

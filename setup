@@ -27,7 +27,7 @@ resolve_script_path() {
 readonly SETUP_PATH="$(resolve_script_path)"
 readonly REPO_ROOT="$(dirname -- "${SETUP_PATH}")"
 readonly FLAKE_DIR="${REPO_ROOT}/nix-darwin"
-readonly NIX_INSTALL_URL="https://install.determinate.systems/nix"
+readonly NIX_INSTALL_URL="https://nixos.org/nix/install"
 readonly SECRETS_REMOTE="ssh://git@github.com/randy1burrell/secrets.git"
 
 info() {
@@ -56,7 +56,7 @@ System actions:
   check        Evaluate without building the configuration
   apply        Personalize the configuration for a machine
   clean        Remove old system generations and reclaim space
-  install-nix  Install Nix, or reinstall an installer-managed Nix
+  install-nix  Install upstream Nix, or replace an installer-managed Nix
   update-secrets  Encrypt and push local secrets, then refresh flake.lock
   pull-secrets    Pull and decrypt secrets into ~/.ssh with backups
   refresh-secrets-lock
@@ -79,7 +79,7 @@ Environment:
   AGENIX_IDENTITY_PATH
                  Override ~/.ssh/id_ed25519_agenix for encryption/decryption.
   SECRETS_CONFIRM=yes
-                 Allow a non-interactive secrets push or installation.
+                 Allow a non-interactive secrets push.
 EOF
 }
 
@@ -147,13 +147,36 @@ prepare_gpg_ssh_agent() {
   fi
 }
 
+install_upstream_nix() {
+  local installer="$1" install_mode
+
+  case "$(uname -s)" in
+    Darwin)
+      install_mode="--daemon"
+      ;;
+    Linux)
+      if [[ -d /run/systemd/system ]]; then
+        install_mode="--daemon"
+      else
+        install_mode="--no-daemon"
+      fi
+      ;;
+    *)
+      fail "The upstream Nix installer is unsupported on $(uname -s)."
+      ;;
+  esac
+
+  NIX_INSTALLER_NO_CHANNEL_ADD=1 NIX_INSTALLER_YES=1 \
+    /bin/sh "${installer}" "${install_mode}"
+}
+
 install_nix() {
   command -v curl >/dev/null 2>&1 || fail "curl is required to install Nix."
 
   local installer
   installer="$(mktemp)"
 
-  info "Nix is not installed; downloading the Determinate Nix Installer"
+  info "Nix is not installed; downloading the official upstream Nix installer"
   if ! curl --fail --silent --show-error --location \
     --proto '=https' --tlsv1.2 "${NIX_INSTALL_URL}" --output "${installer}"
   then
@@ -161,13 +184,13 @@ install_nix() {
     fail "Could not download the Nix installer."
   fi
 
-  if ! /bin/sh "${installer}" install; then
+  if ! install_upstream_nix "${installer}"; then
     rm -f -- "${installer}"
     fail "Nix installation failed."
   fi
   rm -f -- "${installer}"
 
-  load_nix || fail "Nix installed, but this shell could not load it. Open a new terminal and run ${BASH_SOURCE[0]} again."
+  load_nix || fail "Nix installed, but this shell could not load it. Open a new terminal and verify it with nix --version."
 }
 
 system_curl() {
@@ -185,12 +208,13 @@ system_curl() {
 }
 
 reinstall_nix() {
-  local current_version installer curl_command confirmation
+  local current_version installer curl_command confirmation darwin_uninstaller=""
 
   current_version="$(nix --version 2>/dev/null || printf 'an unknown Nix version')"
   printf 'Nix is already installed: %s\n' "${current_version}"
   printf '\033[1;33mA full reinstall removes the Nix store, installed packages, and system generations.\033[0m\n'
   printf 'Your dotfiles repository is outside the Nix store and will not be removed.\n'
+  printf 'nix-darwin will remain uninstalled; only upstream Nix will be installed.\n'
   IFS= read -r -p "Type 'reinstall' to continue, or press Enter to cancel: " confirmation || true
 
   if [[ "${confirmation}" != "reinstall" ]]; then
@@ -213,21 +237,47 @@ reinstall_nix() {
     fail "Could not download the replacement Nix installer. The existing installation was not changed."
   fi
 
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    if [[ -x /run/current-system/sw/bin/darwin-uninstaller ]]; then
+      darwin_uninstaller="/run/current-system/sw/bin/darwin-uninstaller"
+    elif command -v darwin-uninstaller >/dev/null 2>&1; then
+      darwin_uninstaller="$(command -v darwin-uninstaller)"
+    fi
+
+    if [[ -n "${darwin_uninstaller}" ]]; then
+      info "Temporarily uninstalling nix-darwin before removing Nix"
+      if ! sudo -v; then
+        /bin/rm -f -- "${installer}"
+        fail "Administrator authentication failed; neither nix-darwin nor Nix was removed."
+      fi
+
+      # The user already confirmed the full reinstall above. Supplying a
+      # non-terminal input prevents darwin-uninstaller from prompting twice.
+      if ! sudo "${darwin_uninstaller}" </dev/null; then
+        /bin/rm -f -- "${installer}"
+        fail "nix-darwin uninstall failed; Nix was not removed."
+      fi
+    fi
+  fi
+
   info "Uninstalling the installer-managed Nix installation"
   if ! sudo /nix/nix-installer uninstall --no-confirm; then
     /bin/rm -f -- "${installer}"
+    if [[ -n "${darwin_uninstaller}" ]]; then
+      fail "Nix uninstall failed after nix-darwin was removed. Nix is still installed; resolve the reported error and run ${SETUP_PATH} install-nix again."
+    fi
     fail "Nix uninstall failed; reinstall was stopped."
   fi
 
-  info "Installing a fresh Nix environment"
-  if ! /bin/sh "${installer}" install --no-confirm; then
+  info "Installing a fresh upstream Nix environment"
+  if ! install_upstream_nix "${installer}"; then
     /bin/rm -f -- "${installer}"
     fail "The old Nix installation was removed, but the fresh installation failed. Re-run ${BASH_SOURCE[0]} install-nix."
   fi
   /bin/rm -f -- "${installer}"
 
-  load_nix || fail "Nix was reinstalled, but this shell could not load it. Open a new terminal and run ${BASH_SOURCE[0]} switch."
-  info "Nix reinstallation completed; run switch next to restore the declared system generation"
+  load_nix || fail "Nix was reinstalled, but this shell could not load it. Open a new terminal and verify it with nix --version."
+  info "Upstream Nix reinstallation completed; nix-darwin remains uninstalled"
 }
 
 install_or_reinstall_nix() {
@@ -240,7 +290,7 @@ install_or_reinstall_nix() {
     fi
   else
     install_nix
-    info "Nix installation completed"
+    info "Upstream Nix installation completed"
   fi
 }
 
@@ -300,7 +350,7 @@ run_darwin_nix_build() {
   fi
 
   if ! id "${failed_user}" >/dev/null 2>&1; then
-    warn "The Nix build account ${failed_user} is missing from macOS Directory Services. Run ${SETUP_PATH} install-nix to reinstall the installer-managed Nix environment."
+    warn "The Nix build account ${failed_user} is missing from macOS Directory Services. Follow https://github.com/NixOS/nix/issues/10892 to repair the macOS build users before retrying."
     rm -f -- "${build_log}"
     return "${status}"
   fi
@@ -529,7 +579,7 @@ Choose an action:
    7) check-keys   Verify keys and the GPG agent
    8) copy-keys    Copy keys from a mounted drive
    9) create-keys  Create SSH and Agenix keys
-  10) install-nix  Install or reinstall Nix
+  10) install-nix  Install or replace with upstream Nix
   11) update-secrets
                     Encrypt and push local secrets
   12) pull-secrets  Pull and decrypt secrets into ~/.ssh
