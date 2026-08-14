@@ -137,21 +137,15 @@
         "gpg" = mkApp "gpg" system;
         "rollback" = mkApp "rollback" system;
       };
-    in
-    {
-      devShells = forAllSystems devShell;
-      apps = nixpkgs.lib.genAttrs linuxSystems mkLinuxApps // nixpkgs.lib.genAttrs darwinSystems mkDarwinApps;
-
-      # Standalone Home Manager targets for Ubuntu and other non-NixOS Linux
-      # distributions. NixOS continues to use the integrated module below.
-      homeConfigurations = nixpkgs.lib.genAttrs linuxSystems mkGenericLinuxHome;
-
-      darwinConfigurations = nixpkgs.lib.genAttrs darwinSystems (system:
+      mkDarwinSystem = system: nixbldGid:
         darwin.lib.darwinSystem {
           inherit system;
           specialArgs = inputs // { inherit user; };
           modules = [
-            { nixpkgs.hostPlatform = system; }
+            {
+              nixpkgs.hostPlatform = system;
+              ids.gids.nixbld = nixbldGid;
+            }
             home-manager.darwinModules.home-manager
             # nix-homebrew.darwinModules.nix-homebrew
             # {
@@ -170,8 +164,25 @@
             # }
             ./hosts/darwin
           ];
-        }
-      );
+        };
+    in
+    {
+      devShells = forAllSystems devShell;
+      apps = nixpkgs.lib.genAttrs linuxSystems mkLinuxApps // nixpkgs.lib.genAttrs darwinSystems mkDarwinApps;
+
+      # Standalone Home Manager targets for Ubuntu and other non-NixOS Linux
+      # distributions. NixOS continues to use the integrated module below.
+      homeConfigurations = nixpkgs.lib.genAttrs linuxSystems mkGenericLinuxHome;
+
+      # The upstream and Determinate installers have used different nixbld
+      # group IDs on macOS. Keep both variants declarative; setup selects the
+      # one matching the group that already exists on the machine.
+      darwinConfigurations =
+        nixpkgs.lib.genAttrs darwinSystems (system: mkDarwinSystem system 30000)
+        // builtins.listToAttrs (map (system: {
+          name = "${system}-gid350";
+          value = mkDarwinSystem system 350;
+        }) darwinSystems);
 
       nixosConfigurations = nixpkgs.lib.genAttrs linuxSystems (system: nixpkgs.lib.nixosSystem {
         inherit system;

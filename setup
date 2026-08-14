@@ -586,6 +586,21 @@ system_name() {
   esac
 }
 
+darwin_configuration_name() {
+  local system="$1" nixbld_gid
+
+  nixbld_gid="$({
+    /usr/bin/dscl . -read /Groups/nixbld PrimaryGroupID 2>/dev/null || true
+  } | awk '$1 == "PrimaryGroupID:" { print $2; exit }')"
+
+  case "${nixbld_gid}" in
+    30000) printf '%s\n' "${system}" ;;
+    350) printf '%s-gid350\n' "${system}" ;;
+    "") fail "The macOS nixbld group does not exist. Install or repair Nix before building nix-darwin." ;;
+    *) fail "Unsupported nixbld group ID ${nixbld_gid}. Add a matching declarative Darwin configuration before switching." ;;
+  esac
+}
+
 platform_kind() {
   case "$(uname -s)" in
     Darwin) printf '%s\n' darwin ;;
@@ -647,6 +662,46 @@ run_darwin_nix_build() {
     status=$?
     rm -f -- "${build_log}"
     return "${status}"
+  fi
+}
+
+repair_darwin_application_store_paths() {
+  local system_path="$1" applications_path link relative store_path target
+  local repaired=0
+
+  while IFS= read -r applications_path; do
+    case "${applications_path}" in
+      /nix/store/*-system-applications) ;;
+      *) continue ;;
+    esac
+
+    [[ -d "${applications_path}/Applications" ]] || continue
+
+    while IFS= read -r link; do
+      [[ -e "${link}" ]] && continue
+      target="$(readlink "${link}")"
+
+      case "${target}" in
+        /nix/store/*/*)
+          relative="${target#/nix/store/}"
+          store_path="/nix/store/${relative%%/*}"
+          ;;
+        *)
+          fail "Managed application ${link} has an unexpected missing target: ${target}"
+          ;;
+      esac
+
+      warn "Repairing deleted Nix-managed application store path ${store_path}"
+      run_nix build --no-link --repair "${store_path}" || \
+        fail "Could not restore ${store_path}. Check the configured Nix substituters and retry."
+      [[ -e "${link}" ]] || \
+        fail "Nix reported a successful repair, but ${link} is still missing its target."
+      repaired=1
+    done < <(find "${applications_path}/Applications" -type l -print)
+  done < <(nix-store --query --requisites "${system_path}")
+
+  if (( repaired )); then
+    info "Deleted Nix-managed applications were restored before activation"
   fi
 }
 
@@ -747,7 +802,6 @@ run_action() {
 
   local detected_system config flake output platform
   detected_system="$(system_name)"
-  config="${SYSTEM_CONFIG:-${detected_system}}"
   flake="path:${FLAKE_DIR}"
   platform="$(platform_kind)"
 
@@ -756,6 +810,14 @@ run_action() {
       fail "Nix is unavailable on NixOS; repair the system installation before continuing."
     fi
     install_nix
+  fi
+
+  if [[ -n "${SYSTEM_CONFIG:-}" ]]; then
+    config="${SYSTEM_CONFIG}"
+  elif [[ "${platform}" == "darwin" ]]; then
+    config="$(darwin_configuration_name "${detected_system}")"
+  else
+    config="${detected_system}"
   fi
 
   prepare_gpg_ssh_agent
@@ -808,7 +870,8 @@ run_action() {
     build)
       if [[ "${platform}" == "darwin" ]]; then
         run_darwin_nix_build --no-write-lock-file --print-build-logs \
-          --no-link "${flake}#${output}" || return $?
+          --no-link --print-out-paths "${flake}#${output}" || return $?
+        repair_darwin_application_store_paths "${DARWIN_BUILD_OUTPUT}"
       else
         run_nix build --no-write-lock-file --print-build-logs --no-link "${flake}#${output}" || return $?
       fi
@@ -821,6 +884,7 @@ run_action() {
         run_darwin_nix_build --no-write-lock-file --print-build-logs \
           --no-link --print-out-paths "${flake}#${output}" || return $?
         result="${DARWIN_BUILD_OUTPUT}"
+        repair_darwin_application_store_paths "${result}"
 
         info "Activating the macOS configuration"
         sudo "${result}/sw/bin/darwin-rebuild" switch --flake "${flake}#${config}" || return $?

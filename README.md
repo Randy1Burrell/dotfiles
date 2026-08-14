@@ -120,6 +120,11 @@ and retries the installer once if the installer's own cleanup removes the
 entry.  This handles the common `failed to configure synthetic.conf` failure
 without requiring manual file edits.
 
+Nix installers have used both 350 and 30000 for the macOS `nixbld` group.
+Before evaluating nix-darwin, `setup` reads the existing group and selects the
+matching declarative Darwin configuration automatically.  Do not change the
+group with macOS user-management commands.
+
 Run `./setup install-nix` explicitly to install upstream Nix or replace an
 existing receipt-managed Nix installation.  Replacement is intentionally
 guarded: it requires typing `reinstall`, removes nix-darwin first, and then
