@@ -21,6 +21,22 @@
         "type": "github"
       }
     },
+    "brew": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1750101854,
+        "narHash": "sha256-b+Es0SGeRlbpo5SREXZsfmTjX728gckStUjTxjlHYyc=",
+        "owner": "homebrew",
+        "repo": "brew",
+        "rev": "95f0e76154fb456480be7327404a405af12090b6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "homebrew",
+        "repo": "brew",
+        "type": "github"
+      }
+    },
     "brew-src": {
       "flake": false,
       "locked": {
@@ -160,22 +176,6 @@
         "type": "github"
       }
     },
-    "homebrew-bundle": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1716337919,
-        "narHash": "sha256-+lG4UZVzy2gPKrCdiiyKzTJGPI8wEnj9pmU/cqgMTZw=",
-        "owner": "homebrew",
-        "repo": "homebrew-bundle",
-        "rev": "246252e4a516397e290faed4bf65687f1d6bef37",
-        "type": "github"
-      },
-      "original": {
-        "owner": "homebrew",
-        "repo": "homebrew-bundle",
-        "type": "github"
-      }
-    },
     "homebrew-cask": {
       "flake": false,
       "locked": {
@@ -311,10 +311,10 @@
     "root": {
       "inputs": {
         "agenix": "agenix",
+        "brew": "brew",
         "darwin": "darwin_2",
         "disko": "disko",
         "home-manager": "home-manager_2",
-        "homebrew-bundle": "homebrew-bundle",
         "homebrew-cask": "homebrew-cask",
         "homebrew-core": "homebrew-core",
         "nix-homebrew": "nix-homebrew",

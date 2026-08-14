@@ -48,6 +48,8 @@ _:
   "google-chrome"
   "microsoft-edge"
   "opera"
+  "010-editor"
+  "tor"
 
   # CLI
   "iterm2"

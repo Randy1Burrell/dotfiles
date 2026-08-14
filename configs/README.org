@@ -2674,6 +2674,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode))
 
+  (setq major-mode-remap-alist
+        '((python-mode . python-ts-mode)))
 
   (provide 'init-treesitter-customizations)
   ;;; init-treesitter-customizations.el ends here
@@ -3379,7 +3381,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
         return 0
     }
 
-    complete -o nospace -F _wp_complete wp
+    complete -o nospace -Fß _wp_complete wp
 
     # Completion script for GHCI
     eval "$(stack --bash-completion-script stack)"

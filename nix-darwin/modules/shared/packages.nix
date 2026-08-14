@@ -27,6 +27,7 @@ with pkgs; [
   # Cloud-related tools and SDKs
   docker
   docker-compose
+  terraform
 
   # Media-related packages
   emacs-all-the-icons-fonts
@@ -42,7 +43,7 @@ with pkgs; [
   # Node.js development tools
   nodePackages.npm # globally install npm
   nodePackages.prettier
-            nodePackages_latest.typescript-language-server
+  nodePackages_latest.typescript-language-server
   nodejs
 
   # Text and terminal utilities

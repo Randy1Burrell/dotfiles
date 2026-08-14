@@ -1,0 +1,545 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+resolve_script_path() {
+  local source="${BASH_SOURCE[0]}"
+  local directory target
+
+  if [[ "${source}" != */* ]]; then
+    source="$(command -v -- "${source}")"
+  fi
+
+  while [[ -L "${source}" ]]; do
+    directory="$(cd -P -- "$(dirname -- "${source}")" && pwd)"
+    target="$(readlink "${source}")"
+    if [[ "${target}" == /* ]]; then
+      source="${target}"
+    else
+      source="${directory}/${target}"
+    fi
+  done
+
+  directory="$(cd -P -- "$(dirname -- "${source}")" && pwd)"
+  printf '%s/%s\n' "${directory}" "$(basename -- "${source}")"
+}
+
+readonly SETUP_PATH="$(resolve_script_path)"
+readonly REPO_ROOT="$(dirname -- "${SETUP_PATH}")"
+readonly FLAKE_DIR="${REPO_ROOT}/nix-darwin"
+readonly NIX_INSTALL_URL="https://install.determinate.systems/nix"
+readonly SECRETS_REMOTE="ssh://git@github.com/randy1burrell/secrets.git"
+
+info() {
+  printf '\033[1;34m==>\033[0m %s\n' "$*"
+}
+
+fail() {
+  printf '\033[1;31merror:\033[0m %s\n' "$*" >&2
+  exit 1
+}
+
+warn() {
+  printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2
+}
+
+usage() {
+  printf 'Usage: %s [action] [-- app-arguments...]\n\n' "${BASH_SOURCE[0]}"
+  cat <<'EOF'
+Run without an action to open the interactive menu.
+The repository may live anywhere. Setup resolves the flake relative to this
+script, regardless of the current working directory or a symlink used to run it.
+
+System actions:
+  switch       Build and activate this machine's configuration
+  build        Build without activating the configuration
+  check        Evaluate without building the configuration
+  apply        Personalize the configuration for a machine
+  clean        Remove old system generations and reclaim space
+  install-nix  Install Nix, or reinstall an installer-managed Nix
+  update-secrets  Encrypt and push local secrets, then refresh flake.lock
+  pull-secrets    Pull and decrypt secrets into ~/.ssh with backups
+  refresh-secrets-lock
+                  Refresh only the private secrets input in flake.lock
+
+Key and GPG actions:
+  gpg          Start and verify the GPG-backed SSH agent
+  check-keys   Verify the SSH/Agenix files and GPG agent
+  copy-keys    Copy keys from a mounted drive after starting GPG
+  create-keys  Create SSH/Agenix keys after starting GPG
+
+Environment:
+  SYSTEM_CONFIG  Override the flake configuration name selected from the
+                 current CPU architecture.
+  KEYS_MOUNT_PATH  Select the mounted key directory for copy-keys.
+  SECRETS_UPDATE_IDENTITY
+                 Use a specific SSH private key while refreshing secrets.
+  SECRETS_SSH_IDENTITY
+                 Use a specific SSH private key for secrets push or pull.
+  AGENIX_IDENTITY_PATH
+                 Override ~/.ssh/id_ed25519_agenix for encryption/decryption.
+  SECRETS_CONFIRM=yes
+                 Allow a non-interactive secrets push or installation.
+EOF
+}
+
+load_nix() {
+  hash -r
+  if command -v nix >/dev/null 2>&1 && nix --version >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local profile
+  for profile in \
+    /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh \
+    "${HOME}/.nix-profile/etc/profile.d/nix.sh"
+  do
+    if [[ -r "${profile}" ]]; then
+      # shellcheck disable=SC1090
+      source "${profile}"
+      if command -v nix >/dev/null 2>&1 && nix --version >/dev/null 2>&1; then
+        return 0
+      fi
+    fi
+  done
+
+  return 1
+}
+
+prepare_gpg_ssh_agent() {
+  local expected_version running_version socket
+
+  command -v gpgconf >/dev/null 2>&1 || return 0
+  gpgconf --launch gpg-agent >/dev/null 2>&1 || return 0
+
+  if command -v gpg-agent >/dev/null 2>&1 && command -v gpg-connect-agent >/dev/null 2>&1; then
+    expected_version="$(gpg-agent --version 2>/dev/null | awk 'NR == 1 { print $3; exit }')"
+    running_version="$(
+      gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+        awk '$1 == "D" { print $2; exit }' || true
+    )"
+
+    if [[ -n "${expected_version}" && -n "${running_version}" && "${running_version}" != "${expected_version}" ]]; then
+      warn "Restarting stale gpg-agent ${running_version} with managed version ${expected_version}."
+      gpgconf --kill all >/dev/null 2>&1 || true
+      gpgconf --launch gpg-agent >/dev/null 2>&1 || \
+        fail "Could not launch the managed gpg-agent ${expected_version}."
+      running_version="$(
+        gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+          awk '$1 == "D" { print $2; exit }' || true
+      )"
+      [[ "${running_version}" == "${expected_version}" ]] || \
+        fail "Expected gpg-agent ${expected_version}, but socket reports ${running_version:-unknown}."
+    fi
+  fi
+
+  socket="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || true)"
+  [[ -n "${socket}" ]] || return 0
+
+  export SSH_AUTH_SOCK="${socket}"
+
+  if [[ -t 0 ]]; then
+    export GPG_TTY
+    GPG_TTY="$(tty)"
+    if command -v gpg-connect-agent >/dev/null 2>&1; then
+      gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
+    fi
+  fi
+}
+
+install_nix() {
+  command -v curl >/dev/null 2>&1 || fail "curl is required to install Nix."
+
+  local installer
+  installer="$(mktemp)"
+
+  info "Nix is not installed; downloading the Determinate Nix Installer"
+  if ! curl --fail --silent --show-error --location \
+    --proto '=https' --tlsv1.2 "${NIX_INSTALL_URL}" --output "${installer}"
+  then
+    rm -f -- "${installer}"
+    fail "Could not download the Nix installer."
+  fi
+
+  if ! /bin/sh "${installer}" install; then
+    rm -f -- "${installer}"
+    fail "Nix installation failed."
+  fi
+  rm -f -- "${installer}"
+
+  load_nix || fail "Nix installed, but this shell could not load it. Open a new terminal and run ${BASH_SOURCE[0]} again."
+}
+
+system_curl() {
+  local candidate resolved
+
+  for candidate in /usr/bin/curl /bin/curl; do
+    [[ -x "${candidate}" ]] && { printf '%s\n' "${candidate}"; return 0; }
+  done
+
+  candidate="$(command -v curl 2>/dev/null || true)"
+  [[ -n "${candidate}" ]] || return 1
+  resolved="$(readlink -f "${candidate}" 2>/dev/null || printf '%s' "${candidate}")"
+  [[ "${resolved}" != /nix/* ]] || return 1
+  printf '%s\n' "${candidate}"
+}
+
+reinstall_nix() {
+  local current_version installer curl_command confirmation
+
+  current_version="$(nix --version 2>/dev/null || printf 'an unknown Nix version')"
+  printf 'Nix is already installed: %s\n' "${current_version}"
+  printf '\033[1;33mA full reinstall removes the Nix store, installed packages, and system generations.\033[0m\n'
+  printf 'Your dotfiles repository is outside the Nix store and will not be removed.\n'
+  IFS= read -r -p "Type 'reinstall' to continue, or press Enter to cancel: " confirmation || true
+
+  if [[ "${confirmation}" != "reinstall" ]]; then
+    info "Nix reinstall cancelled"
+    return 0
+  fi
+
+  [[ -x /nix/nix-installer && -f /nix/receipt.json ]] || \
+    fail "This Nix installation has no Determinate installer receipt, so setup will not remove it automatically. Follow the installer-specific uninstall instructions instead."
+
+  curl_command="$(system_curl)" || \
+    fail "A curl executable outside /nix is required before the Nix store can be removed."
+  installer="$(mktemp)"
+
+  info "Downloading the replacement installer before removing the existing Nix store"
+  if ! "${curl_command}" --fail --silent --show-error --location \
+    --proto '=https' --tlsv1.2 "${NIX_INSTALL_URL}" --output "${installer}"
+  then
+    /bin/rm -f -- "${installer}"
+    fail "Could not download the replacement Nix installer. The existing installation was not changed."
+  fi
+
+  info "Uninstalling the installer-managed Nix installation"
+  if ! sudo /nix/nix-installer uninstall --no-confirm; then
+    /bin/rm -f -- "${installer}"
+    fail "Nix uninstall failed; reinstall was stopped."
+  fi
+
+  info "Installing a fresh Nix environment"
+  if ! /bin/sh "${installer}" install --no-confirm; then
+    /bin/rm -f -- "${installer}"
+    fail "The old Nix installation was removed, but the fresh installation failed. Re-run ${BASH_SOURCE[0]} install-nix."
+  fi
+  /bin/rm -f -- "${installer}"
+
+  load_nix || fail "Nix was reinstalled, but this shell could not load it. Open a new terminal and run ${BASH_SOURCE[0]} switch."
+  info "Nix reinstallation completed; run switch next to restore the declared system generation"
+}
+
+install_or_reinstall_nix() {
+  if load_nix; then
+    if [[ "$(uname -s)" == "Linux" && -e /etc/NIXOS ]]; then
+      info "NixOS manages Nix declaratively; rebuilding the system instead of deleting /nix"
+      run_action switch
+    else
+      reinstall_nix
+    fi
+  else
+    install_nix
+    info "Nix installation completed"
+  fi
+}
+
+system_name() {
+  local kernel machine
+  kernel="$(uname -s)"
+  machine="$(uname -m)"
+
+  case "${kernel}:${machine}" in
+    Darwin:arm64) printf '%s\n' aarch64-darwin ;;
+    Darwin:x86_64) printf '%s\n' x86_64-darwin ;;
+    Linux:aarch64|Linux:arm64) printf '%s\n' aarch64-linux ;;
+    Linux:x86_64) printf '%s\n' x86_64-linux ;;
+    *) fail "Unsupported platform: ${kernel} ${machine}" ;;
+  esac
+}
+
+platform_kind() {
+  case "$(uname -s)" in
+    Darwin) printf '%s\n' darwin ;;
+    Linux)
+      if [[ -e /etc/NIXOS ]]; then
+        printf '%s\n' nixos
+      else
+        printf '%s\n' generic-linux
+      fi
+      ;;
+    *) fail "Unsupported operating system: $(uname -s)" ;;
+  esac
+}
+
+run_nix() {
+  nix --extra-experimental-features 'nix-command flakes' "$@"
+}
+
+update_secrets_lock() {
+  local identity="${SECRETS_UPDATE_IDENTITY:-}"
+  local remote_revision ssh_command=""
+
+  command -v git >/dev/null 2>&1 || fail "Git is required to update the secrets lock entry."
+
+  if [[ -n "${identity}" ]]; then
+    [[ -r "${identity}" ]] || fail "Secrets update identity is not readable: ${identity}"
+    printf -v ssh_command 'ssh -i %q -o IdentitiesOnly=yes' "${identity}"
+    info "Using ${identity} to authenticate the secrets lock refresh"
+  fi
+
+  remote_revision="$(
+    if [[ -n "${ssh_command}" ]]; then
+      GIT_SSH_COMMAND="${ssh_command}" \
+        git ls-remote "${SECRETS_REMOTE}" refs/heads/main
+    else
+      git ls-remote "${SECRETS_REMOTE}" refs/heads/main
+    fi |
+      awk '$2 == "refs/heads/main" { print $1; exit }' || true
+  )"
+
+  [[ -n "${remote_revision}" ]] || \
+    fail "Could not read the secrets repository's main branch. Retry from an interactive terminal after making the GPG-backed identity registered with GitHub available to SSH."
+
+  if grep -Fq -- "\"rev\": \"${remote_revision}\"" "${FLAKE_DIR}/flake.lock"; then
+    info "Secrets lock entry is already current at ${remote_revision}"
+    if [[ -n "${identity}" ]]; then
+      warn "The recovery identity can read the repository, but the normal SSH identity could not. Register ~/.ssh/id_ed25519.pub with GitHub or select a different permanent GitHub identity before running switch."
+    fi
+    return 0
+  fi
+
+  if [[ -n "${ssh_command}" ]]; then
+    GIT_SSH_COMMAND="${ssh_command}" \
+      run_nix flake update secrets --flake "${FLAKE_DIR}" || return $?
+  else
+    run_nix flake update secrets --flake "${FLAKE_DIR}" || return $?
+  fi
+  grep -Fq -- "\"rev\": \"${remote_revision}\"" "${FLAKE_DIR}/flake.lock" || \
+    fail "Nix did not lock secrets to the current main revision ${remote_revision}."
+
+  info "Secrets lock entry updated to ${remote_revision}; run switch to activate the configuration"
+}
+
+run_action() {
+  local action="$1"
+  shift
+
+  case "${action}" in
+    switch|build|check|apply|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|check-keys|copy-keys|create-keys) ;;
+    -h|--help) usage; return 0 ;;
+    *) usage >&2; fail "Unknown action: ${action}" ;;
+  esac
+
+  if [[ "${action}" == "install-nix" ]]; then
+    install_or_reinstall_nix
+    return $?
+  fi
+
+  [[ -f "${FLAKE_DIR}/flake.nix" ]] || fail "Expected flake at ${FLAKE_DIR}/flake.nix."
+
+  if [[ "${action}" == "update-secrets" || "${action}" == "pull-secrets" || "${action}" == "refresh-secrets-lock" ]]; then
+    load_nix || install_nix
+    prepare_gpg_ssh_agent
+
+    if [[ "${action}" == "update-secrets" ]]; then
+      info "Encrypting and pushing local secrets"
+      SECRETS_CONFIG_EXTERNAL_FALLBACK="${FLAKE_DIR}/modules/shared/config/ssh/config_external" \
+        "${FLAKE_DIR}/apps/shared/secrets-sync" push || return $?
+    elif [[ "${action}" == "pull-secrets" ]]; then
+      info "Pulling and decrypting private secrets"
+      "${FLAKE_DIR}/apps/shared/secrets-sync" pull || return $?
+    fi
+
+    info "Refreshing only the private secrets lock entry"
+    if [[ -n "${SECRETS_UPDATE_IDENTITY:-}" || -n "${SECRETS_SSH_IDENTITY:-}" ]]; then
+      SECRETS_UPDATE_IDENTITY="${SECRETS_UPDATE_IDENTITY:-${SECRETS_SSH_IDENTITY:-}}" \
+        update_secrets_lock
+    elif [[ -r "${HOME}/.ssh/id_rsa" ]]; then
+      SECRETS_UPDATE_IDENTITY="${HOME}/.ssh/id_rsa" update_secrets_lock
+    else
+      update_secrets_lock
+    fi
+    return $?
+  fi
+
+  if [[ "${action}" == "gpg" || "${action}" == "check-keys" || "${action}" == "copy-keys" || "${action}" == "create-keys" ]]; then
+    prepare_gpg_ssh_agent
+    info "Running ${action}"
+    "${FLAKE_DIR}/apps/shared/${action}" "$@" || return $?
+    info "${action} completed"
+    return 0
+  fi
+
+  local detected_system config flake output platform
+  detected_system="$(system_name)"
+  config="${SYSTEM_CONFIG:-${detected_system}}"
+  flake="path:${FLAKE_DIR}"
+  platform="$(platform_kind)"
+
+  if ! load_nix; then
+    if [[ "${platform}" == "nixos" ]]; then
+      fail "Nix is unavailable on NixOS; repair the system installation before continuing."
+    fi
+    install_nix
+  fi
+
+  prepare_gpg_ssh_agent
+
+  info "Using ${config} from ${FLAKE_DIR}"
+
+  case "${action}" in
+    apply)
+      if [[ "${platform}" == "generic-linux" ]]; then
+        info "Applying the standalone Home Manager configuration"
+        run_action switch "$@"
+        return $?
+      fi
+      info "Running ${action}"
+      (
+        cd "${FLAKE_DIR}"
+        run_nix run --no-write-lock-file "${flake}#${action}" -- "$@"
+      ) || return $?
+      info "${action} completed"
+      return 0
+      ;;
+    clean)
+      info "Running ${action}"
+      (
+        cd "${FLAKE_DIR}"
+        run_nix run --no-write-lock-file "${flake}#${action}" -- "$@"
+      ) || return $?
+      info "${action} completed"
+      return 0
+      ;;
+  esac
+
+  case "${platform}" in
+    darwin)
+      output="darwinConfigurations.${config}.system"
+      ;;
+    nixos)
+      output="nixosConfigurations.${config}.config.system.build.toplevel"
+      ;;
+    generic-linux)
+      output="homeConfigurations.${config}.activationPackage"
+      ;;
+  esac
+
+  case "${action}" in
+    check)
+      run_nix eval --no-write-lock-file --raw "${flake}#${output}.drvPath" || return $?
+      printf '\n'
+      ;;
+    build)
+      run_nix build --no-write-lock-file --print-build-logs --no-link "${flake}#${output}" || return $?
+      ;;
+    switch)
+      if [[ "${platform}" == "darwin" ]]; then
+        local result
+
+        info "Building before activation"
+        result="$(run_nix build --no-write-lock-file --print-build-logs \
+          --no-link --print-out-paths "${flake}#${output}")" || return $?
+
+        info "Activating the macOS configuration"
+        sudo "${result}/sw/bin/darwin-rebuild" switch --flake "${flake}#${config}" || return $?
+      elif [[ "${platform}" == "nixos" ]]; then
+        info "Building and activating the NixOS configuration"
+        sudo --preserve-env=SSH_AUTH_SOCK \
+          nixos-rebuild switch --flake "${flake}#${config}" || return $?
+      else
+        local result
+
+        info "Building the standalone Home Manager configuration"
+        result="$(run_nix build --no-write-lock-file --print-build-logs \
+          --no-link --print-out-paths "${flake}#${output}")" || return $?
+
+        info "Activating the Ubuntu Home Manager configuration"
+        HOME_MANAGER_BACKUP_EXT=bk "${result}/activate" || return $?
+      fi
+      ;;
+  esac
+
+  info "Configuration ${action} completed"
+}
+
+print_menu() {
+  cat <<'EOF'
+
+Choose an action:
+   1) switch       Build and activate the configuration
+   2) build        Build without activating
+   3) check        Evaluate without building
+   4) apply        Personalize the configuration
+   5) clean        Remove old system generations
+   6) gpg          Start and verify GPG-backed SSH
+   7) check-keys   Verify keys and the GPG agent
+   8) copy-keys    Copy keys from a mounted drive
+   9) create-keys  Create SSH and Agenix keys
+  10) install-nix  Install or reinstall Nix
+  11) update-secrets
+                    Encrypt and push local secrets
+  12) pull-secrets  Pull and decrypt secrets into ~/.ssh
+  13) refresh-secrets-lock
+                    Refresh only the private secrets lock entry
+   q) quit
+EOF
+}
+
+interactive_menu() {
+  local choice action action_status
+
+  while true; do
+    print_menu
+    if ! IFS= read -r -p "Which action would you like to take? " choice; then
+      printf '\n'
+      info "Exiting setup"
+      return 0
+    fi
+
+    case "${choice}" in
+      1|switch) action="switch" ;;
+      2|build) action="build" ;;
+      3|check) action="check" ;;
+      4|apply) action="apply" ;;
+      5|clean) action="clean" ;;
+      6|gpg) action="gpg" ;;
+      7|check-keys) action="check-keys" ;;
+      8|copy-keys) action="copy-keys" ;;
+      9|create-keys) action="create-keys" ;;
+      10|i|install-nix) action="install-nix" ;;
+      11|update-secrets) action="update-secrets" ;;
+      12|pull-secrets) action="pull-secrets" ;;
+      13|refresh-secrets-lock) action="refresh-secrets-lock" ;;
+      q|Q|quit|exit)
+        info "Exiting setup"
+        return 0
+        ;;
+      "") continue ;;
+      *)
+        printf '\033[1;31mInvalid selection:\033[0m %s\n' "${choice}" >&2
+        continue
+        ;;
+    esac
+
+    printf '\n'
+    if (run_action "${action}"); then
+      :
+    else
+      action_status=$?
+      printf '\033[1;31mAction %s failed with status %s.\033[0m\n' \
+        "${action}" "${action_status}" >&2
+    fi
+  done
+}
+
+main() {
+  if [[ $# -eq 0 ]]; then
+    interactive_menu
+  else
+    run_action "$@"
+  fi
+}
+
+main "$@"

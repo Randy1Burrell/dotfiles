@@ -19,8 +19,8 @@
     nix-homebrew = {
       url = "github:zhaofengli-wip/nix-homebrew";
     };
-    homebrew-bundle = {
-      url = "github:homebrew/homebrew-bundle";
+    brew = {
+      url = "github:homebrew/brew";
       flake = false;
     };
     homebrew-core = {
@@ -39,10 +39,14 @@
       url = "git+ssh://git@github.com/randy1burrell/secrets.git";
       flake = false;
     };
+    secrets = {
+      url = "git+ssh://git@github.com/randy1burrell/secrets.git";
+      flake = false;
+    };
   };
 
-  outputs = { self, darwin, nix-homebrew, homebrew-bundle, homebrew-core, homebrew-cask, home-manager, nixpkgs, disko, agenix, secrets } @inputs:
-    let
+  outputs = { self, darwin, nix-homebrew, brew, homebrew-core, homebrew-cask, home-manager, nixpkgs, disko, agenix, secrets } @inputs:
+  let
       user = "randyburrell";
       linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
       darwinSystems = [ "aarch64-darwin" "x86_64-darwin" ];
@@ -91,23 +95,24 @@
       darwinConfigurations = nixpkgs.lib.genAttrs darwinSystems (system:
         darwin.lib.darwinSystem {
           inherit system;
-          specialArgs = inputs;
+          specialArgs = inputs // { inherit user; };
           modules = [
             home-manager.darwinModules.home-manager
-            nix-homebrew.darwinModules.nix-homebrew
-            {
-              nix-homebrew = {
-                inherit user;
-                enable = true;
-                taps = {
-                  "homebrew/homebrew-cask" = homebrew-cask;
-                  "homebrew/homebrew-bundle" = homebrew-bundle;
-                  # "homebrew/homebrew-core" = homebrew-core;
-                };
-                mutableTaps = false;
-                autoMigrate = true;
-              };
-            }
+            # nix-homebrew.darwinModules.nix-homebrew
+            # {
+            #   nix-homebrew = {
+            #     inherit user;
+            #     enable = true;
+            #     enableRosetta = true;
+            #     taps = {
+            #       "homebrew/core" = homebrew-core;
+            #       "homebrew/cask" = homebrew-cask;
+            #       "homebrew/bundle" = brew;
+            #     };
+            #     mutableTaps = false;
+            #     autoMigrate = false;
+            #   };
+            # }
             ./hosts/darwin
           ];
         }

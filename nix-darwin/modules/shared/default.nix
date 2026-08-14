@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  emacsOverlaySha256 = "sha256:0g28v7hzpc6w18p6jwvhg9jwnrlxx3c3ysrp3gjjvv1li10llcri";
+  emacsOverlaySha256 = "sha256:1pp9dmxjf5qypqmnplnxm2jrfh6d0kp7d7jybzfgsp1k8x8bjqgh";
 in
 {
 
@@ -23,10 +23,10 @@ in
           (attrNames (readDir path)))
 
       ++ [
-        (import (builtins.fetchTarball {
-          url = "https://github.com/nix-community/emacs-overlay/archive/master.tar.gz";
-          sha256 = emacsOverlaySha256;
-        }))
+        #       (import (builtins.fetchTarball {
+        #         url = "https://github.com/nix-community/emacs-overlay/archive/master.tar.gz";
+        #         sha256 = emacsOverlaySha256;
+        #       }))
       ];
   };
 }
