@@ -968,6 +968,12 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;; Git identity belongs to the system configuration.  Emacs must not mutate
   ;; global Git settings merely because Magit was loaded.
 
+  ;; Keep commit-message and other ordinary Magit buffers in the selected
+  ;; Emacs window. Diffs and process output may still use a second window.
+  (with-eval-after-load 'magit
+    (setq magit-display-buffer-function
+          #'magit-display-buffer-same-window-except-diff-v1))
+
   (defmacro rb/pretty-magit (WORD &optional ICON PROPS NO-PROMPT?)
     "Replace sanitised WORD with ICON, PROPS and by default add to prompts.
   Unless NO-PROMPT?"

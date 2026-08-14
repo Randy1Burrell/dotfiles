@@ -25,7 +25,7 @@ in
     enableNixpkgsReleaseCheck = false;
     packages = pkgs.callPackage ../shared/packages.nix { };
     file = sharedFiles;
-    sessionVariables.EDITOR = "${pkgs.emacs}/bin/emacsclient -c";
+    sessionVariables.EDITOR = "${pkgs.emacs}/bin/emacsclient -t";
   };
 
   programs = import ../shared/home-manager.nix {

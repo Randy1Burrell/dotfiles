@@ -24,7 +24,13 @@ in
 
   homebrew = {
     enable = true;
-    onActivation.cleanup = "uninstall";
+    # Homebrew 6 requires the explicit `install` subcommand before accepting
+    # --force-cleanup. Current nix-darwin emits the flag against the legacy
+    # shorthand form, so express the equivalent compatible command directly.
+    onActivation = {
+      cleanup = "none";
+      extraFlags = [ "install" "--force-cleanup" ];
+    };
     casks = pkgs.callPackage ./casks.nix { };
     brews = pkgs.callPackage ./brews.nix { };
 
@@ -85,7 +91,7 @@ in
           # This is an internal compatibility configuration for home-manager,
           # only to be changed under very careful conditions.
           sessionVariables = {
-            EDITOR = "${pkgs.emacs}/bin/emacsclient -c";
+            EDITOR = "${pkgs.emacs}/bin/emacsclient -t";
           };
 
           enableNixpkgsReleaseCheck = false;

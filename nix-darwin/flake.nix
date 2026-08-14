@@ -192,6 +192,7 @@
           home-manager.nixosModules.home-manager
           {
             home-manager = {
+              backupFileExtension = "bk";
               useGlobalPkgs = true;
               useUserPackages = true;
               users.${user} = import ./modules/nixos/home-manager.nix;
