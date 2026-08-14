@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+umask 0077
+
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SSH_DIR="${HOME}/.ssh"
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+[[ ${EUID} -ne 0 ]] || fail "run copy-keys as your normal user, not with sudo."
+
+"${SCRIPT_DIR}/gpg"
+export SSH_AUTH_SOCK
+SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+
+has_key_set() {
+  local directory="$1"
+  local key_file
+  for key_file in \
+    id_ed25519_agenix \
+    id_ed25519_agenix.pub \
+    id_ed25519_github \
+    id_ed25519_github.pub
+  do
+    [[ -f "${directory}/${key_file}" ]] || return 1
+  done
+}
+
+find_key_source() {
+  local root public_key candidate
+
+  if [[ -n "${KEYS_MOUNT_PATH:-}" ]]; then
+    has_key_set "${KEYS_MOUNT_PATH}" || fail "${KEYS_MOUNT_PATH} does not contain the complete key set."
+    printf '%s\n' "${KEYS_MOUNT_PATH}"
+    return 0
+  fi
+
+  for root in "/Volumes" "/run/media/${USER}" "/media/${USER}" "/media" "/mnt"; do
+    [[ -d "${root}" ]] || continue
+    while IFS= read -r -d '' public_key; do
+      candidate="$(dirname -- "${public_key}")"
+      if has_key_set "${candidate}"; then
+        printf '%s\n' "${candidate}"
+        return 0
+      fi
+    done < <(find "${root}" -maxdepth 3 -type f -name id_ed25519_github.pub -print0 2>/dev/null)
+  done
+
+  return 1
+}
+
+install -d -m 700 "${SSH_DIR}"
+key_source="$(find_key_source)" || fail "no mounted drive containing the complete SSH key set was found. Set KEYS_MOUNT_PATH to select one explicitly."
+
+install -m 600 "${key_source}/id_ed25519_agenix" "${SSH_DIR}/id_ed25519_agenix"
+install -m 644 "${key_source}/id_ed25519_agenix.pub" "${SSH_DIR}/id_ed25519_agenix.pub"
+install -m 600 "${key_source}/id_ed25519_github" "${SSH_DIR}/id_ed25519"
+install -m 644 "${key_source}/id_ed25519_github.pub" "${SSH_DIR}/id_ed25519.pub"
+
+printf 'Keys copied from %s. SSH authentication remains pinned to gpg-agent.\n' "${key_source}"

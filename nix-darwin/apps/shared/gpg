@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+umask 0077
+
+readonly GPG_DIR="${HOME}/.gnupg"
+readonly AGENT_CONFIG="${GPG_DIR}/gpg-agent.conf"
+readonly GPG_CONFIG="${GPG_DIR}/gpg.conf"
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
+}
+
+ensure_line() {
+  local line="$1"
+  local file="$2"
+
+  grep -Fqx -- "${line}" "${file}" 2>/dev/null && return 0
+  if [[ -L "${file}" || ! -w "${file}" ]]; then
+    fail "${file} is managed and does not contain '${line}'; apply the Home Manager configuration first."
+  fi
+  printf '%s\n' "${line}" >> "${file}"
+}
+
+command -v gpgconf >/dev/null 2>&1 || fail "gpgconf is unavailable; apply the system configuration first."
+command -v gpg-connect-agent >/dev/null 2>&1 || fail "gpg-connect-agent is unavailable; apply the system configuration first."
+command -v gpg-agent >/dev/null 2>&1 || fail "gpg-agent is unavailable; apply the system configuration first."
+command -v ssh-add >/dev/null 2>&1 || fail "ssh-add is unavailable; install OpenSSH first."
+
+install -d -m 700 "${GPG_DIR}"
+for config_file in "${AGENT_CONFIG}" "${GPG_CONFIG}"; do
+  if [[ ! -e "${config_file}" ]]; then
+    install -m 600 /dev/null "${config_file}"
+  fi
+done
+
+ensure_line "enable-ssh-support" "${AGENT_CONFIG}"
+ensure_line "default-cache-ttl 300" "${AGENT_CONFIG}"
+ensure_line "default-cache-ttl-ssh 300" "${AGENT_CONFIG}"
+ensure_line "max-cache-ttl 1200" "${AGENT_CONFIG}"
+ensure_line "max-cache-ttl-ssh 1200" "${AGENT_CONFIG}"
+ensure_line "no-emit-version" "${GPG_CONFIG}"
+ensure_line "auto-key-retrieve" "${GPG_CONFIG}"
+
+if [[ "$(uname -s)" == "Darwin" ]] && ! grep -Eq '^pinentry-program[[:space:]]' "${AGENT_CONFIG}"; then
+  command -v pinentry-mac >/dev/null 2>&1 || fail "pinentry-mac is unavailable; apply the system configuration first."
+  ensure_line "pinentry-program $(command -v pinentry-mac)" "${AGENT_CONFIG}"
+fi
+
+if [[ -t 0 ]]; then
+  export GPG_TTY
+  GPG_TTY="$(tty)"
+fi
+
+gpgconf --launch gpg-agent
+expected_version="$(gpg-agent --version 2>/dev/null | awk 'NR == 1 { print $3; exit }')"
+running_version="$(
+  gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+    awk '$1 == "D" { print $2; exit }' || true
+)"
+
+if [[ -n "${expected_version}" && -n "${running_version}" && "${running_version}" != "${expected_version}" ]]; then
+  warn "restarting stale gpg-agent ${running_version} with managed version ${expected_version}"
+  gpgconf --kill all 2>/dev/null || true
+  gpgconf --launch gpg-agent
+  running_version="$(
+    gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+      awk '$1 == "D" { print $2; exit }' || true
+  )"
+  [[ "${running_version}" == "${expected_version}" ]] || \
+    fail "expected gpg-agent ${expected_version}, but socket reports ${running_version:-unknown}"
+else
+  gpgconf --reload gpg-agent 2>/dev/null || true
+fi
+
+gpg-connect-agent --quiet updatestartuptty /bye >/dev/null
+
+export SSH_AUTH_SOCK
+SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+
+case "$(uname -s)" in
+  Darwin)
+    launchctl setenv SSH_AUTH_SOCK "${SSH_AUTH_SOCK}"
+    ;;
+  Linux)
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl --user set-environment "SSH_AUTH_SOCK=${SSH_AUTH_SOCK}" 2>/dev/null || true
+    fi
+    ;;
+esac
+
+agent_result="$(SSH_AUTH_SOCK="${SSH_AUTH_SOCK}" ssh-add -l 2>&1)" || agent_status=$?
+agent_status="${agent_status:-0}"
+if [[ ${agent_status} -ne 0 && "${agent_result}" != *"no identities"* ]]; then
+  fail "gpg-agent's SSH socket is unavailable: ${agent_result}"
+fi
+
+printf 'GPG-backed SSH agent is ready at %s.\n' "${SSH_AUTH_SOCK}"
+if [[ ${agent_status} -eq 0 ]]; then
+  printf '%s\n' "${agent_result}"
+else
+  printf 'The agent is running but does not currently expose an SSH key.\n'
+fi

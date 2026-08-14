@@ -4,19 +4,24 @@ let
   user = "randyburrell";
   xdg_configHome = "/home/${user}/.config";
   shared-programs = import ../shared/home-manager.nix { inherit config pkgs lib; };
-  shared-files = import ../shared/files.nix { inherit config pkgs; };
+  shared-files = import ../shared/files.nix {
+    inherit pkgs;
+    githubPublicKeySource = config.lib.file.mkOutOfStoreSymlink
+      "${config.home.homeDirectory}/.ssh/id_ed25519.pub";
+  };
 
-  polybar-user_modules = builtins.readFile (pkgs.substituteAll {
-    src = ./config/polybar/user_modules.ini;
-    packages = "${xdg_configHome}/polybar/bin/check-nixos-updates.sh";
-    searchpkgs = "${xdg_configHome}/polybar/bin/search-nixos-updates.sh";
-    launcher = "${xdg_configHome}/polybar/bin/launcher.sh";
-    powermenu = "${xdg_configHome}/rofi/bin/powermenu.sh";
-    calendar = "${xdg_configHome}/polybar/bin/popup-calendar.sh";
-  });
+  polybar-user_modules = builtins.replaceStrings
+    [ "@packages@" "@searchpkgs@" "@launcher@" "@powermenu@" "@calendar@" ]
+    [
+      "${xdg_configHome}/polybar/bin/check-nixos-updates.sh"
+      "${xdg_configHome}/polybar/bin/search-nixos-updates.sh"
+      "${xdg_configHome}/polybar/bin/launcher.sh"
+      "${xdg_configHome}/rofi/bin/powermenu.sh"
+      "${xdg_configHome}/polybar/bin/popup-calendar.sh"
+    ]
+    (builtins.readFile ./config/polybar/user_modules.ini);
 
-  polybar-config = pkgs.substituteAll {
-    src = ./config/polybar/config.ini;
+  polybar-config = pkgs.replaceVars ./config/polybar/config.ini {
     font0 = "DejaVu Sans:size=12;3";
     font1 = "feather:size=12;3"; # from overlay
   };
@@ -27,6 +32,11 @@ let
 
 in
 {
+  imports = [
+    ../shared/emacs-repository.nix
+    ../shared/gpg-agent.nix
+  ];
+
   home = {
     enableNixpkgsReleaseCheck = false;
     username = "${user}";
@@ -41,11 +51,11 @@ in
     enable = true;
     iconTheme = {
       name = "Adwaita-dark";
-      package = pkgs.gnome.adwaita-icon-theme;
+      package = pkgs.adwaita-icon-theme;
     };
     theme = {
       name = "Adwaita-dark";
-      package = pkgs.gnome.adwaita-icon-theme;
+      package = pkgs.adwaita-icon-theme;
     };
   };
 
@@ -114,6 +124,6 @@ in
     };
   };
 
-  programs = shared-programs // { gpg.enable = true; };
+  programs = shared-programs;
 
 }

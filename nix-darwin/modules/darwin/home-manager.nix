@@ -7,7 +7,6 @@ let
     #!/bin/sh
     emacsclient -c -n &
   '';
-  sharedFiles = import ../shared/files.nix { inherit config pkgs; };
   additionalFiles = import ./files.nix { inherit user config pkgs; };
 in
 {
@@ -25,6 +24,7 @@ in
 
   homebrew = {
     enable = true;
+    onActivation.cleanup = "uninstall";
     casks = pkgs.callPackage ./casks.nix { };
     brews = pkgs.callPackage ./brews.nix { };
 
@@ -36,7 +36,7 @@ in
     # $ mas search <app name>
     #
     masApps = {
-      # "1password" = 1333542190;
+      "1password" = 1333542190;
       "1Password for Safari" = 1569813296;
       "Docs for Developers" = 1411232591;
       "GarageBand" = 682658836;
@@ -67,26 +67,40 @@ in
     useGlobalPkgs = true;
     useUserPackages = true;
     verbose = true;
-    users.${user} = { pkgs, config, lib, ... }: {
-      home = {
-        # This is an internal compatibility configuration for home-manager,
-        # only to be changed under very careful conditions.
-        sessionVariables = {
-          EDITOR = "${pkgs.emacs}/bin/emacsclient -c";
+    users.${user} = { pkgs, config, lib, ... }:
+      let
+        sharedFiles = import ../shared/files.nix {
+          inherit pkgs;
+          githubPublicKeySource = config.lib.file.mkOutOfStoreSymlink
+            "${config.home.homeDirectory}/.ssh/id_ed25519.pub";
+        };
+      in
+      {
+        imports = [
+          ../shared/emacs-repository.nix
+          ../shared/gpg-agent.nix
+        ];
+
+        home = {
+          # This is an internal compatibility configuration for home-manager,
+          # only to be changed under very careful conditions.
+          sessionVariables = {
+            EDITOR = "${pkgs.emacs}/bin/emacsclient -c";
+          };
+
+          enableNixpkgsReleaseCheck = false;
+          file = sharedFiles // additionalFiles;
+          packages = pkgs.callPackage ./packages.nix { };
+
+          stateVersion = "23.11";
         };
 
-        enableNixpkgsReleaseCheck = false;
-        packages = pkgs.callPackage ./packages.nix { };
+        programs = { } // import ../shared/home-manager.nix { inherit config pkgs lib; };
 
-        stateVersion = "23.11";
+        # Marked broken Oct 20, 2022 check later to remove this
+        # https://github.com/nix-community/home-manager/issues/3344
+        manual.manpages.enable = false;
       };
-
-      programs = { } // import ../shared/home-manager.nix { inherit config pkgs lib; };
-
-      # Marked broken Oct 20, 2022 check later to remove this
-      # https://github.com/nix-community/home-manager/issues/3344
-      manual.manpages.enable = false;
-    };
   };
 
   # Fully declarative dock using the latest from Nix Store
@@ -95,18 +109,14 @@ in
       enable = true;
       entries = [
         # { path = "/System/Applications/Messages.app/"; }
+        # { path = "/Applications/Launchpad.app/"; }
         { path = "/Applications/Mission Control.app/"; }
-        { path = "/Applications/Launchpad.app/"; }
         { path = "/Applications/Setapp/Spark\ Mail.app/"; }
         { path = "/Applications/Setapp/Noteplan.app/"; }
         { path = "/System/Cryptexes/App/System/Applications/Safari.app/"; }
         { path = "/Applications/Google\ Chrome.app/"; }
-        {
-          path = "/Applications/Slack.app/";
-        }
-        {
-          path = "${pkgs.alacritty}/Applications/Alacritty.app/";
-        }
+        { path = "/Applications/Slack.app/"; }
+        { path = "${pkgs.alacritty}/Applications/Alacritty.app/"; }
         {
           path = "${config.users.users.${user}.home}/.local/share/";
           section = "others";

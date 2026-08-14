@@ -2,8 +2,8 @@ _:
 
 [
   # Development Tools
-  "docker"
-  "macvim"
+  "docker-desktop"
+  "macvim-app"
   "tunnelblick"
   "visual-studio-code"
   # "wireshark"
@@ -27,7 +27,7 @@ _:
   "logitech-options"
   "logitune"
   "powerpanel"
-  "syncthing"
+  "syncthing-app"
 
   # GUI DBMS
   "pgadmin4"
@@ -49,7 +49,7 @@ _:
   "microsoft-edge"
   "opera"
   "010-editor"
-  "tor"
+  "tor-browser"
 
   # CLI
   "iterm2"

@@ -1,1 +1,54 @@
-. ~/.shell/interactive
+zmodload -i zsh/complist
+
+# Completion behavior. Home Manager initializes compinit once after filtering
+# insecure Homebrew paths; do not call compinit from this file.
+zstyle ':completion::complete:*' use-cache on
+zstyle ':completion::complete:*' cache-path "$HOME/.zsh/cache/$HOST"
+zstyle ':completion:*' list-colors ''
+zstyle ':completion:*' list-prompt '%SAt %p: press TAB for more%s'
+zstyle ':completion:*' select-prompt '%SCurrent selection: %p%s'
+zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#) ([0-9a-z-]#)*=01;34=0=01'
+zstyle ':completion:*::::' completer _expand _complete _ignored _approximate
+zstyle ':completion:*' menu select=1 _complete _ignored _approximate
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+zstyle ':completion:*:*:-subscript-:*' tag-order indexes parameters
+zstyle ':completion:*' verbose yes
+zstyle ':completion:*:descriptions' format '%B%d%b'
+zstyle ':completion:*:messages' format '%d'
+zstyle ':completion:*:warnings' format 'No matches for: %d'
+zstyle ':completion:*:corrections' format '%B%d (errors: %e)%b'
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*:functions' ignored-patterns '_*'
+
+bindkey '^?' backward-delete-char
+bindkey '^[[3~' delete-char
+bindkey '^R' history-incremental-search-backward
+bindkey '^A' beginning-of-line
+bindkey '^E' end-of-line
+
+setopt no_beep
+setopt interactive_comments
+setopt extended_glob
+setopt always_to_end
+setopt auto_menu
+setopt complete_in_word
+setopt prompt_subst
+setopt transient_rprompt
+unsetopt menu_complete
+
+export ESHELL="${SHELL:-/bin/zsh}"
+export CLICOLOR=1
+export HOMEBREW_INSTALL_BADGE="☕️ 🐸"
+export HOMEBREW_NO_ENV_HINTS=true
+
+if [[ -f "$HOME/Applications/google-cloud-sdk/path.zsh.inc" ]]; then
+  source "$HOME/Applications/google-cloud-sdk/path.zsh.inc"
+fi
+
+if [[ -f "$HOME/Applications/google-cloud-sdk/completion.zsh.inc" ]]; then
+  source "$HOME/Applications/google-cloud-sdk/completion.zsh.inc"
+fi
+
+if [[ -f "$HOME/.config/tabtab/zsh/__tabtab.zsh" ]]; then
+  source "$HOME/.config/tabtab/zsh/__tabtab.zsh"
+fi

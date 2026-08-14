@@ -1,0 +1,58 @@
+Host *
+  ServerAliveInterval 60
+  ServerAliveCountMax 10
+  ControlMaster auto
+  ControlPath ~/.ssh/%r@%h:%p
+
+Host home
+  Hostname home.randyburrell.info
+  User corlena
+  Port 22
+
+Host chug
+  Hostname chug
+  User corlena
+  Port 22
+
+Host natesha
+  Hostname natesha
+  User corlena
+  Port 22
+
+# Remote server for website natesha.life
+Host randyburrell.info
+  Hostname ec2-100-25-22-77.compute-1.amazonaws.com
+  User ubuntu
+  Port 2222
+
+# Remote server for website tkt.tokentities.io
+Host tkt.tokentities.io
+  Hostname ec2-3-222-185-227.compute-1.amazonaws.com
+  User ubuntu
+  Port 22
+
+# Remote server for website projects.natesha.life
+Host nateshaprojects
+  Hostname ec2-3-90-80-249.compute-1.amazonaws.com
+  User ubuntu
+  Port 2222
+
+Host tesha
+  Hostname ec2-100-26-227-252.compute-1.amazonaws.com
+  User ubuntu
+  Port 2222
+
+Host WebsiteBlog
+  Hostname 165.227.89.84
+  User root
+  Port 2222
+
+Host WebsiteBlogRB
+  Hostname 192.241.155.229
+  User randy
+  Port 2222
+
+Host tacen-commander
+  Hostname 45.79.77.149
+  User root
+  Port 22

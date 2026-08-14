@@ -1,197 +1,187 @@
-;;; init.el --- Load the full configuration -*- lexical-binding: t -*-
+;;; init.el --- Load Randy's generated configuration -*- lexical-binding: t -*-
 ;;; Commentary:
-
-;; This file bootstraps the configuration, which is divided into
-;; a number of other files.
-
 ;;; Code:
 
-;; Produce backtraces when errors occur: can be helpful to diagnose startup issues
-;;(setq debug-on-error t)
+(let ((minimum-version "29.1"))
+  (when (version< emacs-version minimum-version)
+    (error "This configuration requires Emacs %s or newer" minimum-version)))
 
-(let ((minver "27.1"))
-  (when (version< emacs-version minver)
-    (error "Your Emacs is too old -- this config requires v%s or higher" minver)))
-(when (version< emacs-version "28.1")
-  (message "Your Emacs is old, and some functionality in this config will be disabled. Please upgrade if possible."))
+(setq custom-file (locate-user-emacs-file "custom.el")
+      read-process-output-max (* 4 1024 1024)
+      process-adaptive-read-buffering nil
+      load-prefer-newer t)
 
-(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(require 'init-benchmarking) ;; Measure startup time
-
-(defconst *spell-check-support-enabled* nil) ;; Enable with t if you prefer
 (defconst *is-a-mac* (eq system-type 'darwin))
 
-
-;; Adjust garbage collection threshold for early startup (see use of gcmh below)
-(setq gc-cons-threshold (* 128 1024 1024))
+(defun system-is-mac ()
+  "Return non-nil when Emacs is running on macOS."
+  *is-a-mac*)
 
-
-;; Process performance tuning
+(defun system-is-linux ()
+  "Return non-nil when Emacs is running on GNU/Linux."
+  (eq system-type 'gnu/linux))
 
-(setq read-process-output-max (* 4 1024 1024))
-(setq process-adaptive-read-buffering nil)
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "custom" user-emacs-directory))
 
-
-;; Bootstrap config
+(require 'package)
+(setq package-user-dir
+      (expand-file-name
+       (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
+       user-emacs-directory))
+(setq package-archives
+      '(("gnu" . "https://elpa.gnu.org/packages/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("melpa" . "https://melpa.org/packages/")))
+(package-initialize)
 
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
 
-(setq custom-file (locate-user-emacs-file "custom.el"))
-(require 'init-utils)
-(require 'init-site-lisp) ;; Must come before elpa, as it may provide package.el
-;; Calls (package-initialize)
-(require 'init-elpa)      ;; Machinery for installing required packages
-(require 'init-exec-path) ;; Set up $PATH
+(require 'use-package)
+(setq use-package-always-ensure t)
 
-
-;; General performance tuning
-(when (require-package 'gcmh)
-  (setq gcmh-high-cons-threshold (* 128 1024 1024))
-  (add-hook 'after-init-hook (lambda ()
-                               (gcmh-mode)
-                               (diminish 'gcmh-mode))))
+(use-package diminish :demand t)
+(use-package bind-key :demand t)
 
-(setq jit-lock-defer-time 0)
+(defun require-package (package &optional min-version no-refresh)
+  "Install PACKAGE when absent, optionally requiring MIN-VERSION.
+When NO-REFRESH is non-nil, do not refresh package metadata first."
+  (or (package-installed-p package min-version)
+      (progn
+        (unless (or no-refresh package-archive-contents)
+          (package-refresh-contents))
+        (package-install package)
+        t)))
 
-
-;; Allow users to provide an optional "init-preload-local.el"
+(defun maybe-require-package (package &optional min-version no-refresh)
+  "Try to install PACKAGE without aborting startup on failure."
+  (condition-case err
+      (require-package package min-version no-refresh)
+    (error
+     (message "Optional package %s was not installed: %s"
+              package (error-message-string err))
+     nil)))
+
+(defgroup rb/emacs-config nil
+  "Development helpers for Randy's literate Emacs configuration."
+  :group 'convenience)
+
+(defcustom rb/emacs-config-source nil
+  "Optional path to the editable Emacs config.org file.
+When nil, prefer the current config.org buffer, then DOTFILES_DIR, the
+standard dotfiles checkout, and finally the deployed read-only copy."
+  :type '(choice (const :tag "Discover automatically" nil) file)
+  :group 'rb/emacs-config)
+
+(defun rb/emacs-config--source-file ()
+  "Return the best available literate Emacs source file."
+  (let* ((dotfiles-root
+          (or (getenv "DOTFILES_DIR")
+              (expand-file-name "~/.local/share/src/dotfiles")))
+         (checkout-source
+          (expand-file-name
+           "nix-darwin/modules/shared/config/emacs/config.org"
+           dotfiles-root))
+         (deployed-source (expand-file-name "~/.config/emacs/config.org")))
+    (cond
+     ((and buffer-file-name
+           (string-equal (file-name-nondirectory buffer-file-name) "config.org"))
+      buffer-file-name)
+     ((and rb/emacs-config-source
+           (file-readable-p rb/emacs-config-source))
+      rb/emacs-config-source)
+     ((file-readable-p checkout-source) checkout-source)
+     ((file-readable-p deployed-source) deployed-source))))
+
+(defun rb/emacs-config--required-modules (init-local)
+  "Return the ordered init features required by INIT-LOCAL."
+  (with-temp-buffer
+    (insert-file-contents init-local)
+    (let (modules)
+      (goto-char (point-min))
+      (while (re-search-forward
+              "^[[:space:]]*(require[[:space:]]+'\\([^[:space:]()]+\\)"
+              nil t)
+        (push (intern (match-string 1)) modules))
+      (nreverse modules))))
+
+(defun rb/emacs-config--module-file (generated-home feature)
+  "Find FEATURE below GENERATED-HOME, returning nil when it was not tangled."
+  (let ((name (concat (symbol-name feature) ".el")))
+    (seq-find
+     #'file-readable-p
+     (list (expand-file-name (concat "lisp/" name) generated-home)
+           (expand-file-name (concat "custom/" name) generated-home)))))
+
+(defun rb/tangle-and-reload-emacs-config (&optional source)
+  "Tangle SOURCE in isolation and reload its selected init modules.
+With a prefix argument, prompt for SOURCE.  Generated files are written below
+a temporary HOME, so this command never modifies Nix-managed configuration."
+  (interactive
+   (list (when current-prefix-arg
+           (read-file-name "Literate Emacs configuration: " nil nil t))))
+  (require 'seq)
+  (let* ((source (or source
+                     (rb/emacs-config--source-file)
+                     (and (called-interactively-p 'interactive)
+                          (read-file-name
+                           "Literate Emacs configuration: " nil nil t))))
+         (source (and source (expand-file-name source))))
+    (unless (and source (file-readable-p source))
+      (user-error "No readable Emacs config.org source was found"))
+    (when (and (get-file-buffer source)
+               (buffer-modified-p (get-file-buffer source)))
+      (user-error "Save %s before tangling" source))
+    (let* ((scratch-home (make-temp-file "rb-emacs-config-" t))
+           (generated-home (expand-file-name ".emacs.d" scratch-home))
+           (init-local (expand-file-name "lisp/init-local.el" generated-home))
+           (output-buffer (get-buffer-create "*Emacs config tangle*"))
+           (emacs-binary (expand-file-name invocation-name invocation-directory)))
+      (unwind-protect
+          (progn
+            (with-current-buffer output-buffer
+              (erase-buffer))
+            (unless (zerop
+                     (let ((process-environment
+                            (cons (concat "HOME=" scratch-home)
+                                  process-environment)))
+                       (call-process
+                        emacs-binary nil output-buffer nil
+                        "--batch" "--quick"
+                        "--eval" "(require 'org)"
+                        "--eval" (format "(org-babel-tangle-file %S)" source))))
+              (display-buffer output-buffer)
+              (error "Tangling failed; see %s" (buffer-name output-buffer)))
+            (unless (file-readable-p init-local)
+              (error "Tangling did not generate %s" init-local))
+            (let ((modules (rb/emacs-config--required-modules init-local))
+                  (loaded 0)
+                  (load-path (append (list (expand-file-name "lisp" generated-home)
+                                           (expand-file-name "custom" generated-home))
+                                     load-path)))
+              (dolist (feature modules)
+                (when-let ((module-file
+                            (rb/emacs-config--module-file generated-home feature)))
+                  (load module-file nil 'nomessage)
+                  (setq loaded (1+ loaded))))
+              (message "Tangled %s and reloaded %d modules" source loaded)))
+        (delete-directory scratch-home t)))))
+
+(require 'init-local)
+
+(when (file-exists-p custom-file)
+  (load custom-file nil 'nomessage))
+
 (require 'init-preload-local nil t)
+(require 'init-postload-local nil t)
 
-;; Load configs for specific features and modes
-(require-package 'diminish)
-(maybe-require-package 'scratch)
-(require-package 'command-log-mode)
-
-(require 'init-frame-hooks)
-(require 'init-xterm)
-(require 'init-themes)
-(require 'init-osx-keys)
-(require 'init-gui-frames)
-(require 'init-dired)
-(require 'init-isearch)
-(require 'init-grep)
-(require 'init-uniquify)
-(require 'init-ibuffer)
-(require 'init-flymake)
-(require 'init-eglot)
-
-(require 'init-recentf)
-(require 'init-minibuffer)
-(require 'init-hippie-expand)
-(require 'init-corfu)
-(require 'init-windows)
-(require 'init-sessions)
-(require 'init-mmm)
-
-(require 'init-editing-utils)
-(require 'init-whitespace)
-
-(require 'init-vc)
-(require 'init-darcs)
-(require 'init-git)
-(require 'init-github)
-
-(require 'init-projectile)
-
-(require 'init-compile)
-(require 'init-crontab)
-(require 'init-textile)
-(require 'init-markdown)
-(require 'init-csv)
-(require 'init-erlang)
-(require 'init-javascript)
-(require 'init-php)
-(require 'init-org)
-(require 'init-nxml)
-(require 'init-html)
-(require 'init-css)
-(require 'init-haml)
-(require 'init-http)
-(require 'init-python)
-(require 'init-haskell)
-(require 'init-elm)
-(require 'init-purescript)
-(require 'init-ruby)
-(require 'init-rails)
-(require 'init-sql)
-(require 'init-ocaml)
-(require 'init-j)
-(require 'init-nim)
-(require 'init-rust)
-(require 'init-toml)
-(require 'init-yaml)
-(require 'init-docker)
-(require 'init-terraform)
-(require 'init-nix)
-(maybe-require-package 'nginx-mode)
-(maybe-require-package 'just-mode)
-(maybe-require-package 'justl)
-
-(require 'init-paredit)
-(require 'init-lisp)
-(require 'init-sly)
-(require 'init-clojure)
-(require 'init-clojure-cider)
-
-(when *spell-check-support-enabled*
-  (require 'init-spelling))
-
-(require 'init-misc)
-
-(require 'init-folding)
-(require 'init-dash)
-
-(require 'init-ledger)
-(require 'init-lua)
-(require 'init-uiua)
-(require 'init-terminals)
-
-;; Extra packages which don't require any configuration
-
-(require-package 'sudo-edit)
-(require-package 'gnuplot)
-(require-package 'htmlize)
-(when *is-a-mac*
-  (require-package 'osx-location))
-(maybe-require-package 'dotenv-mode)
-(maybe-require-package 'shfmt)
-
-(when (maybe-require-package 'uptimes)
-  (setq-default uptimes-keep-count 200)
-  (add-hook 'after-init-hook (lambda () (require 'uptimes))))
-
-(when (fboundp 'global-eldoc-mode)
-  (add-hook 'after-init-hook 'global-eldoc-mode))
-
-(require 'init-direnv)
-
-(when (and (require 'treesit nil t)
-           (fboundp 'treesit-available-p)
-           (treesit-available-p))
-  (require 'init-treesitter))
-
-
-
-;; Allow access from emacsclient
 (add-hook 'after-init-hook
           (lambda ()
             (require 'server)
             (unless (server-running-p)
               (server-start))))
 
-;; Variables configured via the interactive 'customize' interface
-(when (file-exists-p custom-file)
-  (load custom-file))
-
-;; Locales (setting them earlier in this file doesn't work in X)
-(require 'init-locales)
-
-;; Allow users to provide an optional "init-local" containing personal settings
-(require 'init-local nil t)
-
 (provide 'init)
-
-;; Local Variables:
-;; coding: utf-8
-;; no-byte-compile: t
-;; End:
 ;;; init.el ends here

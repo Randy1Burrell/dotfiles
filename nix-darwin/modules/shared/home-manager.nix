@@ -15,24 +15,78 @@ in
     enable = true;
   };
 
+  # Enable Bash so Home Manager's GPG agent integration is installed for
+  # Bash login and interactive shells as well as Zsh.
+  bash = {
+    enable = true;
+    # Keep the generated startup file compatible with macOS's /bin/bash 3.2
+    # as well as the current Bash supplied by Nix.
+    enableCompletion = false;
+    shellOptions = [ "histappend" "extglob" ];
+    initExtra = ''
+      # A non-login Bash normally inherits this from its parent. Recompute it
+      # when needed, while preserving an agent forwarded into a remote session.
+      if [[ -z "''${SSH_AUTH_SOCK:-}" || -z "''${SSH_CONNECTION:-}" ]]; then
+        unset SSH_AGENT_PID
+        export SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)"
+      fi
+    '';
+  };
+
   # Shared shell configuration
   zsh = {
     enable = true; # see note on other shells below
+    dotDir = config.home.homeDirectory;
 
     autocd = false;
     enableCompletion = true;
+    completionInit = ''
+      # Homebrew's group-writable share directory fails compaudit. These
+      # completions are also supplied by Nix, so omit only those two entries.
+      fpath=(''${fpath:#/opt/homebrew/share/zsh/site-functions})
+      fpath=(''${fpath:#/opt/homebrew/share/zsh-completions})
+      autoload -U compinit && compinit
+    '';
     defaultKeymap = "emacs";
 
     # Extra configurations modifiable by me
     envExtra = ''
       ${builtins.readFile ./config/zsh/env}
     '';
-    initExtra = ''
-      ${builtins.readFile ./config/zsh/interactive}
+    initContent = lib.mkMerge [
+      (lib.mkBefore ''
+        if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]]; then
+          . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+        fi
 
-      # Have the powerlevel10k config load here
-      ${builtins.readFile ./config/zsh/p10k.zsh}
-    '';
+        if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix.sh ]]; then
+          . /nix/var/nix/profiles/default/etc/profile.d/nix.sh
+        fi
+
+        export PATH="$HOME/.pnpm-packages/bin:$HOME/.pnpm-packages:$PATH"
+        export PATH="$HOME/.npm-packages/bin:$HOME/bin:$PATH"
+        export PATH="$HOME/.local/share/bin:$PATH"
+
+        export ALTERNATE_EDITOR="emacs"
+        export EDITOR="emacsclient -t"
+        export VISUAL="emacsclient -c -a emacs"
+
+        e() {
+          emacsclient -t "$@"
+        }
+
+        shell() {
+          nix-shell '<nixpkgs>' -A "$1"
+        }
+      '')
+      ''
+        ${builtins.readFile ./config/zsh/interactive}
+
+        # Load the Nix-managed theme, followed by the personal prompt config.
+        source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme
+        ${builtins.readFile ./config/zsh/p10k.zsh}
+      ''
+    ];
     loginExtra = ''
       ${builtins.readFile ./config/zsh/login }
     '';
@@ -46,6 +100,7 @@ in
     autosuggestion = {
       enable = true;
     };
+    syntaxHighlighting.enable = true;
 
     # History configuration
     history = {
@@ -62,7 +117,7 @@ in
     };
 
     shellAliases = {
-      switch = "cd /Users/randyburrell/Projects/Work/Randy/Personal/Repos/dotfiles/nix-darwin && nix run .\\#build && nix run .\\#build-switch && cd -";
+      switch = "${config.home.homeDirectory}/Projects/Work/Randy/Personal/Repos/dotfiles/setup switch";
 
       vim = "nvim";
 
@@ -71,11 +126,20 @@ in
       dotfiles = "ls -a | grep '^\.' | grep --invert-match '\.DS_Store\|\.$'";
 
       # Firiefox ;
-      firefox = "open -a /Applications/Firefox.app";
+      firefox = if pkgs.stdenv.hostPlatform.isDarwin then
+        "open -a /Applications/Firefox.app"
+      else
+        "firefox";
 
       # Chrome ;
-      chrome = "open - a \"Google Chrome\"";
-      debug_chrome = "\"Google Chrome --remote-debugging-port=9222 https://localhost:3000\"";
+      chrome = if pkgs.stdenv.hostPlatform.isDarwin then
+        "open -a \"Google Chrome\""
+      else
+        "google-chrome-stable";
+      debug_chrome = if pkgs.stdenv.hostPlatform.isDarwin then
+        "open -a \"Google Chrome\" --args --remote-debugging-port=9222 https://localhost:3000"
+      else
+        "google-chrome-stable --remote-debugging-port=9222 https://localhost:3000";
 
       # Kubernetes;
       k = "kubectl";
@@ -94,55 +158,7 @@ in
       search = "rg -p --glob '!node_modules/*'  $@";
     };
 
-
-    # Plugin Manager
-    zplug = {
-      enable = true;
-      plugins = [
-        { name = "zsh-users/zsh-autosuggestions"; } # Simple plugin installation
-        { name = "zsh-users/zsh-completions"; }
-        { name = "zsh-users/zsh-syntax-highlighting"; }
-        { name = "nix-community/nix-zsh-completions"; }
-        { name = "romkatv/powerlevel10k"; tags = [ as:theme depth:1 ]; } # Installations with additional options. For the list of options, please refer to Zplug README.
-      ];
-    };
-
-
     cdpath = [ "~/.local/share/src" ];
-    initExtraFirst = ''
-      if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]]; then
-        . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      fi
-
-      if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix.sh ]]; then
-        . /nix/var/nix/profiles/default/etc/profile.d/nix.sh
-      fi
-
-
-      # Define variables for directories
-      export PATH=$HOME/.pnpm-packages/bin:$HOME/.pnpm-packages:$PATH
-      export PATH=$HOME/.npm-packages/bin:$HOME/bin:$PATH
-      export PATH=$HOME/.local/share/bin:$PATH
-
-      # Remove history data we don't want to see
-      # export HISTIGNORE="pwd:ls:cd"
-
-
-      # Emacs is my editor
-      export ALTERNATE_EDITOR="emacs"
-      export EDITOR="emacsclient -t"
-      export VISUAL="emacsclient -c -a emacs"
-
-      e() {
-          emacsclient -t "$@"
-      }
-
-      # nix shortcuts
-      shell() {
-          nix-shell '<nixpkgs>' -A "$1"
-      }
-
-    '';
   };
 
   direnv = {
@@ -154,53 +170,35 @@ in
 
   git = {
     enable = true;
-    ignores = [ ".DS_Store" "*.~*" ".env" ".dir-locals.le" "*.swp" ];
-    userName = name;
-    userEmail = email;
+    ignores = [ ".DS_Store" "*.~*" ".env" ".envrc" ".dir-locals.le" "*.swp" ];
     lfs = {
       enable = true;
     };
-    extraConfig = { };
     includes = [{
       path = "~/.gitconfig-personal";
       condition = "gitdir:~/Projects";
     }];
 
-    diff-so-fancy = {
-      enable = true;
-      changeHunkIndicators = true;
-      markEmptyLines = true;
-      rulerWidth = 1;
-      stripLeadingSymbols = true;
-      useUnicodeRuler = true;
-      pagerOpts = [
-        "--tabs=4"
-        "-RFX"
-      ];
-    };
-
-    # Enable GPG signing
     signing = {
-      key = "306FAA9223DD193A";
+      key = "B3F07B6956A7DD05EC6BC6174E735276489B2667";
       signByDefault = true;
+      format = "openpgp";
     };
 
-    extraConfig = {
-      commit = {
-        gpgsign = true;
+    settings = {
+      user = {
+        inherit email name;
       };
-      pull.rebase = true;
-      rebase.autoStash = true;
+
+      init.defaultBranch = "main";
       core = {
-        editor = "emacs";
+        editor = "vim";
         autocrlf = "input";
       };
-      init = {
-        defaultBranch = "main";
-      };
-      push = {
-        autoSetupRemote = true;
-      };
+      commit.gpgSign = true;
+      pull.rebase = true;
+      rebase.autoStash = true;
+      push.autoSetupRemote = true;
       url = {
         "ssh://git@github.com" = {
           insteadOf = "https://github.com";
@@ -217,15 +215,41 @@ in
     };
   };
 
+  diff-so-fancy = {
+    enable = true;
+    enableGitIntegration = true;
+    pagerOpts = [
+      "--tabs=4"
+      "-RFX"
+    ];
+    settings = {
+      changeHunkIndicators = true;
+      markEmptyLines = true;
+      rulerWidth = 1;
+      stripLeadingSymbols = true;
+      useUnicodeRuler = true;
+    };
+  };
+
   neovim = {
     enable = true;
-    extraLuaConfig = ''
-      -- Write lua code here
-      -- or interpolate files like this:
-      ${builtins.readFile ./config/neovim/config.lua}
+    # Preserve the behavior from Home Manager releases before 26.05.
+    withPython3 = true;
+    withRuby = true;
+    plugins = with pkgs.vimPlugins; [
+      vim-airline
+      vim-airline-themes
+      vim-startify
+      vim-tmux-navigator
+    ];
+    extraConfig = ''
+      ${builtins.readFile ./config/vim/shared.vim}
+      ${builtins.readFile ./config/vim/BufOnly.vim}
+      ${builtins.readFile ./config/vim/Scratch.vim}
     '';
-    viAlias = true;
-    vimAlias = true;
+    # Keep `vim` as Vim and `nvim` as Neovim so both can be tested and used.
+    viAlias = false;
+    vimAlias = false;
   };
 
   vim = {
@@ -236,12 +260,11 @@ in
       vim-startify
       vim-tmux-navigator
     ];
-    settings = { ignorecase = true; };
+    settings = { };
     extraConfig = ''
-      ${builtins.readFile ./config/vim/vimrc}
+      ${builtins.readFile ./config/vim/shared.vim}
       ${builtins.readFile ./config/vim/BufOnly.vim}
       ${builtins.readFile ./config/vim/Scratch.vim}
-      ${builtins.readFile ./config/vim/Snippets.vim}
     '';
   };
 
@@ -304,26 +327,27 @@ in
 
   ssh = {
     enable = true;
-    includes = [
-      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux
-        "/home/${user}/.ssh/config_external"
-      )
-      (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin
-        "/Users/${user}/.ssh/config_external"
-      )
-    ];
-    matchBlocks = {
-      "github.com" = {
-        identitiesOnly = true;
-        identityFile = [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux
-            "/home/${user}/.ssh/id_rsa"
-          )
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin
-            "/Users/${user}/.ssh/id_rsa"
-          )
-        ];
+    enableDefaultConfig = false;
+    includes = [ "${config.home.homeDirectory}/.ssh/config_external" ];
+    settings = {
+      "*" = {
+        # Keep gpg-agent available while selecting the same default ED25519
+        # identity consistently in Bash, Zsh, and non-interactive Git calls.
+        IdentityAgent = "SSH_AUTH_SOCK";
+        IdentityFile = "~/.ssh/id_ed25519";
+        IdentitiesOnly = true;
+        ForwardAgent = false;
+        AddKeysToAgent = "no";
+        Compression = false;
+        ServerAliveInterval = 0;
+        ServerAliveCountMax = 3;
+        HashKnownHosts = false;
+        UserKnownHostsFile = "~/.ssh/known_hosts";
+        ControlMaster = "no";
+        ControlPath = "~/.ssh/master-%r@%n:%p";
+        ControlPersist = "no";
       };
+
     };
   };
 

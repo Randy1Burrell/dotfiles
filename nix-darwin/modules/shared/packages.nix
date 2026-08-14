@@ -1,17 +1,19 @@
 { pkgs }:
 
-with pkgs; [
+(with pkgs; [
   # General packages for development and system management
   alacritty
-  aspell
-  aspellDicts.en
+  # aspell
+  # aspellDicts.en
+  (aspellWithDicts (dicts: [ dicts.en ]))
   bash-completion
   bat
   btop
   coreutils
+  emacs
   killall
   libllvm
-  neofetch
+  fastfetch
   openssh
   sqlite
   wget
@@ -37,13 +39,13 @@ with pkgs; [
   font-awesome
   hack-font
   noto-fonts
-  noto-fonts-emoji
+  noto-fonts-color-emoji
   meslo-lgs-nf
 
   # Node.js development tools
-  nodePackages.npm # globally install npm
-  nodePackages.prettier
-  nodePackages_latest.typescript-language-server
+  bash-language-server
+  prettier
+  typescript-language-server
   nodejs
 
   # Text and terminal utilities
@@ -57,13 +59,13 @@ with pkgs; [
   tmux
   unrar
   unzip
+  zsh-completions
   zsh-powerlevel10k
 
   nixpkgs-fmt
   zulu
-  mas
 
   # Python packages
-  python39
-  python39Packages.virtualenv # globally install virtualenv
-]
+  python3
+  python3Packages.virtualenv
+]) ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.mas ]

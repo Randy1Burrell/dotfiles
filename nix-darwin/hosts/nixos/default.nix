@@ -51,8 +51,6 @@ let user = "randyburrell";
 
   # Manages keys and such
   programs = {
-    gnupg.agent.enable = true;
-
     # Needed for anything GTK related
     dconf.enable = true;
 
@@ -216,7 +214,7 @@ let user = "randyburrell";
     # Emacs runs as a daemon
     emacs = {
       enable = true;
-      package = pkgs.emacs-unstable;
+      package = pkgs.emacs;
     };
   };
 
@@ -288,12 +286,12 @@ let user = "randyburrell";
     jetbrains-mono
     font-awesome
     noto-fonts
-    noto-fonts-emoji
+    noto-fonts-color-emoji
   ];
 
   environment.systemPackages = with pkgs; [
-    agenix.packages."${pkgs.system}".default # "x86_64-linux"
-    gitAndTools.gitFull
+    agenix.packages."${pkgs.stdenv.hostPlatform.system}".default
+    gitFull
     inetutils
   ];
 

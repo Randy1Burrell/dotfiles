@@ -1,1 +1,10 @@
-. ~/.shell/login
+export NAME="Randy Burrell"
+export EMAIL="rb@randyburrell.info"
+export PAGER=less
+export MANPAGER="less -X"
+
+export LC_NUMERIC="$LANG"
+export LC_TIME="$LANG"
+export LC_COLLATE="$LANG"
+export LC_MONETARY="$LANG"
+export LC_MESSAGES="$LANG"

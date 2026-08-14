@@ -13,7 +13,6 @@ let user = "randyburrell"; in
   ];
 
   services = {
-    nix-daemon.enable = true;
     skhd = {
       enable = true;
       skhdConfig = "cmd + alt - e : emacsclient -c -n \n";
@@ -27,7 +26,6 @@ let user = "randyburrell"; in
     settings.trusted-users = [ "@admin" "${user}" ];
 
     gc = {
-      user = "root";
       automatic = true;
       interval = { Weekday = 0; Hour = 2; Minute = 0; };
       options = "--delete-older-than 30d";
@@ -39,14 +37,22 @@ let user = "randyburrell"; in
     '';
   };
 
-  # The platform the configuration will be used on.
-  nixpkgs.hostPlatform = "aarch64-darwin";
+  system.primaryUser = user;
+
+  networking.applicationFirewall.enableStealthMode = true;
+
+  # Home Manager initializes completion after removing Homebrew's
+  # group-writable completion paths from fpath.
+  programs.zsh = {
+    enableGlobalCompInit = false;
+    enableBashCompletion = false;
+  };
 
   # Load configuration that is shared across systems
   environment = {
     systemPackages = with pkgs; [
       # emacs-unstable
-      agenix.packages."${pkgs.system}".default
+      agenix.packages."${pkgs.stdenv.hostPlatform.system}".default
     ] ++ (import ../../modules/shared/packages.nix { inherit pkgs; });
 
     # Place global environment variables here
@@ -54,9 +60,6 @@ let user = "randyburrell"; in
       JAVA_HOME = "${pkgs.zulu}";
     };
   };
-  # Enable fonts dir
-  fonts.fontDir.enable = true;
-
   launchd.user.agents.emacs.path = [ config.environment.systemPath ];
   launchd.user.agents.emacs.serviceConfig = {
     KeepAlive = true;
@@ -80,7 +83,28 @@ let user = "randyburrell"; in
     # Set Git commit hash for darwin-version.
     configurationRevision = self.rev or self.dirtyRev or null;
 
+    # nix-darwin 24.05 created this as a symlink into the Nix store. If that
+    # generation has been garbage-collected, the dangling link prevents newer
+    # nix-darwin releases from creating their managed applications directory.
+    activationScripts.preActivation.text = ''
+      nixAppsPath='/Applications/Nix Apps'
 
+      if [[ -L "$nixAppsPath" && ! -e "$nixAppsPath" ]]; then
+        oldNixAppsTarget="$(readlink "$nixAppsPath")"
+
+        case "$oldNixAppsTarget" in
+          /nix/store/*-system-applications/Applications)
+            echo >&2 "removing stale nix-darwin applications link..."
+            rm -- "$nixAppsPath"
+            ;;
+          *)
+            printf >&2 'error: %s is an unrecognized dangling symlink to %s\n' \
+              "$nixAppsPath" "$oldNixAppsTarget"
+            exit 1
+            ;;
+        esac
+      fi
+    '';
 
     defaults = {
       NSGlobalDomain = {
@@ -100,10 +124,6 @@ let user = "randyburrell"; in
         "com.apple.sound.beep.feedback" = 0;
         "com.apple.keyboard.fnState" = true;
         "com.apple.swipescrolldirection" = false;
-      };
-
-      alf = {
-        stealthenabled = 1;
       };
 
       dock = {

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+umask 0077
+
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SSH_DIR="${HOME}/.ssh"
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+[[ ${EUID} -ne 0 ]] || fail "run create-keys as your normal user, not with sudo."
+
+"${SCRIPT_DIR}/gpg"
+export SSH_AUTH_SOCK
+SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+
+install -d -m 700 "${SSH_DIR}"
+
+generate_key() {
+  local key_name="$1"
+  local private_key="${SSH_DIR}/${key_name}"
+  local reply
+
+  if [[ -e "${private_key}" || -e "${private_key}.pub" ]]; then
+    [[ -f "${private_key}.pub" ]] && cat "${private_key}.pub"
+    read -r -p "Replace the existing ${key_name} key pair? [y/N] " reply
+    if [[ ! "${reply}" =~ ^[Yy]$ ]]; then
+      printf 'Kept existing %s.\n' "${key_name}"
+      return 0
+    fi
+    rm -f -- "${private_key}" "${private_key}.pub"
+  fi
+
+  ssh-keygen -q -t ed25519 -N '' -C "${USER}@$(hostname)" -f "${private_key}"
+  chmod 600 "${private_key}"
+  chmod 644 "${private_key}.pub"
+  printf 'Created %s.\n' "${key_name}"
+}
+
+generate_key id_ed25519
+generate_key id_ed25519_agenix
+
+printf 'SSH key setup is complete. SSH authentication remains pinned to gpg-agent.\n'
+printf 'Add the public key reported by `ssh-add -L` to GitHub and your remote hosts.\n'

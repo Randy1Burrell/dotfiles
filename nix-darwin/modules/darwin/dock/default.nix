@@ -3,6 +3,7 @@ with lib;
 let
   cfg = config.local.dock;
   inherit (pkgs) stdenv dockutil;
+  primaryUser = lib.escapeShellArg config.system.primaryUser;
 in
 {
   options = {
@@ -50,14 +51,14 @@ in
             cfg.entries;
         in
         {
-          system.activationScripts.postUserActivation.text = ''
+          system.activationScripts.postActivation.text = ''
             echo >&2 "Setting up the Dock..."
-            haveURIs="$(${dockutil}/bin/dockutil --list | ${pkgs.coreutils}/bin/cut -f2)"
+            haveURIs="$(sudo -H -u ${primaryUser} -- ${dockutil}/bin/dockutil --list | ${pkgs.coreutils}/bin/cut -f2)"
             if ! diff -wu <(echo -n "$haveURIs") <(echo -n '${wantURIs}') >&2 ; then
               echo >&2 "Resetting Dock."
-              ${dockutil}/bin/dockutil --no-restart --remove all
-              ${createEntries}
-              killall Dock
+              sudo -H -u ${primaryUser} -- ${dockutil}/bin/dockutil --no-restart --remove all
+              ${builtins.replaceStrings [ "${dockutil}/bin/dockutil" ] [ "sudo -H -u ${primaryUser} -- ${dockutil}/bin/dockutil" ] createEntries}
+              sudo -H -u ${primaryUser} -- killall Dock
             else
               echo >&2 "Dock setup complete."
             fi

@@ -1,0 +1,17 @@
+  ;; [[file:~/.emacs.d/init.org::*Who%20am%20I?%20---Using%20Gnus%20for%20Gmail][Who am I? ---Using Gnus for Gmail:4]]
+  ;; user-full-name and user-mail-address should be defined
+
+  ;(setq gnus-select-method '(nnnil ""))
+  (setq gnus-secondary-select-methods '(nnimap "gmail"
+                 (nnimap-address "imap.gmail.com")
+                 (nnimap-server-port "imaps")
+                 (nnimap-stream ssl)))
+
+  (setq smtpmail-smtp-server "smtp.gmail.com"
+        smtpmail-smtp-service 587
+        gnus-ignored-newsgroups "^to\\.\\|^[0-9. ]+\\( \\|$\\)\\|^[\"]\"[#'()]")
+  ;; Who am I? ---Using Gnus for Gmail:4 ends here
+
+  ;; [[file:~/.emacs.d/init.org::*Super%20Terse%20Tutorial][Super Terse Tutorial:1]]
+  (setq gnus-use-cache 'use-as-much-cache-as-possible)
+  ;; Super Terse Tutorial:1 ends here
