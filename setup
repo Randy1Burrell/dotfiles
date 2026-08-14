@@ -2,6 +2,11 @@
 
 set -Eeuo pipefail
 
+# Keep setup usable after nix-darwin removes /run/current-system from a shell
+# whose command cache and PATH still reference that generation.
+export PATH="${PATH:-}:/usr/bin:/bin:/usr/sbin:/sbin"
+hash -r
+
 resolve_script_path() {
   local source="${BASH_SOURCE[0]}"
   local directory target
@@ -87,6 +92,14 @@ load_nix() {
   hash -r
   if command -v nix >/dev/null 2>&1 && nix --version >/dev/null 2>&1; then
     return 0
+  fi
+
+  if [[ -x /nix/var/nix/profiles/default/bin/nix ]]; then
+    export PATH="/nix/var/nix/profiles/default/bin:${PATH}"
+    hash -r
+    if nix --version >/dev/null 2>&1; then
+      return 0
+    fi
   fi
 
   local profile
@@ -207,6 +220,182 @@ system_curl() {
   printf '%s\n' "${candidate}"
 }
 
+nix_darwin_remnants_present() {
+  [[ -L /etc/static || -L /run/current-system \
+    || -e /Library/LaunchDaemons/org.nixos.activate-system.plist \
+    || -e /Library/LaunchDaemons/org.nixos.activate-agenix.plist \
+    || -e /Library/LaunchDaemons/org.nixos.nix-gc.plist ]]
+}
+
+recover_upstream_nix() {
+  local backup_root confirmation current_uid current_user daemon_plist profile_root
+  local config_tmp synthetic_tmp target path backup_source label
+
+  profile_root="/nix/var/nix/profiles/default"
+  daemon_plist="${profile_root}/Library/LaunchDaemons/org.nixos.nix-daemon.plist"
+  current_uid="$(/usr/bin/id -u)"
+  current_user="$(/usr/bin/id -un)"
+
+  [[ "$(uname -s)" == "Darwin" ]] || \
+    fail "The nix-darwin recovery is available only on macOS."
+  [[ -x "${profile_root}/bin/nix" \
+    && -r "${profile_root}/etc/profile.d/nix-daemon.sh" \
+    && -r "${daemon_plist}" ]] || \
+    fail "The installer-owned upstream Nix profile is incomplete; automatic recovery was stopped."
+
+  for path in /etc/bashrc /etc/zshenv /etc/zprofile /etc/zshrc; do
+    if [[ -L "${path}" ]]; then
+      target="$(/usr/bin/readlink "${path}")"
+      [[ "${target}" == /etc/static/* ]] || \
+        fail "Refusing to replace unexpected symlink ${path} -> ${target}."
+      backup_source="${path}.before-nix-darwin"
+      [[ -r "${backup_source}" ]] || \
+        fail "Cannot recover ${path}; expected backup ${backup_source} is missing."
+    fi
+  done
+
+  if [[ -L /etc/static ]]; then
+    target="$(/usr/bin/readlink /etc/static)"
+    [[ "${target}" == /nix/store/*-etc/etc ]] || \
+      fail "Refusing to remove unexpected /etc/static symlink target ${target}."
+  fi
+  if [[ -L /run/current-system ]]; then
+    target="$(/usr/bin/readlink /run/current-system)"
+    [[ "${target}" == /nix/store/*-darwin-system-* ]] || \
+      fail "Refusing to remove unexpected /run/current-system target ${target}."
+  fi
+
+  printf 'A usable upstream Nix profile already exists in the current store.\n'
+  printf 'This recovery preserves /nix, removes verified nix-darwin services and links,\n'
+  printf 'and switches the daemon and shell startup files to upstream Nix.\n'
+  IFS= read -r -p "Type 'recover' to continue, or press Enter to cancel: " confirmation || true
+  if [[ "${confirmation}" != "recover" ]]; then
+    info "Upstream Nix recovery cancelled"
+    return 0
+  fi
+
+  sudo -v || fail "Administrator authentication failed; recovery was not started."
+  backup_root="/var/backups/dotfiles-upstream-nix-$(/bin/date +%Y%m%d-%H%M%S)"
+  sudo /bin/mkdir -p "${backup_root}"
+
+  backup_path() {
+    local source="$1" destination="${backup_root}$1"
+    if [[ -e "${source}" || -L "${source}" ]]; then
+      sudo /bin/mkdir -p "$(/usr/bin/dirname "${destination}")"
+      sudo /bin/mv "${source}" "${destination}"
+    fi
+  }
+
+  copy_to_backup() {
+    local source="$1" destination="${backup_root}$1"
+    if [[ -e "${source}" || -L "${source}" ]]; then
+      sudo /bin/mkdir -p "$(/usr/bin/dirname "${destination}")"
+      sudo /bin/cp -pPR "${source}" "${destination}"
+    fi
+  }
+
+  info "Stopping nix-darwin user services"
+  for label in org.nixos.emacs org.nixos.skhd; do
+    path="${HOME}/Library/LaunchAgents/${label}.plist"
+    /bin/launchctl bootout "gui/${current_uid}/${label}" >/dev/null 2>&1 || true
+    backup_path "${path}"
+  done
+
+  info "Removing nix-darwin system services"
+  for label in org.nixos.activate-agenix org.nixos.activate-system org.nixos.nix-gc; do
+    sudo /bin/launchctl bootout "system/${label}" >/dev/null 2>&1 || true
+    backup_path "/Library/LaunchDaemons/${label}.plist"
+  done
+
+  if [[ -e /Library/LaunchDaemons/systems.determinate.nix-installer.nix-hook.plist ]]; then
+    sudo /bin/launchctl bootout system/systems.determinate.nix-installer.nix-hook \
+      >/dev/null 2>&1 || true
+    backup_path /Library/LaunchDaemons/systems.determinate.nix-installer.nix-hook.plist
+  fi
+
+  info "Restoring installer-owned shell startup files"
+  for path in /etc/bashrc /etc/zshenv /etc/zprofile /etc/zshrc; do
+    if [[ -L "${path}" ]]; then
+      backup_source="${path}.before-nix-darwin"
+      backup_path "${path}"
+      sudo /bin/cp -p "${backup_source}" "${path}"
+    fi
+  done
+
+  for path in /etc/skhdrc /etc/terminfo /etc/pam.d/sudo_local; do
+    if [[ -L "${path}" ]]; then
+      target="$(/usr/bin/readlink "${path}")"
+      if [[ "${target}" == /etc/static/* ]]; then
+        backup_path "${path}"
+      else
+        fail "Refusing to remove unexpected symlink ${path} -> ${target}."
+      fi
+    fi
+  done
+
+  info "Installing a standalone upstream Nix configuration"
+  config_tmp="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/upstream-nix-conf.XXXXXX")"
+  {
+    printf 'build-users-group = nixbld\n'
+    printf 'experimental-features = nix-command flakes\n'
+    printf 'ssl-cert-file = %s/etc/ssl/certs/ca-bundle.crt\n' "${profile_root}"
+    printf 'trusted-users = root @admin %s\n' "${current_user}"
+  } > "${config_tmp}"
+  backup_path /etc/nix/nix.conf
+  sudo /bin/mkdir -p /etc/nix
+  sudo /usr/bin/install -o root -g wheel -m 0644 "${config_tmp}" /etc/nix/nix.conf
+  /bin/rm -f "${config_tmp}"
+
+  if [[ -L /etc/ssl/certs/ca-certificates.crt ]]; then
+    target="$(/usr/bin/readlink /etc/ssl/certs/ca-certificates.crt)"
+    if [[ "${target}" == /etc/static/* ]]; then
+      backup_path /etc/ssl/certs/ca-certificates.crt
+      sudo /bin/ln -s \
+        "${profile_root}/etc/ssl/certs/ca-bundle.crt" \
+        /etc/ssl/certs/ca-certificates.crt
+    fi
+  fi
+
+  if [[ -e /etc/synthetic.conf ]]; then
+    synthetic_tmp="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/synthetic-conf.XXXXXX")"
+    /usr/bin/awk 'BEGIN { print "nix" } $0 == "nix" { next } $1 == "run" && $2 == "private/var/run" { next } { print }' \
+      /etc/synthetic.conf > "${synthetic_tmp}"
+    if ! /usr/bin/cmp -s "${synthetic_tmp}" /etc/synthetic.conf; then
+      copy_to_backup /etc/synthetic.conf
+      sudo /usr/bin/install -o root -g wheel -m 0644 \
+        "${synthetic_tmp}" /etc/synthetic.conf
+    fi
+    /bin/rm -f "${synthetic_tmp}"
+  fi
+
+  info "Switching to the upstream Nix daemon"
+  sudo /bin/launchctl bootout system/org.nixos.nix-daemon >/dev/null 2>&1 || true
+  copy_to_backup /Library/LaunchDaemons/org.nixos.nix-daemon.plist
+  sudo /bin/cp "${daemon_plist}" /Library/LaunchDaemons/org.nixos.nix-daemon.plist
+  sudo /usr/sbin/chown root:wheel /Library/LaunchDaemons/org.nixos.nix-daemon.plist
+  sudo /bin/chmod 0644 /Library/LaunchDaemons/org.nixos.nix-daemon.plist
+  sudo /bin/launchctl bootstrap system /Library/LaunchDaemons/org.nixos.nix-daemon.plist
+  sudo /bin/launchctl kickstart -k system/org.nixos.nix-daemon
+
+  backup_path /Applications/Nix\ Apps
+  backup_path /run/current-system
+  backup_path /etc/static
+  backup_path /nix/receipt.json
+  backup_path /nix/nix-installer
+
+  export PATH="${profile_root}/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
+  unset __NIX_DARWIN_SET_ENVIRONMENT_DONE __ETC_PROFILE_NIX_SOURCED || true
+  hash -r
+  nix --version >/dev/null 2>&1 || \
+    fail "Recovery completed, but the upstream Nix client did not start. Backup: ${backup_root}"
+  nix store info >/dev/null 2>&1 || \
+    fail "Recovery completed, but the upstream Nix daemon did not respond. Backup: ${backup_root}"
+
+  info "Upstream Nix recovery completed; backup saved at ${backup_root}"
+  warn "Open a new terminal so it no longer inherits nix-darwin environment variables."
+  warn "Reboot macOS when convenient to remove the obsolete /run synthetic link."
+}
+
 reinstall_nix() {
   local current_version installer curl_command confirmation darwin_uninstaller=""
 
@@ -285,6 +474,10 @@ install_or_reinstall_nix() {
     if [[ "$(uname -s)" == "Linux" && -e /etc/NIXOS ]]; then
       info "NixOS manages Nix declaratively; rebuilding the system instead of deleting /nix"
       run_action switch
+    elif [[ "$(uname -s)" == "Darwin" ]] && nix_darwin_remnants_present; then
+      recover_upstream_nix
+    elif [[ ! -x /nix/nix-installer || ! -f /nix/receipt.json ]]; then
+      info "Upstream Nix is already installed; no replacement is necessary"
     else
       reinstall_nix
     fi

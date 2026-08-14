@@ -121,6 +121,12 @@ finishes with upstream Nix only; nix-darwin is not restored by this action.
 Running `./setup switch` later will install nix-darwin again because the macOS
 system configuration in this repository declares it.
 
+If a nix-darwin uninstall was interrupted but the installer-owned Nix profile
+is still usable, `install-nix` offers a non-destructive `recover` path instead.
+Recovery preserves the Nix store, saves removed system artifacts under
+`/var/backups`, restores the upstream daemon and shell files, and removes only
+verified nix-darwin links and services.
+
 ### Private inputs
 
 The flake has a private `secrets` input fetched from GitHub over SSH.  A new
