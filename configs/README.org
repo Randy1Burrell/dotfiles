@@ -3088,6 +3088,14 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
       # Export GPG password prompt in the shell
       export GPG_TTY=$(tty)
 
+      # Force ssh sock to use GPG when it is available.  This file can run
+      # before the complete login PATH has been established.
+      if command -v gpgconf >/dev/null 2>&1; then
+        export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+      elif [[ -x /run/current-system/sw/bin/gpgconf ]]; then
+        export SSH_AUTH_SOCK="$(/run/current-system/sw/bin/gpgconf --list-dirs agent-ssh-socket)"
+      fi
+
       # Pyenv configuration
       export PYENV_ROOT="/Users/randyburrell/.pyenv"
     #+end_src
@@ -3205,8 +3213,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
 **** Interactive
   #+begin_src shell :tangle ~/.shell/interactive :mkdirp yes
+    fpath+=("$HOME/.zfunc")
     autoload -U +X bashcompinit && bashcompinit
-    autoload -U +X compinit && compinit
+    autoload -U compinit && compinit -i
 
     HISTFILE=~/.zsh/history
 
@@ -3273,15 +3282,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     zstyle ':omz:update' mode auto
     zstyle ':omz:update' frequency 7
     zstyle ':omz:update' verbose silent # only errors
-    # ZSH_DISABLE_COMPFIX="true"
-    # Completion folder to put generated completion files
-    FPATH+=~/.zfunc
-    if type brew &>/dev/null
-    then
-        FPATH="$(brew --prefix)/share/zsh/site-functions:$(brew --prefix)/share/zsh-completions:${FPATH}"
-        autoload -Uz compinit
-        compinit
-    fi
+    # Homebrew's share directory may be group-writable. Nix supplies the same
+    # common completions, so do not add Homebrew completion paths here.
 
 
     ENABLE_CORRECTION="true"
@@ -5388,6 +5390,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   default-cache-ttl 300
   max-cache-ttl 1200
   pinentry-program /opt/homebrew/bin/pinentry-mac
+  enable-ssh-support
 #+end_src
 
 * Git

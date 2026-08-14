@@ -2,4 +2,4 @@
 set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec "${SCRIPT_DIR}/../shared/copy-keys" "$@"
+exec "${SCRIPT_DIR}/../shared/gpg" "$@"

@@ -3,17 +3,19 @@
 
   inputs = {
     nixpkgs = {
-      url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+      # A current, tested release provides the same stock Emacs on macOS and
+      # Linux without depending on the bleeding-edge Emacs overlay.
+      url = "github:NixOS/nixpkgs/nixos-26.05";
     };
     home-manager = {
-      url = "github:nix-community/home-manager";
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     agenix = {
       url = "github:ryantm/agenix";
     };
     darwin = {
-      url = "github:LnL7/nix-darwin/master";
+      url = "github:nix-darwin/nix-darwin/nix-darwin-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-homebrew = {
@@ -39,17 +41,38 @@
       url = "git+ssh://git@github.com/randy1burrell/secrets.git";
       flake = false;
     };
-    secrets = {
-      url = "git+ssh://git@github.com/randy1burrell/secrets.git";
-      flake = false;
-    };
   };
 
   outputs = { self, darwin, nix-homebrew, brew, homebrew-core, homebrew-cask, home-manager, nixpkgs, disko, agenix, secrets } @inputs:
-  let
+    let
       user = "randyburrell";
       linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
       darwinSystems = [ "aarch64-darwin" "x86_64-darwin" ];
+      overlays =
+        let path = ./overlays; in
+        map (name: import (path + ("/" + name)))
+          (builtins.filter
+            (name:
+              builtins.match ".*\\.nix" name != null ||
+              builtins.pathExists (path + ("/" + name + "/default.nix")))
+            (builtins.attrNames (builtins.readDir path)));
+      mkLinuxPkgs = system: import nixpkgs {
+        inherit system overlays;
+        config = {
+          allowUnfree = true;
+          allowBroken = true;
+          allowInsecure = false;
+          allowUnsupportedSystem = true;
+        };
+      };
+      mkGenericLinuxHome = system: home-manager.lib.homeManagerConfiguration {
+        pkgs = mkLinuxPkgs system;
+        extraSpecialArgs = inputs // { inherit user; };
+        modules = [
+          agenix.homeManagerModules.default
+          ./modules/linux/home-manager.nix
+        ];
+      };
       forAllSystems = f: nixpkgs.lib.genAttrs (linuxSystems ++ darwinSystems) f;
       devShell = system:
         let pkgs = nixpkgs.legacyPackages.${system}; in {
@@ -60,21 +83,42 @@
             '';
           };
         };
-      mkApp = scriptName: system: {
-        type = "app";
-        program = "${(nixpkgs.legacyPackages.${system}.writeScriptBin scriptName ''
-          #!/usr/bin/env bash
-          PATH=${nixpkgs.legacyPackages.${system}.git}/bin:$PATH
-          echo "Running ${scriptName} for ${system}"
-          exec ${self}/apps/${system}/${scriptName}
-        '')}/bin/${scriptName}";
-      };
+      mkApp = scriptName: system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          runtimePackages = with pkgs; [
+            bashInteractive
+            coreutils
+            findutils
+            gawk
+            git
+            gnugrep
+            gnupg
+            openssh
+          ] ++ nixpkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+            curl
+            iproute2
+            unzip
+            util-linux
+          ];
+        in
+        {
+          type = "app";
+          program = "${(pkgs.writeScriptBin scriptName ''
+            #!/usr/bin/env bash
+            PATH=${nixpkgs.lib.makeBinPath runtimePackages}:$PATH
+            echo "Running ${scriptName} for ${system}"
+            exec ${self}/apps/${system}/${scriptName} "$@"
+          '')}/bin/${scriptName}";
+        };
       mkLinuxApps = system: {
         "apply" = mkApp "apply" system;
         "build-switch" = mkApp "build-switch" system;
         "copy-keys" = mkApp "copy-keys" system;
         "create-keys" = mkApp "create-keys" system;
         "check-keys" = mkApp "check-keys" system;
+        "gpg" = mkApp "gpg" system;
+        "clean" = mkApp "clean" system;
         "install" = mkApp "install" system;
         "install-with-secrets" = mkApp "install-with-secrets" system;
       };
@@ -82,9 +126,11 @@
         "apply" = mkApp "apply" system;
         "build" = mkApp "build" system;
         "build-switch" = mkApp "build-switch" system;
+        "clean" = mkApp "clean" system;
         "copy-keys" = mkApp "copy-keys" system;
         "create-keys" = mkApp "create-keys" system;
         "check-keys" = mkApp "check-keys" system;
+        "gpg" = mkApp "gpg" system;
         "rollback" = mkApp "rollback" system;
       };
     in
@@ -92,11 +138,16 @@
       devShells = forAllSystems devShell;
       apps = nixpkgs.lib.genAttrs linuxSystems mkLinuxApps // nixpkgs.lib.genAttrs darwinSystems mkDarwinApps;
 
+      # Standalone Home Manager targets for Ubuntu and other non-NixOS Linux
+      # distributions. NixOS continues to use the integrated module below.
+      homeConfigurations = nixpkgs.lib.genAttrs linuxSystems mkGenericLinuxHome;
+
       darwinConfigurations = nixpkgs.lib.genAttrs darwinSystems (system:
         darwin.lib.darwinSystem {
           inherit system;
           specialArgs = inputs // { inherit user; };
           modules = [
+            { nixpkgs.hostPlatform = system; }
             home-manager.darwinModules.home-manager
             # nix-homebrew.darwinModules.nix-homebrew
             # {
@@ -126,6 +177,8 @@
           home-manager.nixosModules.home-manager
           {
             home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
               users.${user} = import ./modules/nixos/home-manager.nix;
             };
           }

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+printf '\033[1;33mCleaning system generations older than seven days...\033[0m\n'
+sudo nix-collect-garbage --delete-older-than 7d
+printf '\033[1;32mCleanup complete.\033[0m\n'

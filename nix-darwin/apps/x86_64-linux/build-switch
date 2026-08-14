@@ -24,7 +24,15 @@ esac
 
 echo -e "${YELLOW}Starting...${NC}"
 
-# We pass SSH from user to root so root can download secrets from our private Github
-sudo SSH_AUTH_SOCK=$SSH_AUTH_SOCK /run/current-system/sw/bin/nixos-rebuild switch --flake .#$FLAKE_TARGET $@
+if [[ -e /etc/NIXOS ]]; then
+  # We pass SSH from user to root so root can download secrets from our private Github
+  sudo SSH_AUTH_SOCK=$SSH_AUTH_SOCK /run/current-system/sw/bin/nixos-rebuild switch --flake .#$FLAKE_TARGET "$@"
+else
+  FLAKE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+  result="$(nix --extra-experimental-features 'nix-command flakes' build \
+    --no-write-lock-file --no-link --print-out-paths \
+    "path:${FLAKE_DIR}#homeConfigurations.${FLAKE_TARGET}.activationPackage")"
+  HOME_MANAGER_BACKUP_EXT=bk "${result}/activate"
+fi
 
 echo -e "${GREEN}Switch to new generation complete!${NC}"

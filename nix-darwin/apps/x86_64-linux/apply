@@ -8,6 +8,14 @@ NC='\033[0m' # No Color
 # Determine the operating system
 export OS=$(uname)
 
+# Ubuntu and other non-NixOS Linux distributions use the standalone Home
+# Manager target. The NixOS-specific prompts below include disk partitioning
+# details and must never run on a generic Linux host.
+if [[ "${OS}" == "Linux" && ! -e /etc/NIXOS ]]; then
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  exec "${SCRIPT_DIR}/build-switch" "$@"
+fi
+
 # Primary network interface
 if [[ "$OS" != "Darwin" ]]; then
   export PRIMARY_IFACE=$(ip -o -4 route show to default | awk '{print $5}')
