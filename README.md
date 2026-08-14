@@ -113,6 +113,13 @@ NixOS installer when Nix is missing.  `curl`, Git, and administrator access
 must already be available.  On NixOS, Nix is part of the operating system and
 `setup` will not attempt to replace it.
 
+Before installing on macOS, `setup` repairs `/etc/synthetic.conf` to contain
+one exact `nix` mount-point entry while preserving unrelated entries.  It saves
+the previous file under `/var/backups`, asks macOS to create the mount point,
+and retries the installer once if the installer's own cleanup removes the
+entry.  This handles the common `failed to configure synthetic.conf` failure
+without requiring manual file edits.
+
 Run `./setup install-nix` explicitly to install upstream Nix or replace an
 existing receipt-managed Nix installation.  Replacement is intentionally
 guarded: it requires typing `reinstall`, removes nix-darwin first, and then

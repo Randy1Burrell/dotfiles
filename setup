@@ -160,12 +160,72 @@ prepare_gpg_ssh_agent() {
   fi
 }
 
+prepare_darwin_nix_mountpoint() {
+  local backup_path="" synthetic_tmp
+
+  [[ "$(uname -s)" == "Darwin" ]] || return 0
+
+  if [[ -L /nix ]]; then
+    fail "/nix is a symlink to $(/usr/bin/readlink /nix). Remove the conflicting synthetic link and reboot before installing Nix."
+  fi
+
+  synthetic_tmp="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/synthetic-conf.XXXXXX")"
+  if [[ -e /etc/synthetic.conf ]]; then
+    /usr/bin/awk '
+      BEGIN { print "nix" }
+      {
+        normalized = $0
+        sub(/\r$/, "", normalized)
+        if (normalized == "nix" || normalized ~ /^nix[[:space:]]/) next
+        print $0
+      }
+    ' /etc/synthetic.conf > "${synthetic_tmp}"
+  else
+    printf 'nix\n' > "${synthetic_tmp}"
+  fi
+
+  if [[ -e /etc/synthetic.conf ]] \
+    && /usr/bin/cmp -s "${synthetic_tmp}" /etc/synthetic.conf
+  then
+    /bin/rm -f "${synthetic_tmp}"
+    return 0
+  fi
+
+  info "Repairing the macOS /nix synthetic mount-point declaration"
+  sudo -v || {
+    /bin/rm -f "${synthetic_tmp}"
+    fail "Administrator authentication failed; synthetic.conf was not changed."
+  }
+
+  sudo /bin/mkdir -p /var/backups
+  if [[ -e /etc/synthetic.conf ]]; then
+    backup_path="/var/backups/dotfiles-synthetic.conf-$(/bin/date +%Y%m%d-%H%M%S)-$$"
+    sudo /bin/cp -p /etc/synthetic.conf "${backup_path}"
+  fi
+  sudo /usr/bin/install -o root -g wheel -m 0644 \
+    "${synthetic_tmp}" /etc/synthetic.conf
+  /bin/rm -f "${synthetic_tmp}"
+
+  {
+    /System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util -t || true
+    /System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util -B || true
+  } >/dev/null 2>&1
+
+  /usr/bin/grep -q '^nix$' /etc/synthetic.conf || \
+    fail "Could not create an exact nix entry in /etc/synthetic.conf."
+
+  if [[ -n "${backup_path}" ]]; then
+    info "Previous synthetic.conf saved at ${backup_path}"
+  fi
+}
+
 install_upstream_nix() {
-  local installer="$1" install_mode
+  local installer="$1" install_log install_mode status
 
   case "$(uname -s)" in
     Darwin)
       install_mode="--daemon"
+      prepare_darwin_nix_mountpoint
       ;;
     Linux)
       if [[ -d /run/systemd/system ]]; then
@@ -179,6 +239,31 @@ install_upstream_nix() {
       ;;
   esac
 
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    NIX_INSTALLER_NO_CHANNEL_ADD=1 NIX_INSTALLER_YES=1 \
+      /bin/sh "${installer}" "${install_mode}"
+    return $?
+  fi
+
+  install_log="$(/usr/bin/mktemp "${TMPDIR:-/tmp}/upstream-nix-install.XXXXXX")"
+  if NIX_INSTALLER_NO_CHANNEL_ADD=1 NIX_INSTALLER_YES=1 \
+    /bin/sh "${installer}" "${install_mode}" \
+      2> >(/usr/bin/tee "${install_log}" >&2)
+  then
+    /bin/rm -f "${install_log}"
+    return 0
+  else
+    status=$?
+  fi
+
+  if ! /usr/bin/grep -Fq 'failed to configure synthetic.conf' "${install_log}"; then
+    /bin/rm -f "${install_log}"
+    return "${status}"
+  fi
+
+  warn "The Nix installer removed the repaired synthetic entry during cleanup; restoring it and retrying once."
+  /bin/rm -f "${install_log}"
+  prepare_darwin_nix_mountpoint
   NIX_INSTALLER_NO_CHANNEL_ADD=1 NIX_INSTALLER_YES=1 \
     /bin/sh "${installer}" "${install_mode}"
 }
