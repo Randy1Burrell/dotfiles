@@ -276,6 +276,52 @@ run_nix() {
   nix --extra-experimental-features 'nix-command flakes' "$@"
 }
 
+DARWIN_BUILD_OUTPUT=""
+
+run_darwin_nix_build() {
+  local build_log failed_user status
+  build_log="$(mktemp "${TMPDIR:-/tmp}/dotfiles-nix-build.XXXXXX")"
+  DARWIN_BUILD_OUTPUT=""
+
+  if DARWIN_BUILD_OUTPUT="$(run_nix build "$@" 2> >(/usr/bin/tee "${build_log}" >&2))"; then
+    rm -f -- "${build_log}"
+    return 0
+  else
+    status=$?
+  fi
+
+  failed_user="$({
+    awk -F "'" '/the user .* in the group .* does not exist/ { print $2; exit }' "${build_log}"
+  } || true)"
+
+  if [[ -z "${failed_user}" ]]; then
+    rm -f -- "${build_log}"
+    return "${status}"
+  fi
+
+  if ! id "${failed_user}" >/dev/null 2>&1; then
+    warn "The Nix build account ${failed_user} is missing from macOS Directory Services. Run ${SETUP_PATH} install-nix to reinstall the installer-managed Nix environment."
+    rm -f -- "${build_log}"
+    return "${status}"
+  fi
+
+  warn "The Nix daemon has stale information for ${failed_user}; restarting it and retrying the build once."
+  if ! sudo /bin/launchctl kickstart -k system/org.nixos.nix-daemon; then
+    warn "Could not restart the Nix daemon."
+    rm -f -- "${build_log}"
+    return "${status}"
+  fi
+
+  if DARWIN_BUILD_OUTPUT="$(run_nix build "$@")"; then
+    rm -f -- "${build_log}"
+    return 0
+  else
+    status=$?
+    rm -f -- "${build_log}"
+    return "${status}"
+  fi
+}
+
 update_secrets_lock() {
   local identity="${SECRETS_UPDATE_IDENTITY:-}"
   local remote_revision ssh_command=""
@@ -432,15 +478,21 @@ run_action() {
       printf '\n'
       ;;
     build)
-      run_nix build --no-write-lock-file --print-build-logs --no-link "${flake}#${output}" || return $?
+      if [[ "${platform}" == "darwin" ]]; then
+        run_darwin_nix_build --no-write-lock-file --print-build-logs \
+          --no-link "${flake}#${output}" || return $?
+      else
+        run_nix build --no-write-lock-file --print-build-logs --no-link "${flake}#${output}" || return $?
+      fi
       ;;
     switch)
       if [[ "${platform}" == "darwin" ]]; then
         local result
 
         info "Building before activation"
-        result="$(run_nix build --no-write-lock-file --print-build-logs \
-          --no-link --print-out-paths "${flake}#${output}")" || return $?
+        run_darwin_nix_build --no-write-lock-file --print-build-logs \
+          --no-link --print-out-paths "${flake}#${output}" || return $?
+        result="${DARWIN_BUILD_OUTPUT}"
 
         info "Activating the macOS configuration"
         sudo "${result}/sw/bin/darwin-rebuild" switch --flake "${flake}#${config}" || return $?

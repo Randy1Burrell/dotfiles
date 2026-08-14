@@ -10,12 +10,14 @@
   bat
   btop
   coreutils
+  direnv
   emacs
+  fastfetch
   killall
   libllvm
-  fastfetch
   openssh
   sqlite
+  tree-sitter
   wget
   zip
 
