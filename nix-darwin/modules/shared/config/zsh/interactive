@@ -32,6 +32,7 @@ setopt extended_glob
 setopt always_to_end
 setopt auto_menu
 setopt complete_in_word
+setopt correct
 setopt prompt_subst
 setopt transient_rprompt
 unsetopt menu_complete

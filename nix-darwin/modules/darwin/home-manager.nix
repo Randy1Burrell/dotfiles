@@ -24,12 +24,15 @@ in
 
   homebrew = {
     enable = true;
+    enableZshIntegration = true;
     # Homebrew 6 requires the explicit `install` subcommand before accepting
     # --force-cleanup. Current nix-darwin emits the flag against the legacy
     # shorthand form, so express the equivalent compatible command directly.
     onActivation = {
+      autoUpdate = true;
+      upgrade = true;
       cleanup = "none";
-      extraFlags = [ "install" "--force-cleanup" ];
+      extraFlags = [ "install" "--cleanup" ];
     };
     casks = pkgs.callPackage ./casks.nix { };
     brews = pkgs.callPackage ./brews.nix { };

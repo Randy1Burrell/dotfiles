@@ -10,7 +10,6 @@
   bat
   btop
   coreutils
-  direnv
   emacs
   fastfetch
   killall
@@ -20,6 +19,8 @@
   tree-sitter
   wget
   zip
+
+  ngrok
 
   # Encryption and security tools
   age

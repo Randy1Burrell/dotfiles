@@ -974,6 +974,14 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (setq magit-display-buffer-function
           #'magit-display-buffer-same-window-except-diff-v1))
 
+  ;; Use the emacsclient that belongs to this Emacs instance.  A launcher
+  ;; script elsewhere on PATH must not add --create-frame or --no-wait to
+  ;; Magit's commit-message requests.
+  (with-eval-after-load 'with-editor
+    (let ((client (expand-file-name "emacsclient" invocation-directory)))
+      (when (file-executable-p client)
+        (setq with-editor-emacsclient-executable client))))
+
   (defmacro rb/pretty-magit (WORD &optional ICON PROPS NO-PROMPT?)
     "Replace sanitised WORD with ICON, PROPS and by default add to prompts.
   Unless NO-PROMPT?"
@@ -1008,7 +1016,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;; (rb/pretty-magit-no-semi "[Refactor]" "🐰")
 
   ;; TODO: Figure out why I can't use certain key bindings in magit commit buffer
-  (defun add-magit-faces ()
+  (defun add-magit-faces (&rest _args)
     "Add face properties and compose symbols for buffer from pretty-magit."
     (interactive)
     (with-silent-modifications
@@ -1066,8 +1074,11 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (add-hook 'git-commit-setup-hook 'my/git-commit-reminder)
 
-  ;; Trying to solve slow commits in lager reposittories
-  (remove-hook 'server-switch-hook 'magit-commit-diff)
+  ;; Do not open a separate diff window when a commit message buffer appears.
+  ;; The diff remains available on demand with C-c C-d.
+  (with-eval-after-load 'magit-commit
+    (remove-hook 'server-switch-hook #'magit-commit-diff)
+    (remove-hook 'with-editor-filter-visit-hook #'magit-commit-diff))
 
   (provide 'init-magit)
   ;;; init-magit.el ends here
@@ -2104,6 +2115,35 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (expand-file-name "persp-confs" user-emacs-directory))
   (make-directory rb/perspective-state-directory t)
 
+  (require 'consult)
+
+  (defun rb/current-buffer-git-root ()
+    "Return the Git root associated with the current buffer, or nil."
+    (let ((location
+           (or (buffer-file-name (or (buffer-base-buffer) (current-buffer)))
+               (and (derived-mode-p 'magit-mode 'dired-mode)
+                    default-directory))))
+      (and location (locate-dominating-file location ".git"))))
+
+  (defun rb/current-perspective-buffer-list ()
+    "Return live buffers belonging to the current perspective."
+    (if (bound-and-true-p persp-mode)
+        (persp-current-buffers*)
+      (buffer-list)))
+
+  (defun rb/consult-project-or-perspective-buffer ()
+    "Preview and select a buffer from the current Git project or perspective."
+    (interactive)
+    (if-let ((root (rb/current-buffer-git-root)))
+        (let ((consult-project-function (lambda (&optional _prompt) root)))
+          (consult-project-buffer))
+      (let ((consult-buffer-list-function #'rb/current-perspective-buffer-list))
+        (consult-buffer '(consult-source-buffer)))))
+
+  (with-eval-after-load 'consult
+    (consult-customize rb/consult-project-or-perspective-buffer
+                       :preview-key 'any))
+
   (use-package perspective
     :diminish
     :commands (persp-switch)
@@ -2115,7 +2155,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     :init
     (persp-mode)
     :bind (("s-s" . persp-switch)
-           ("s-b" . consult-project-buffer)
+           ("s-b" . rb/consult-project-or-perspective-buffer)
            ("C-x b" . persp-switch-to-buffer*)
            ("C-x k" . persp-kill-buffer*)))
 

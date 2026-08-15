@@ -15,6 +15,14 @@ in
     enable = true;
   };
 
+  # Suggest corrections for failed commands in both interactive shells.
+  pay-respects = {
+    enable = true;
+    enableBashIntegration = true;
+    enableZshIntegration = true;
+    options = [ "--alias" "--nocnf" ];
+  };
+
   # Enable Bash so Home Manager's GPG agent integration is installed for
   # Bash login and interactive shells as well as Zsh.
   bash = {
@@ -23,14 +31,20 @@ in
     # as well as the current Bash supplied by Nix.
     enableCompletion = false;
     shellOptions = [ "histappend" "extglob" ];
-    initExtra = ''
-      # A non-login Bash normally inherits this from its parent. Recompute it
-      # when needed, while preserving an agent forwarded into a remote session.
-      if [[ -z "''${SSH_AUTH_SOCK:-}" || -z "''${SSH_CONNECTION:-}" ]]; then
-        unset SSH_AGENT_PID
-        export SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)"
-      fi
-    '';
+    initExtra = lib.mkMerge [
+      (lib.mkBefore ''
+        # Add history- and completion-based suggestions to interactive Bash.
+        source ${pkgs.blesh}/share/blesh/ble.sh
+      '')
+      ''
+        # A non-login Bash normally inherits this from its parent. Recompute it
+        # when needed, while preserving an agent forwarded into a remote session.
+        if [[ -z "''${SSH_AUTH_SOCK:-}" || -z "''${SSH_CONNECTION:-}" ]]; then
+          unset SSH_AGENT_PID
+          export SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)"
+        fi
+      ''
+    ];
   };
 
   # Shared shell configuration
@@ -41,11 +55,9 @@ in
     autocd = false;
     enableCompletion = true;
     completionInit = ''
-      # Homebrew's group-writable share directory fails compaudit. These
-      # completions are also supplied by Nix, so omit only those two entries.
-      fpath=(''${fpath:#/opt/homebrew/share/zsh/site-functions})
-      fpath=(''${fpath:#/opt/homebrew/share/zsh-completions})
+      # Nix profiles and Homebrew extend fpath before completion is initialized.
       autoload -U compinit && compinit
+      autoload -U bashcompinit && bashcompinit
     '';
     defaultKeymap = "emacs";
 
@@ -99,6 +111,7 @@ in
 
     autosuggestion = {
       enable = true;
+      strategy = [ "history" "completion" ];
     };
     syntaxHighlighting.enable = true;
 
