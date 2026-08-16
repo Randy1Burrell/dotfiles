@@ -120,7 +120,7 @@ load_nix() {
 }
 
 prepare_gpg_ssh_agent() {
-  local expected_version running_version socket
+  local expected_version running_version socket setup_git_ssh_command
 
   command -v gpgconf >/dev/null 2>&1 || return 0
   gpgconf --launch gpg-agent >/dev/null 2>&1 || return 0
@@ -150,6 +150,16 @@ prepare_gpg_ssh_agent() {
   [[ -n "${socket}" ]] || return 0
 
   export SSH_AUTH_SOCK="${socket}"
+
+  # The live SSH config may still point at id_ed25519 during the first switch
+  # that installs the new GitHub host block. Force setup's Git and Nix input
+  # fetches through gpg-agent so that migration can bootstrap itself.
+  if [[ -z "${GIT_SSH_COMMAND:-}" ]]; then
+    printf -v setup_git_ssh_command \
+      'ssh -o IdentityAgent=%q -o IdentityFile=none -o IdentitiesOnly=no' \
+      "${socket}"
+    export GIT_SSH_COMMAND="${setup_git_ssh_command}"
+  fi
 
   if [[ -t 0 ]]; then
     export GPG_TTY
@@ -733,7 +743,7 @@ update_secrets_lock() {
   if grep -Fq -- "\"rev\": \"${remote_revision}\"" "${FLAKE_DIR}/flake.lock"; then
     info "Secrets lock entry is already current at ${remote_revision}"
     if [[ -n "${identity}" ]]; then
-      warn "The recovery identity can read the repository, but the normal SSH identity could not. Register ~/.ssh/id_ed25519.pub with GitHub or select a different permanent GitHub identity before running switch."
+      warn "The recovery identity can read the repository, but the GPG-backed SSH identity could not. Register the authentication key reported by ./setup gpg with GitHub before running switch."
     fi
     return 0
   fi
@@ -784,8 +794,6 @@ run_action() {
     if [[ -n "${SECRETS_UPDATE_IDENTITY:-}" || -n "${SECRETS_SSH_IDENTITY:-}" ]]; then
       SECRETS_UPDATE_IDENTITY="${SECRETS_UPDATE_IDENTITY:-${SECRETS_SSH_IDENTITY:-}}" \
         update_secrets_lock
-    elif [[ -r "${HOME}/.ssh/id_rsa" ]]; then
-      SECRETS_UPDATE_IDENTITY="${HOME}/.ssh/id_rsa" update_secrets_lock
     else
       update_secrets_lock
     fi

@@ -146,11 +146,14 @@ machine must have an SSH identity with access to that repository before the
 flake can evaluate.  The private key and decrypted secrets must never be
 committed to this public repository.
 
-Register `~/.ssh/id_ed25519.pub` with GitHub and confirm authentication before
+Insert the YubiKey containing the OpenPGP authentication key, start the managed
+agent, and register the public key reported by `ssh-add -L` with GitHub before
 the first build:
 
 ```bash
-ssh -T -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes git@github.com
+./setup gpg
+ssh-add -L
+ssh -T git@github.com
 ```
 
 GitHub reports that it does not provide shell access even when authentication
@@ -304,8 +307,8 @@ The expected key files are:
 
 | File | Purpose |
 |---|---|
-| `~/.ssh/id_ed25519` | Default SSH and GitHub identity. |
-| `~/.ssh/id_ed25519.pub` | Public half of the default identity. |
+| `~/.ssh/id_ed25519` | Legacy file-backed SSH identity and Agenix compatibility identity; GitHub does not select it by default. |
+| `~/.ssh/id_ed25519.pub` | Public half of the legacy compatibility identity. |
 | `~/.ssh/id_ed25519_agenix` | Agenix file-encryption identity. |
 | `~/.ssh/id_ed25519_agenix.pub` | Public half of the Agenix identity. |
 
@@ -321,9 +324,10 @@ while Ubuntu uses the standalone Home Manager activation.
 ### Git over SSH
 
 The shared Git configuration rewrites GitHub, GitLab, and Bitbucket HTTPS URLs
-to SSH.  OpenSSH selects `~/.ssh/id_ed25519` explicitly with `IdentitiesOnly`,
-while `SSH_AUTH_SOCK` continues to point at `gpg-agent`.  The public ED25519 key
-must therefore be registered with each remote service that should accept it.
+to SSH.  The `github.com` SSH block disables private identity files and uses
+the authentication identities exposed through `gpg-agent`. The corresponding
+public OpenPGP authentication key must be registered with GitHub. Non-GitHub
+hosts retain the file-backed default until their YubiKey migration is complete.
 
 The private `secrets` flake input and the managed Purcell Emacs checkout also
 use Git over SSH.
@@ -483,9 +487,10 @@ fresh clone.
 Check which identity SSH selects and whether GitHub accepts it:
 
 ```bash
-ssh-keygen -lf ~/.ssh/id_ed25519.pub
-ssh -T -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes git@github.com
 ./setup gpg
+ssh-add -L
+ssh -G github.com | grep -E '^(identityagent|identityfile|identitiesonly) '
+ssh -T git@github.com
 ./setup check-keys
 ```
 
@@ -518,12 +523,13 @@ identity declared by the SSH configuration.
 
 If the recovery command reports that the lock is already current, the apparent
 revision error was caused by SSH being unable to refresh Nix's cached checkout.
-Register `~/.ssh/id_ed25519.pub` with GitHub, verify that exact identity, and
-then retry `switch`:
+Register the authentication key reported by the GPG-backed agent with GitHub,
+verify it, and then retry `switch`:
 
 ```bash
-ssh-keygen -lf ~/.ssh/id_ed25519.pub
-ssh -T -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes git@github.com
+./setup gpg
+ssh-add -L
+ssh -T git@github.com
 ./setup switch
 ```
 

@@ -343,12 +343,23 @@ in
     enableDefaultConfig = false;
     includes = [ "${config.home.homeDirectory}/.ssh/config_external" ];
     settings = {
-      "*" = {
-        # Keep gpg-agent available while selecting the same default ED25519
-        # identity consistently in Bash, Zsh, and non-interactive Git calls.
-        IdentityAgent = "SSH_AUTH_SOCK";
+      "github.com ssh.github.com" = {
+        # GitHub authentication is provided by the OpenPGP authentication key
+        # exposed through gpg-agent. Do not fall back to a private key file.
+        User = "git";
+        IdentityFile = "none";
+        IdentitiesOnly = false;
+      };
+
+      "* !github.com !ssh.github.com" = {
+        # Preserve file-backed access to other hosts until their YubiKey
+        # identities have been authorized on those servers.
         IdentityFile = "~/.ssh/id_ed25519";
         IdentitiesOnly = true;
+      };
+
+      "*" = {
+        IdentityAgent = "$SSH_AUTH_SOCK";
         ForwardAgent = false;
         AddKeysToAgent = "no";
         Compression = false;

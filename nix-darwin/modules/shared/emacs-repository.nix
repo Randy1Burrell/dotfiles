@@ -5,10 +5,12 @@
     emacs_dir="$HOME/.emacs.d"
     repo_url="git@github.com:purcell/emacs.d.git"
 
-    # Use the declared default identity even on a new machine where Home
-    # Manager has not linked the generated SSH config yet.
+    # Use gpg-agent even on a new machine where Home Manager has not linked the
+    # generated SSH config yet. IdentityFile=none prevents an implicit fallback
+    # to ~/.ssh/id_ed25519 while the agent performs the private-key operation.
     repository_git() {
-      GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh -i $HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+      SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)" \
+        GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh -o IdentityFile=none -o IdentitiesOnly=no" \
         ${pkgs.git}/bin/git "$@"
     }
 
@@ -16,8 +18,8 @@
       echo "Would clone or update $emacs_dir"
     elif [ ! -e "$emacs_dir" ]; then
       if ! repository_git clone --branch main "$repo_url" "$emacs_dir"; then
-        echo "GitHub SSH authentication failed for $HOME/.ssh/id_ed25519." >&2
-        echo "Register $HOME/.ssh/id_ed25519.pub with GitHub, then run setup switch again." >&2
+        echo "GitHub SSH authentication through gpg-agent failed." >&2
+        echo "Insert an authorized YubiKey, run setup gpg, then run setup switch again." >&2
         exit 1
       fi
     elif [ -d "$emacs_dir/.git" ]; then
