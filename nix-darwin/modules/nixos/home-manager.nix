@@ -4,11 +4,7 @@ let
   user = "randyburrell";
   xdg_configHome = "/home/${user}/.config";
   shared-programs = import ../shared/home-manager.nix { inherit config pkgs lib; };
-  shared-files = import ../shared/files.nix {
-    inherit pkgs;
-    githubPublicKeySource = config.lib.file.mkOutOfStoreSymlink
-      "${config.home.homeDirectory}/.ssh/id_ed25519.pub";
-  };
+  shared-files = import ../shared/files.nix { };
 
   polybar-user_modules = builtins.replaceStrings
     [ "@packages@" "@searchpkgs@" "@launcher@" "@powermenu@" "@calendar@" ]

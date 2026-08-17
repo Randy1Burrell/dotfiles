@@ -151,12 +151,12 @@ prepare_gpg_ssh_agent() {
 
   export SSH_AUTH_SOCK="${socket}"
 
-  # The live SSH config may still point at id_ed25519 during the first switch
-  # that installs the new GitHub host block. Force setup's Git and Nix input
-  # fetches through gpg-agent so that migration can bootstrap itself.
+  # Point setup's Git and Nix input fetches at gpg-agent even before the
+  # generated SSH config is active. Conventional default identity files remain
+  # available as migration fallbacks because IdentitiesOnly is disabled.
   if [[ -z "${GIT_SSH_COMMAND:-}" ]]; then
     printf -v setup_git_ssh_command \
-      'ssh -o IdentityAgent=%q -o IdentityFile=none -o IdentitiesOnly=no' \
+      'ssh -o IdentityAgent=%q -o IdentitiesOnly=no' \
       "${socket}"
     export GIT_SSH_COMMAND="${setup_git_ssh_command}"
   fi

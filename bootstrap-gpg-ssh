@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+umask 0077
+
+readonly PROGRAM_NAME="${0##*/}"
+readonly MANAGED_MARKER="dotfiles bootstrap-gpg-ssh"
+readonly MANAGED_SSH_INCLUDE="config.d/00-gpg-agent.conf"
+
+wait_for_card=1
+temporary_file=""
+
+info() {
+  printf '\033[1;34m==>\033[0m %s\n' "$*"
+}
+
+warn() {
+  printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2
+}
+
+fail() {
+  printf '\033[1;31merror:\033[0m %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat <<EOF
+Usage: ${PROGRAM_NAME} [--no-wait]
+
+Prepare a macOS, Linux, or WSL account to use a YubiKey through gpg-agent for
+SSH and Git. Existing OpenSSH default identities such as id_ed25519 and id_rsa
+remain available as migration fallbacks.
+
+Options:
+  --no-wait  Configure the agent without waiting for a YubiKey to be inserted.
+  -h, --help Show this help message.
+
+The script requires Bash, Git, GnuPG, and OpenSSH. It does not install packages.
+EOF
+}
+
+cleanup() {
+  if [[ -n "${temporary_file}" && -e "${temporary_file}" ]]; then
+    rm -f -- "${temporary_file}"
+  fi
+}
+
+trap cleanup EXIT
+
+while (($#)); do
+  case "$1" in
+    --no-wait)
+      wait_for_card=0
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      fail "Unknown option: $1"
+      ;;
+  esac
+  shift
+done
+
+case "$(uname -s)" in
+  Darwin|Linux) ;;
+  MINGW*|MSYS*|CYGWIN*)
+    fail "Native Windows cannot use gpg-agent's Unix socket through this script. Run it inside WSL instead."
+    ;;
+  *)
+    fail "Unsupported operating system: $(uname -s). Use macOS, Linux, or WSL."
+    ;;
+esac
+
+[[ ${EUID:-$(id -u)} -ne 0 ]] || fail "Run this script as your normal user, not as root."
+[[ -n "${HOME:-}" && "${HOME}" == /* ]] || fail "HOME must be an absolute path."
+
+for command_name in \
+  chmod cmp cp date dirname git gpg gpg-agent gpg-connect-agent gpgconf grep head id \
+  mkdir mktemp mv rm ssh ssh-add tty uname
+do
+  command -v "${command_name}" >/dev/null 2>&1 || \
+    fail "${command_name} is required. Install Git, GnuPG, and OpenSSH, then retry."
+done
+
+readonly GPG_HOME="${GNUPGHOME:-${HOME}/.gnupg}"
+readonly SSH_DIR="${HOME}/.ssh"
+readonly AGENT_CONFIG="${GPG_HOME}/gpg-agent.conf"
+readonly SSH_CONFIG="${SSH_DIR}/config"
+readonly SSH_INCLUDE="${SSH_DIR}/${MANAGED_SSH_INCLUDE}"
+readonly BACKUP_SUFFIX="bootstrap-backup.$(date +%Y%m%d%H%M%S).$$"
+
+case "${GPG_HOME}${SSH_DIR}" in
+  *$'\n'*) fail "GPG and SSH paths must not contain newlines." ;;
+esac
+
+backup_file() {
+  local source="$1" backup
+
+  [[ -e "${source}" || -L "${source}" ]] || return 0
+  backup="${source}.${BACKUP_SUFFIX}"
+  cp -p -- "${source}" "${backup}"
+  info "Backed up ${source} to ${backup}"
+}
+
+refuse_symlink() {
+  local path="$1"
+
+  [[ ! -L "${path}" ]] || \
+    fail "${path} is a symbolic link. It may already be managed; change it through its configuration manager instead."
+}
+
+ensure_agent_option() {
+  local option="$1"
+
+  grep -Eq "^[[:space:]]*${option}([[:space:]]|$)" "${AGENT_CONFIG}" 2>/dev/null && return 0
+  backup_file "${AGENT_CONFIG}"
+  printf '\n%s\n' "${option}" >> "${AGENT_CONFIG}"
+}
+
+ssh_quote() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '"%s"' "${value}"
+}
+
+write_ssh_include() {
+  local socket="$1" quoted_socket include_directory
+
+  quoted_socket="$(ssh_quote "${socket}")"
+  include_directory="$(dirname -- "${SSH_INCLUDE}")"
+  mkdir -p -- "${include_directory}"
+  chmod 700 "${SSH_DIR}" "${include_directory}"
+
+  temporary_file="$(mktemp "${TMPDIR:-/tmp}/gpg-ssh-include.XXXXXX")"
+  {
+    printf '# Managed by %s. Re-run the script to refresh the socket path.\n' "${MANAGED_MARKER}"
+    printf 'Host *\n'
+    printf '  IdentityAgent %s\n' "${quoted_socket}"
+    printf '  IdentitiesOnly no\n'
+  } > "${temporary_file}"
+
+  if [[ -e "${SSH_INCLUDE}" ]] && cmp -s "${temporary_file}" "${SSH_INCLUDE}"; then
+    rm -f -- "${temporary_file}"
+    temporary_file=""
+    return 0
+  fi
+
+  if [[ -e "${SSH_INCLUDE}" || -L "${SSH_INCLUDE}" ]]; then
+    if ! grep -Fq "Managed by ${MANAGED_MARKER}" "${SSH_INCLUDE}" 2>/dev/null; then
+      backup_file "${SSH_INCLUDE}"
+    fi
+  fi
+
+  mv -- "${temporary_file}" "${SSH_INCLUDE}"
+  temporary_file=""
+  chmod 600 "${SSH_INCLUDE}"
+}
+
+put_include_first() {
+  local quoted_include include_directive first_line="" line
+
+  quoted_include="$(ssh_quote "${SSH_INCLUDE}")"
+  include_directive="Include ${quoted_include}"
+
+  if [[ -r "${SSH_CONFIG}" ]]; then
+    first_line="$(head -n 1 "${SSH_CONFIG}" 2>/dev/null || true)"
+  fi
+  [[ "${first_line}" == "${include_directive}" ]] && return 0
+
+  [[ -e "${SSH_CONFIG}" || -L "${SSH_CONFIG}" ]] && backup_file "${SSH_CONFIG}"
+  temporary_file="$(mktemp "${TMPDIR:-/tmp}/gpg-ssh-config.XXXXXX")"
+  {
+    printf '%s\n\n' "${include_directive}"
+    if [[ -r "${SSH_CONFIG}" ]]; then
+      while IFS= read -r line || [[ -n "${line}" ]]; do
+        [[ "${line}" == "${include_directive}" ]] && continue
+        printf '%s\n' "${line}"
+      done < "${SSH_CONFIG}"
+    fi
+  } > "${temporary_file}"
+
+  mv -- "${temporary_file}" "${SSH_CONFIG}"
+  temporary_file=""
+  chmod 600 "${SSH_CONFIG}"
+}
+
+refresh_cards() {
+  local output
+
+  output="$(gpg-connect-agent 'SCD SERIALNO --all' /bye 2>/dev/null || true)"
+  if ! grep -q '^S SERIALNO ' <<< "${output}"; then
+    output="$(gpg-connect-agent 'SCD SERIALNO' /bye 2>/dev/null || true)"
+  fi
+  grep -q '^S SERIALNO ' <<< "${output}"
+}
+
+mkdir -p -- "${GPG_HOME}" "${SSH_DIR}"
+chmod 700 "${GPG_HOME}" "${SSH_DIR}"
+refuse_symlink "${AGENT_CONFIG}"
+refuse_symlink "${SSH_CONFIG}"
+refuse_symlink "${SSH_INCLUDE}"
+[[ ! -e "${AGENT_CONFIG}" ]] || chmod 600 "${AGENT_CONFIG}"
+
+if grep -Eq '^[[:space:]]*disable-ssh-support([[:space:]]|$)' "${AGENT_CONFIG}" 2>/dev/null; then
+  fail "${AGENT_CONFIG} disables SSH support. Remove that option after reviewing the file, then retry."
+fi
+
+ensure_agent_option "enable-ssh-support"
+chmod 600 "${AGENT_CONFIG}"
+
+if [[ -t 0 ]]; then
+  export GPG_TTY
+  GPG_TTY="$(tty)"
+fi
+
+info "Restarting gpg-agent with SSH support"
+gpgconf --kill gpg-agent >/dev/null 2>&1 || true
+gpgconf --launch gpg-agent || fail "GnuPG could not start gpg-agent. Check ${AGENT_CONFIG} and retry."
+gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
+
+export SSH_AUTH_SOCK
+SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+[[ -n "${SSH_AUTH_SOCK}" ]] || fail "GnuPG did not report an SSH-agent socket."
+
+write_ssh_include "${SSH_AUTH_SOCK}"
+put_include_first
+
+resolved_agent="$(ssh -G -F "${SSH_CONFIG}" localhost 2>/dev/null | \
+  while IFS= read -r line; do
+    if [[ "${line}" == identityagent\ * ]]; then
+      printf '%s\n' "${line#identityagent }"
+      break
+    fi
+  done)"
+[[ "${resolved_agent}" == "${SSH_AUTH_SOCK}" ]] || \
+  fail "OpenSSH did not resolve the expected gpg-agent socket from ${SSH_CONFIG}."
+
+if ! refresh_cards; then
+  if ((wait_for_card)) && [[ -t 0 ]]; then
+    printf 'Insert a YubiKey with an OpenPGP authentication key, then press Return: '
+    IFS= read -r _reply
+    refresh_cards || fail "GnuPG could not detect an OpenPGP card. Check CCID support and retry."
+  else
+    warn "No OpenPGP card is currently connected. Configuration is complete, but SSH authentication was not tested."
+    info "GPG-backed SSH bootstrap is installed"
+    printf 'Agent socket: %s\n' "${SSH_AUTH_SOCK}"
+    exit 0
+  fi
+fi
+
+gpg-connect-agent 'SCD LEARN --force' /bye >/dev/null 2>&1 || true
+
+agent_keys="$(SSH_AUTH_SOCK="${SSH_AUTH_SOCK}" ssh-add -L 2>/dev/null || true)"
+[[ -n "${agent_keys}" && "${agent_keys}" != "The agent has no identities." ]] || \
+  fail "The connected card does not expose an SSH authentication key. Verify its OpenPGP authentication slot."
+
+info "GPG-backed SSH bootstrap is ready"
+printf 'Agent socket: %s\n' "${SSH_AUTH_SOCK}"
+printf 'SSH public identities available from gpg-agent:\n%s\n' "${agent_keys}"
+printf '\nYou can now clone over SSH, for example:\n'
+printf '  git clone git@github.com:randy1burrell/dotfiles.git "$HOME/dotfiles"\n'
+printf '\nIf the clone is rejected, register the public key shown above with the Git host first.\n'

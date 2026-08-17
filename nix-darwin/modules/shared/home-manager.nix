@@ -343,23 +343,15 @@ in
     enableDefaultConfig = false;
     includes = [ "${config.home.homeDirectory}/.ssh/config_external" ];
     settings = {
-      "github.com ssh.github.com" = {
-        # GitHub authentication is provided by the OpenPGP authentication key
-        # exposed through gpg-agent. Do not fall back to a private key file.
-        User = "git";
-        IdentityFile = "none";
-        IdentitiesOnly = false;
-      };
-
-      "* !github.com !ssh.github.com" = {
-        # Preserve file-backed access to other hosts until their YubiKey
-        # identities have been authorized on those servers.
-        IdentityFile = "~/.ssh/id_ed25519";
-        IdentitiesOnly = true;
-      };
-
       "*" = {
+        # Keep gpg-agent available while OpenSSH's conventional default files,
+        # including id_ed25519 and id_rsa, remain automatic migration fallbacks.
         IdentityAgent = "$SSH_AUTH_SOCK";
+        IdentityFile = [
+          "~/.ssh/id_ed25519"
+          "~/.ssh/id_rsa"
+        ];
+        IdentitiesOnly = false;
         ForwardAgent = false;
         AddKeysToAgent = "no";
         Compression = false;

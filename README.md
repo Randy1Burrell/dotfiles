@@ -9,6 +9,7 @@
 - [Quick start](#quick-start)
   - [Existing machine](#existing-machine)
   - [New machine](#new-machine)
+  - [Bootstrap Git with a YubiKey](#bootstrap-git-with-a-yubikey)
   - [Private inputs](#private-inputs)
 - [Setup command](#setup-command)
   - [Interactive mode](#interactive-mode)
@@ -21,6 +22,7 @@
   - [Ubuntu and other Linux distributions](#ubuntu-and-other-linux-distributions)
 - [SSH, GPG, and keys](#ssh-gpg-and-keys)
   - [Git over SSH](#git-over-ssh)
+  - [Multiple YubiKeys for SSH](#multiple-yubikeys-for-ssh)
   - [Key-management commands](#key-management-commands)
 - [Editor configuration](#editor-configuration)
   - [Emacs](#emacs)
@@ -133,6 +135,43 @@ finishes with upstream Nix only; nix-darwin is not restored by this action.
 Running `./setup switch` later will install nix-darwin again because the macOS
 system configuration in this repository declares it.
 
+### Bootstrap Git with a YubiKey
+
+On a machine that cannot clone the repository yet, download the standalone
+bootstrap script over HTTPS. Review it before running it rather than piping a
+network response directly into a shell:
+
+```bash
+BOOTSTRAP_URL="https://raw.githubusercontent.com/randy1burrell/dotfiles/main/bootstrap-gpg-ssh"
+curl -fsSLo /tmp/bootstrap-gpg-ssh "$BOOTSTRAP_URL"
+less /tmp/bootstrap-gpg-ssh
+chmod 700 /tmp/bootstrap-gpg-ssh
+/tmp/bootstrap-gpg-ssh
+```
+
+The script supports macOS, Linux, and Windows through WSL. Bash, Git, GnuPG,
+and OpenSSH must already be installed; the script deliberately does not invoke
+an operating-system package manager. It enables the GnuPG SSH agent, creates a
+small OpenSSH include, preserves ordinary existing configuration with
+timestamped backups, and waits for a YubiKey so it can show the available SSH
+public key. Conventional `~/.ssh/id_ed25519` and `~/.ssh/id_rsa` identities
+remain automatic fallbacks during the migration.
+
+Once the displayed public key is registered with GitHub, clone and activate
+the configuration:
+
+```bash
+DOTFILES_DIR="$HOME/dotfiles"
+ssh -T git@github.com
+git clone git@github.com:randy1burrell/dotfiles.git "$DOTFILES_DIR"
+"$DOTFILES_DIR/setup" switch
+```
+
+Use `/tmp/bootstrap-gpg-ssh --no-wait` to install the configuration when no
+YubiKey is present. Native Windows is not supported because this setup relies
+on a Unix-domain agent socket; run it and Git inside WSL instead. The YubiKey
+must already be attached to that WSL distribution through USB pass-through.
+
 If a nix-darwin uninstall was interrupted but the installer-owned Nix profile
 is still usable, `install-nix` offers a non-destructive `recover` path instead.
 Recovery preserves the Nix store, saves removed system artifacts under
@@ -224,7 +263,8 @@ KEYS_MOUNT_PATH=/Volumes/Keys ./setup copy-keys
 ```text
 .
 ├── setup                         # Cross-platform command and interactive menu
-├── README.md                    # This operator's guide
+├── bootstrap-gpg-ssh             # Pre-Nix GPG/YubiKey SSH bootstrap
+├── README.md                     # This operator's guide
 ├── configs/                      # Historical/source configurations retained during migration
 └── nix-darwin/
     ├── flake.nix                 # Inputs, outputs, target systems, and flake apps
@@ -307,8 +347,8 @@ The expected key files are:
 
 | File | Purpose |
 |---|---|
-| `~/.ssh/id_ed25519` | Legacy file-backed SSH identity and Agenix compatibility identity; GitHub does not select it by default. |
-| `~/.ssh/id_ed25519.pub` | Public half of the legacy compatibility identity. |
+| `~/.ssh/id_ed25519` | Transitional SSH fallback and Agenix compatibility identity. |
+| `~/.ssh/id_ed25519.pub` | Public half of the transitional identity. |
 | `~/.ssh/id_ed25519_agenix` | Agenix file-encryption identity. |
 | `~/.ssh/id_ed25519_agenix.pub` | Public half of the Agenix identity. |
 
@@ -324,13 +364,39 @@ while Ubuntu uses the standalone Home Manager activation.
 ### Git over SSH
 
 The shared Git configuration rewrites GitHub, GitLab, and Bitbucket HTTPS URLs
-to SSH.  The `github.com` SSH block disables private identity files and uses
-the authentication identities exposed through `gpg-agent`. The corresponding
-public OpenPGP authentication key must be registered with GitHub. Non-GitHub
-hosts retain the file-backed default until their YubiKey migration is complete.
+to SSH. Every host can use authentication identities exposed through
+`gpg-agent`. During the YubiKey migration, OpenSSH also retains its conventional
+default identity files, including `~/.ssh/id_ed25519` and `~/.ssh/id_rsa`, as
+automatic fallbacks. `./setup gpg` refreshes connected readers before
+displaying the agent identities.
 
 The private `secrets` flake input and the managed Purcell Emacs checkout also
 use Git over SSH.
+
+### Multiple YubiKeys for SSH
+
+Give each YubiKey its own OpenPGP authentication subkey and authorize all of
+their SSH public keys on GitHub and every server. This gives all three tokens
+the same access without sharing private key material, and a lost token can be
+removed without rotating the other two.
+
+Connect one YubiKey at a time and run:
+
+```bash
+./setup gpg
+ssh-add -L
+```
+
+Record the reported public key with the token's label or serial number, then
+add that public key to each destination. Repeat for all three YubiKeys. GnuPG
+prioritizes authentication keys from connected cards, so an authorized active
+card is selected before any other agent key. If a destination has only an old
+card's public key, it cannot accept a replacement card; authorize the new
+public key before removing the old one. The file-backed SSH identities remain
+available until this registration work is complete.
+
+This section applies to SSH authentication. OpenPGP signing keys and Agenix
+recipients have their own selection rules and are migrated separately.
 
 ### Key-management commands
 
@@ -512,7 +578,9 @@ If `update-secrets` cannot read the remote branch, make sure the GPG-backed SSH
 agent exposes an identity registered with GitHub, then retry it from an
 interactive terminal so any PIN or security-key prompt can be completed.
 
-For a one-time recovery with another registered key, select it explicitly:
+The secrets workflow tries `gpg-agent` first, then automatically tries
+`id_ed25519` and `id_rsa` during the migration. A one-time identity can also be
+selected explicitly:
 
 ```bash
 SECRETS_UPDATE_IDENTITY="$HOME/.ssh/id_rsa" ./setup refresh-secrets-lock

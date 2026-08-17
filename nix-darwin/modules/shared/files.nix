@@ -1,4 +1,4 @@
-{ githubPublicKeySource, ... }:
+{ ... }:
 
 {
   # Git reads ~/.config/git/config and then ~/.gitconfig. Manage the latter as
@@ -9,10 +9,6 @@
     text = ''
       # Git configuration is managed at ~/.config/git/config by Home Manager.
     '';
-  };
-
-  ".ssh/id_github.pub" = {
-    source = githubPublicKeySource;
   };
 
   ".config/emacs/config.org" = {

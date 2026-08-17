@@ -6,11 +6,11 @@
     repo_url="git@github.com:purcell/emacs.d.git"
 
     # Use gpg-agent even on a new machine where Home Manager has not linked the
-    # generated SSH config yet. IdentityFile=none prevents an implicit fallback
-    # to ~/.ssh/id_ed25519 while the agent performs the private-key operation.
+    # generated SSH config yet. Conventional identity files remain available
+    # as migration fallbacks until every YubiKey has been authorized.
     repository_git() {
       SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)" \
-        GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh -o IdentityFile=none -o IdentitiesOnly=no" \
+        GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh -o IdentitiesOnly=no" \
         ${pkgs.git}/bin/git "$@"
     }
 
@@ -18,8 +18,8 @@
       echo "Would clone or update $emacs_dir"
     elif [ ! -e "$emacs_dir" ]; then
       if ! repository_git clone --branch main "$repo_url" "$emacs_dir"; then
-        echo "GitHub SSH authentication through gpg-agent failed." >&2
-        echo "Insert an authorized YubiKey, run setup gpg, then run setup switch again." >&2
+        echo "GitHub SSH authentication through gpg-agent and the migration fallback keys failed." >&2
+        echo "Insert an authorized YubiKey or register a fallback public key, then run setup switch again." >&2
         exit 1
       fi
     elif [ -d "$emacs_dir/.git" ]; then

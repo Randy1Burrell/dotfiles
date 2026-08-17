@@ -1,11 +1,7 @@
 { config, lib, pkgs, user, ... }:
 
 let
-  sharedFiles = import ../shared/files.nix {
-    inherit pkgs;
-    githubPublicKeySource = config.lib.file.mkOutOfStoreSymlink
-      "${config.home.homeDirectory}/.ssh/id_ed25519.pub";
-  };
+  sharedFiles = import ../shared/files.nix { };
 in
 {
   imports = [

@@ -80,6 +80,11 @@ fi
 
 gpg-connect-agent --quiet updatestartuptty /bye >/dev/null
 
+# Ask current GnuPG releases to discover every connected reader/token before
+# the SSH agent enumerates identities. Active-card keys are prioritized ahead
+# of any other agent key and do not need an sshcontrol entry.
+gpg-connect-agent 'SCD SERIALNO --all' /bye >/dev/null 2>&1 || true
+
 export SSH_AUTH_SOCK
 SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
 
