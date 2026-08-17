@@ -50,6 +50,14 @@
   outputs = { self, darwin, nix-homebrew, brew, homebrew-core, homebrew-cask, home-manager, nixpkgs, disko, agenix, secrets } @inputs:
     let
       user = "randyburrell";
+      # setup supplies these only for an impure standalone Linux evaluation.
+      # Pure checks and the declarative macOS/NixOS targets retain the owner.
+      genericLinuxUser =
+        let detectedUser = builtins.getEnv "DOTFILES_LINUX_USER";
+        in if detectedUser != "" then detectedUser else user;
+      genericLinuxHome =
+        let detectedHome = builtins.getEnv "DOTFILES_LINUX_HOME";
+        in if detectedHome != "" then detectedHome else "/home/${genericLinuxUser}";
       linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
       darwinSystems = [ "aarch64-darwin" "x86_64-darwin" ];
       overlays =
@@ -71,7 +79,10 @@
       };
       mkGenericLinuxHome = system: home-manager.lib.homeManagerConfiguration {
         pkgs = mkLinuxPkgs system;
-        extraSpecialArgs = inputs // { inherit user; };
+        extraSpecialArgs = inputs // {
+          user = genericLinuxUser;
+          homeDirectory = genericLinuxHome;
+        };
         modules = [
           agenix.homeManagerModules.default
           ./modules/linux/home-manager.nix

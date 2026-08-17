@@ -57,9 +57,10 @@ The main entry point is the executable `setup` script in the repository root.
 It detects the operating system and CPU architecture, selects the matching
 flake output, and provides the same interface on every supported platform.
 
-This repository is personalized for the `randyburrell` account and a private
-secrets repository.  It is useful as a reference for other users, but it is not
-a generic installer without first changing those values.
+This repository is personalized for the `randyburrell` macOS/NixOS account and
+a private secrets repository. Standalone Home Manager on Ubuntu detects the
+normal account running `setup`, so its username may differ. Other personalized
+values still need to be reviewed before using this as a generic installer.
 
 ## Supported systems
 
@@ -328,6 +329,11 @@ and preserves `SSH_AUTH_SOCK` so root can fetch the private flake input.
 Non-NixOS Linux uses `homeConfigurations.<system>.activationPackage`.  It
 manages the user profile and does not replace Ubuntu, repartition disks, or
 enable distribution-level services.
+
+`setup` obtains the standalone Home Manager username from `id -un` and uses the
+current absolute `HOME`; run it as the normal desktop user, never with `sudo`.
+This permits the same checkout to activate accounts such as `grundy-ubuntu`
+without changing the macOS or NixOS username.
 
 The profile includes the shared packages, shell configuration, Git, SSH/GPG,
 Emacs, Vim/Neovim, tmux, fonts, and selected user services. On an Ubuntu GNOME

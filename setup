@@ -629,6 +629,36 @@ run_nix() {
   nix --extra-experimental-features 'nix-command flakes' "$@"
 }
 
+configure_generic_linux_identity() {
+  local current_uid current_user
+
+  current_uid="$(id -u)"
+  current_user="$(id -un)"
+
+  [[ "${current_uid}" -ne 0 ]] || \
+    fail "Run the standalone Home Manager configuration as your normal Ubuntu user, not with sudo."
+  [[ -n "${current_user}" ]] || fail "Could not determine the current Ubuntu username."
+  [[ -n "${HOME:-}" && "${HOME}" == /* && -d "${HOME}" ]] || \
+    fail "HOME must be an existing absolute directory for the current Ubuntu user."
+
+  export DOTFILES_LINUX_USER="${current_user}"
+  export DOTFILES_LINUX_HOME="${HOME}"
+  info "Using Ubuntu account ${DOTFILES_LINUX_USER} at ${DOTFILES_LINUX_HOME}"
+}
+
+run_configuration_nix() {
+  local platform="$1" command="$2"
+  shift 2
+
+  if [[ "${platform}" == "generic-linux" ]]; then
+    # The standalone Home Manager identity is deliberately supplied at runtime
+    # so the same checkout can activate any normal Ubuntu account.
+    run_nix "${command}" --impure "$@"
+  else
+    run_nix "${command}" "$@"
+  fi
+}
+
 DARWIN_BUILD_OUTPUT=""
 
 run_darwin_nix_build() {
@@ -813,6 +843,10 @@ run_action() {
   flake="path:${FLAKE_DIR}"
   platform="$(platform_kind)"
 
+  if [[ "${platform}" == "generic-linux" ]]; then
+    configure_generic_linux_identity
+  fi
+
   if ! load_nix; then
     if [[ "${platform}" == "nixos" ]]; then
       fail "Nix is unavailable on NixOS; repair the system installation before continuing."
@@ -872,7 +906,8 @@ run_action() {
 
   case "${action}" in
     check)
-      run_nix eval --no-write-lock-file --raw "${flake}#${output}.drvPath" || return $?
+      run_configuration_nix "${platform}" eval --no-write-lock-file --raw \
+        "${flake}#${output}.drvPath" || return $?
       printf '\n'
       ;;
     build)
@@ -881,7 +916,8 @@ run_action() {
           --no-link --print-out-paths "${flake}#${output}" || return $?
         repair_darwin_application_store_paths "${DARWIN_BUILD_OUTPUT}"
       else
-        run_nix build --no-write-lock-file --print-build-logs --no-link "${flake}#${output}" || return $?
+        run_configuration_nix "${platform}" build --no-write-lock-file \
+          --print-build-logs --no-link "${flake}#${output}" || return $?
       fi
       ;;
     switch)
@@ -904,11 +940,14 @@ run_action() {
         local result
 
         info "Building the standalone Home Manager configuration"
-        result="$(run_nix build --no-write-lock-file --print-build-logs \
+        result="$(run_configuration_nix "${platform}" build \
+          --no-write-lock-file --print-build-logs \
           --no-link --print-out-paths "${flake}#${output}")" || return $?
 
         info "Activating the Ubuntu Home Manager configuration"
-        HOME_MANAGER_BACKUP_EXT=bk "${result}/activate" || return $?
+        USER="${DOTFILES_LINUX_USER}" LOGNAME="${DOTFILES_LINUX_USER}" \
+          HOME="${DOTFILES_LINUX_HOME}" \
+          HOME_MANAGER_BACKUP_EXT=bk "${result}/activate" || return $?
       fi
       ;;
   esac

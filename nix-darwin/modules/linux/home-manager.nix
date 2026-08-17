@@ -1,4 +1,4 @@
-{ config, lib, pkgs, user, ... }:
+{ config, homeDirectory, lib, pkgs, user, ... }:
 
 let
   sharedFiles = import ../shared/files.nix { };
@@ -17,7 +17,7 @@ in
 
   home = {
     username = user;
-    homeDirectory = "/home/${user}";
+    inherit homeDirectory;
     stateVersion = "23.11";
     enableNixpkgsReleaseCheck = false;
     packages = pkgs.callPackage ../shared/packages.nix { };
