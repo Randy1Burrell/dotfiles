@@ -13,6 +13,9 @@ in
 
   java = {
     enable = true;
+    # Match the JDK already present in shared packages. Using Home Manager's
+    # default OpenJDK alongside Zulu makes buildEnv collide on lib/src.zip.
+    package = pkgs.zulu;
   };
 
   # Suggest corrections for failed commands in both interactive shells.

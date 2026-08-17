@@ -330,9 +330,23 @@ manages the user profile and does not replace Ubuntu, repartition disks, or
 enable distribution-level services.
 
 The profile includes the shared packages, shell configuration, Git, SSH/GPG,
-Emacs, Vim/Neovim, tmux, fonts, GTK preferences, and selected user services.
-Facilities such as the Docker daemon, system firewall, display manager, and
-kernel configuration remain the responsibility of the host distribution.
+Emacs, Vim/Neovim, tmux, fonts, and selected user services. On an Ubuntu GNOME
+desktop it also applies a macOS-inspired WhiteSur dark theme and cursor, a
+compact bottom auto-hiding dock, left-side window controls, natural scrolling,
+and Command-like Super-key window shortcuts. Press Super by itself for GNOME's
+overview search, Super+Return for Alacritty, Super+W to close a window, Super+M
+to minimize, and Super+Tab to switch applications. Log out and back in after
+the first activation so the complete desktop theme and cursor are reloaded.
+
+Home Manager writes user-level GNOME settings only. Facilities such as the
+Docker daemon, system firewall, display manager, GNOME installation, and kernel
+configuration remain the responsibility of the host distribution. On a
+non-GNOME Linux desktop, the installed GTK/Qt theme still applies but the GNOME
+dock and window-manager preferences have no effect.
+
+The shared Java module selects Zulu as its only JDK and exports the matching
+`JAVA_HOME`. Do not add a second OpenJDK package to `home.packages`; two JDKs
+both expose `lib/src.zip`, which makes Home Manager's profile build fail.
 
 When activation encounters an unmanaged file at a Home Manager destination,
 `setup` uses the backup extension `.bk` rather than silently overwriting it.

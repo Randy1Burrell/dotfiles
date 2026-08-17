@@ -66,7 +66,6 @@
   zsh-powerlevel10k
 
   nixpkgs-fmt
-  zulu
 
   # Python packages
   python3

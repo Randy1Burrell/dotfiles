@@ -6,6 +6,7 @@ in
 {
   imports = [
     ./secrets.nix
+    ./macos-desktop.nix
     ../shared/emacs-repository.nix
     ../shared/gpg-agent.nix
   ];
@@ -30,19 +31,6 @@ in
 
   fonts.fontconfig.enable = true;
   xdg.enable = true;
-
-  gtk = {
-    enable = true;
-    gtk4.theme = config.gtk.theme;
-    iconTheme = {
-      name = "Adwaita-dark";
-      package = pkgs.adwaita-icon-theme;
-    };
-    theme = {
-      name = "Adwaita-dark";
-      package = pkgs.adwaita-icon-theme;
-    };
-  };
 
   # Reload changed user services during activation without managing Ubuntu's
   # system-level services or desktop session.
