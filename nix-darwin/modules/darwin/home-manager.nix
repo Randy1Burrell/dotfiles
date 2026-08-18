@@ -43,8 +43,10 @@ in
     # $ nix shell nixpkgs#mas
     # $ mas search <app name>
     #
+    # Apps already declared in casks.nix must not also be listed here. Homebrew
+    # Bundle tracks casks and Mac App Store receipts separately and would try to
+    # install a second copy of the same application.
     masApps = {
-      "1password" = 1333542190;
       "1Password for Safari" = 1569813296;
       "Docs for Developers" = 1411232591;
       "GarageBand" = 682658836;
@@ -54,8 +56,6 @@ in
       "LimeChat" = 414030210;
       "Microsoft Remote Desktop" = 1295203466;
       "Numbers" = 409203825;
-      "Slack" = 803453959;
-      "Telegram" = 747648890;
       "WhatsApp" = 310633997;
       "Xcode" = 497799835;
       "Yubico Authenticator" = 1497506650;
