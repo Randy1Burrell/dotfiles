@@ -36,7 +36,7 @@ fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 usage() {
   cat <<EOF
-Usage: $(basename "${SCRIPT_PATH}") [--enroll|--enroll-only|--status|--test|--help]
+Usage: $(basename "${SCRIPT_PATH}") [--enroll|--enroll-only|--repair-management-key|--status|--test|--help]
 
 Provision or import a hardware-backed Age identity on the connected YubiKey.
 Run once for each card. Existing occupied PIV slots are never overwritten.
@@ -44,6 +44,9 @@ Run once for each card. Existing occupied PIV slots are never overwritten.
   --enroll       Enrol/import the card, test it, and offer to update secrets
                  (default)
   --enroll-only  Enrol/import and test without updating the secrets repository
+  --repair-management-key
+                 Convert an incompatible PIV management key to a random,
+                 PIN-protected TDES key without erasing PIV slots
   --status       Show saved recipients and identities on connected cards
   --test         Test Age encryption/decryption with the connected card
   --help         Show this help
@@ -95,6 +98,17 @@ run_age() {
     age "$@"
 }
 
+run_ykman() {
+  if command -v ykman >/dev/null 2>&1; then
+    ykman "$@"
+  elif command -v nix >/dev/null 2>&1; then
+    nix --extra-experimental-features 'nix-command flakes' shell \
+      nixpkgs#yubikey-manager --command ykman "$@"
+  else
+    fail "YubiKey Manager CLI (ykman) is required for this repair. Install yubikey-manager and retry."
+  fi
+}
+
 linux_pcscd_active() {
   if command -v systemctl >/dev/null 2>&1; then
     systemctl is-active --quiet pcscd.socket 2>/dev/null || \
@@ -138,6 +152,35 @@ release_gpg_smartcard() {
   # start scdaemon again automatically the next time OpenPGP is used.
   if command -v gpgconf >/dev/null 2>&1; then
     gpgconf --kill scdaemon >/dev/null 2>&1 || true
+  fi
+}
+
+repair_management_key() {
+  start_linux_pcscd
+  release_gpg_smartcard
+
+  info "Current PIV status (this does not verify or consume a PIN attempt)"
+  run_ykman piv info
+  printf '\nThis changes only the PIV management key used for administrative writes.\n'
+  printf 'It does not change the PIV PIN and does not erase certificates or private keys, including slot 9a.\n'
+  printf 'You may be asked for the current management key and the correct PIV PIN. Do not continue if either is unknown.\n'
+  confirm "Convert it to a random PIN-protected TDES management key?" || fail "Cancelled without changing the card."
+
+  run_ykman piv access change-management-key --algorithm TDES --protect
+  info "The PIV management key is now compatible with age-plugin-yubikey"
+  info "Run ./setup yubikey-agenix again to provision the Age identity"
+}
+
+preflight_management_key() {
+  local piv_info
+  if ! piv_info="$(run_ykman piv info 2>/dev/null)"; then
+    return 0
+  fi
+
+  if printf '%s\n' "${piv_info}" | grep -Eiq 'management key.*AES' && \
+     ! printf '%s\n' "${piv_info}" | grep -Eiq '(protected by PIN|PIN-protected)'; then
+    printf '%s\n' "${piv_info}"
+    fail "This card has an unprotected AES PIV management key, which age-plugin-yubikey cannot use. Run ./setup yubikey-agenix --repair-management-key first."
   fi
 }
 
@@ -223,6 +266,7 @@ enroll() (
   extract_identities "${output}" > "${identities}"
 
   if [[ ! -s "${identities}" ]]; then
+    preflight_management_key
     printf 'No existing age-plugin-yubikey identity was found on the connected card.\n'
     printf 'A new non-exportable P-256 key will be generated in the first empty retired PIV slot.\n'
     printf 'If the PIV PIN or management key is still at its factory default, the plugin will securely change it after prompting you.\n'
@@ -308,16 +352,19 @@ main() {
   local action="${1:---enroll}"
   [[ $# -le 1 ]] || fail "Only one action may be supplied."
   case "${action}" in
-    --enroll|--enroll-only|--status|--test) ;;
+    --enroll|--enroll-only|--repair-management-key|--status|--test) ;;
     -h|--help) usage; return 0 ;;
     *) usage >&2; fail "Unknown action: ${action}" ;;
   esac
 
   require_normal_user
-  ensure_dependencies "$@"
+  if [[ "${action}" != "--repair-management-key" ]]; then
+    ensure_dependencies "$@"
+  fi
   case "${action}" in
     --enroll) enroll yes ;;
     --enroll-only) enroll no ;;
+    --repair-management-key) repair_management_key ;;
     --status) status ;;
     --test) test_connected ;;
   esac

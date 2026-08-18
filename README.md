@@ -550,6 +550,23 @@ separate from the OpenPGP PIN used for Git/SSH and the FIDO2 PIN used for Linux
 or Windows login. The retired Age slot does not replace the macOS authentication
 certificate in PIV slot 9a.
 
+Do not guess the PIV PIN: a wrong value consumes one of its limited retry
+attempts. If provisioning reports `Custom unprotected non-TDES management keys
+are not supported`, inspect and repair only the management key with:
+
+```bash
+./setup yubikey-agenix --repair-management-key
+./setup yubikey-agenix
+```
+
+The repair first displays the card's read-only PIV status, including its
+remaining PIN attempts, and asks for confirmation. It converts the management
+key to a random PIN-protected TDES key but does not change the PIV PIN, reset the
+PIV applet, or erase certificates and private keys such as the macOS login
+credential in slot 9a. Cancel if the current PIV PIN or management key is
+unknown. Never use `ykman piv reset` as a workaround because that erases every
+PIV slot.
+
 Useful checks are:
 
 ```bash

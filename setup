@@ -1185,7 +1185,7 @@ run_action() {
 
   if [[ "${action}" == "yubikey-agenix" ]]; then
     case "${1:---enroll}" in
-      --enroll|--enroll-only|--test)
+      --enroll|--enroll-only|--repair-management-key|--test)
         if [[ -e /etc/NIXOS ]] && \
            ! systemctl is-active --quiet pcscd.socket 2>/dev/null && \
            ! systemctl is-active --quiet pcscd.service 2>/dev/null; then

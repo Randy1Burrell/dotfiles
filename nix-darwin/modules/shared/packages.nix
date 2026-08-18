@@ -28,6 +28,7 @@
   gnupg
   libfido2
   openssl
+  yubikey-manager
 
   # Cloud-related tools and SDKs
   docker
