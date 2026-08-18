@@ -4,6 +4,7 @@
   age.identityPaths = [
     "${homeDirectory}/.ssh/id_ed25519_agenix"
     "${homeDirectory}/.ssh/id_ed25519"
+    "${homeDirectory}/.config/age/yubikey-identities.txt"
   ];
 
   # age.secrets."github-signing-key" = {

@@ -82,6 +82,8 @@ Key and GPG actions:
   create-keys  Create SSH/Agenix keys after starting GPG
   yubikey-login
                Enable local computer login with a YubiKey PIN
+  yubikey-agenix
+               Provision a YubiKey for hardware-backed Agenix encryption
 
 Environment:
   GITHUB_USER  Supply the GitHub username for an unattended first run.
@@ -94,6 +96,10 @@ Environment:
                  Use a specific SSH private key for secrets push or pull.
   AGENIX_IDENTITY_PATH
                  Override ~/.ssh/id_ed25519_agenix for encryption/decryption.
+  AGE_YUBIKEY_IDENTITY_PATH
+                 Override ~/.config/age/yubikey-identities.txt.
+  AGE_YUBIKEY_RECIPIENTS_PATH
+                 Override ~/.config/age/yubikey-recipients.txt.
   SECRETS_CONFIRM=yes
                  Allow a non-interactive secrets push.
   GPG_PIN_CACHE_CONFIRM=yes
@@ -1157,7 +1163,7 @@ run_action() {
   shift
 
   case "${action}" in
-    switch|build|check|apply|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login) ;;
+    switch|build|check|apply|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login|yubikey-agenix) ;;
     -h|--help) usage; return 0 ;;
     *) usage >&2; fail "Unknown action: ${action}" ;;
   esac
@@ -1174,6 +1180,22 @@ run_action() {
       info "Activating the declarative NixOS login configuration"
       run_action switch
     fi
+    return $?
+  fi
+
+  if [[ "${action}" == "yubikey-agenix" ]]; then
+    case "${1:---enroll}" in
+      --enroll|--enroll-only|--test)
+        if [[ -e /etc/NIXOS ]] && \
+           ! systemctl is-active --quiet pcscd.socket 2>/dev/null && \
+           ! systemctl is-active --quiet pcscd.service 2>/dev/null; then
+          info "Activating the NixOS smart-card service before provisioning"
+          run_action switch || return $?
+        fi
+        ;;
+    esac
+    info "Configuring hardware-backed Agenix encryption"
+    "${REPO_ROOT}/yubikey-agenix" "$@"
     return $?
   fi
 
@@ -1380,6 +1402,8 @@ Choose an action:
   15) github-user  Show or change the saved GitHub username
   16) yubikey-login
                     Enable local computer login with a YubiKey PIN
+  17) yubikey-agenix
+                    Provision a YubiKey for Agenix encryption
    q) quit
 EOF
 }
@@ -1412,6 +1436,7 @@ interactive_menu() {
       14|refresh-secrets-lock) action="refresh-secrets-lock" ;;
       15|github-user|set-github-user) action="github-user" ;;
       16|yubikey-login) action="yubikey-login" ;;
+      17|yubikey-agenix) action="yubikey-agenix" ;;
       q|Q|quit|exit)
         info "Exiting setup"
         return 0

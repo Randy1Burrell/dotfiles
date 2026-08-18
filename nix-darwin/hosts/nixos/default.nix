@@ -99,6 +99,9 @@ in
     # Let's be able to SSH into this machine
     openssh.enable = true;
 
+    # Required by age-plugin-yubikey to access the PIV applet.
+    pcscd.enable = true;
+
     # Sync state between machines
     # Sync state between machines
     syncthing = {
@@ -314,6 +317,7 @@ in
 
   environment.systemPackages = with pkgs; [
     agenix.packages."${pkgs.stdenv.hostPlatform.system}".default
+    age-plugin-yubikey
     gitFull
     inetutils
     pam_u2f

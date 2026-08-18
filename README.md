@@ -237,6 +237,7 @@ and when copying diagnostic output.
 | `./setup copy-keys` | Copies a complete key set from a mounted drive. |
 | `./setup create-keys` | Interactively creates the GitHub and Agenix ED25519 key pairs. |
 | `./setup yubikey-login` | Adds the connected YubiKey as a local computer-login method while preserving password recovery. |
+| `./setup yubikey-agenix` | Provisions or imports a hardware-backed Age identity and adds it to the Agenix recipients. |
 
 The command-line parser accepts arguments after `--` for flake applications
 that support additional arguments.  The current key commands are configured
@@ -284,6 +285,8 @@ collected, they can no longer be used for rollback.
 | `KEYS_MOUNT_PATH` | Selects the directory used by `copy-keys` instead of automatic removable-media discovery. |
 | `SECRETS_SSH_IDENTITY` | Selects the SSH key used to clone and push the private secrets repository. |
 | `AGENIX_IDENTITY_PATH` | Selects the private key used to decrypt secrets instead of `~/.ssh/id_ed25519_agenix`. |
+| `AGE_YUBIKEY_IDENTITY_PATH` | Overrides `~/.config/age/yubikey-identities.txt`. |
+| `AGE_YUBIKEY_RECIPIENTS_PATH` | Overrides `~/.config/age/yubikey-recipients.txt`. |
 | `SECRETS_CONFIRM=yes` | Permits secrets push or installation without an interactive confirmation. |
 
 Example:
@@ -298,6 +301,8 @@ KEYS_MOUNT_PATH=/Volumes/Keys ./setup copy-keys
 .
 ├── setup                         # Cross-platform command and interactive menu
 ├── bootstrap-gpg-ssh             # Pre-Nix GPG/YubiKey SSH bootstrap
+├── yubikey-login                 # Local account login enrolment
+├── yubikey-agenix                # Hardware-backed Agenix enrolment
 ├── README.md                     # This operator's guide
 ├── configs/                      # Historical/source configurations retained during migration
 └── nix-darwin/
@@ -502,6 +507,57 @@ available until this registration work is complete.
 This section applies to SSH authentication. OpenPGP signing keys and Agenix
 recipients have their own selection rules and are migrated separately.
 
+### Multiple YubiKeys for Agenix
+
+Connect one YubiKey at a time and run the following command once for each of
+the three cards:
+
+```bash
+./setup yubikey-agenix
+```
+
+If the card already contains an identity created by `age-plugin-yubikey`, the
+script imports its public locator. Otherwise it generates a non-exportable
+P-256 private key in the first empty retired PIV slot. It never passes
+`--force`, so an occupied slot is not overwritten. The default policy requests
+the PIV PIN once per card session and requires physical touch for every
+decryption. The script then performs an encryption/decryption test and offers
+to re-encrypt and push the private secrets repository. This requires a
+PIV-capable YubiKey 4 or 5; the blue Security Key series has no PIV applet and
+cannot store this identity.
+
+Every enrolled card has a different private key. `update-secrets` encrypts each
+secret to all enrolled public recipients, so any one of the three cards can
+decrypt it. The private keys cannot be copied from one card to another. To
+replace a lost card, provision the replacement and re-encrypt the secrets for
+the remaining and replacement recipients.
+
+The script writes only public material to:
+
+| File | Purpose |
+|---|---|
+| `~/.config/age/yubikey-identities.txt` | Public locators that tell Age which card and retired slot contain each non-exportable private key. |
+| `~/.config/age/yubikey-recipients.txt` | Public recipients added to every encrypted secret. |
+
+The dedicated `~/.ssh/id_ed25519_agenix` recipient remains enabled as a
+file-backed recovery path. Keep an additional protected copy somewhere separate
+from the computers and YubiKeys. Removing that recovery recipient would make
+the cards the only means of decrypting the data and is intentionally not
+automated.
+
+The Age identity uses the YubiKey PIV applet and therefore its PIV PIN. It is
+separate from the OpenPGP PIN used for Git/SSH and the FIDO2 PIN used for Linux
+or Windows login. The retired Age slot does not replace the macOS authentication
+certificate in PIV slot 9a.
+
+Useful checks are:
+
+```bash
+./setup yubikey-agenix --status
+./setup yubikey-agenix --test
+./setup yubikey-agenix --enroll-only
+```
+
 ### Key-management commands
 
 `./setup gpg` creates any missing GPG configuration files, enables SSH support,
@@ -519,17 +575,17 @@ socket is usable.
 
 `./setup update-secrets` encrypts `id_rsa`, `authorized_keys`, and
 `config_external` before placing them in the private repository.  Plaintext is
-never added to Git.  The first push also creates `secrets.nix` recipient rules
-for the dedicated Agenix identity and the default ED25519 identity.  The action
-shows the pending Git files and requires confirmation before committing and
-pushing.  If live `~/.ssh/config_external` is absent, the retained repository
-source is used only as bootstrap input to encryption.
+never added to Git. Every push synchronizes `secrets.nix` recipient rules for
+the dedicated recovery identity, default ED25519 identity, and all enrolled
+YubiKeys. The action shows the pending Git files and requires confirmation
+before committing and pushing. If live `~/.ssh/config_external` is absent, the
+retained repository source is used only as bootstrap input to encryption.
 
 `./setup pull-secrets` clones the private repository, decrypts all three files
 in a temporary directory, validates them, and asks before installing them into
-`~/.ssh`.  Existing files receive timestamped `.bk` copies.  The dedicated
-`~/.ssh/id_ed25519_agenix` private key must already be installed with
-`copy-keys` or another secure bootstrap method; it is deliberately not stored
+`~/.ssh`. Existing files receive timestamped `.bk` copies. Decryption can use
+the dedicated `~/.ssh/id_ed25519_agenix` key, the transitional default SSH key,
+or an enrolled YubiKey. The file-backed recovery key is deliberately not stored
 inside the encrypted bundle that depends on it.
 
 Git commits are signed by default with the configured OpenPGP key.  Git LFS,
