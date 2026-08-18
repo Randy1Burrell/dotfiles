@@ -1,0 +1,402 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+PROGRAM_NAME="$(basename "$0")"
+PAM_ORIGIN="pam://dotfiles-yubikey-login"
+PAM_AUTHFILE="/etc/u2f_mappings"
+PAM_BEGIN="# BEGIN dotfiles yubikey-login"
+PAM_END="# END dotfiles yubikey-login"
+PAM_BACKUP_DIR="/var/backups/dotfiles-yubikey-login"
+
+info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
+fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<EOF
+Usage: ${PROGRAM_NAME} [--add-key|--status|--disable|--help]
+
+Enable local computer login with a YubiKey PIN. Run --add-key (the default)
+once for each YubiKey. Password login remains available as a recovery method.
+
+  --add-key  Enrol or pair the connected YubiKey (default)
+  --status   Show the current login configuration
+  --disable  Remove the configuration created by this script
+  --help     Show this help
+
+macOS uses the YubiKey PIV authentication certificate. Linux uses the FIDO2
+PIN through pam_u2f. Windows setup is completed in Microsoft's protected UI
+and requires a Microsoft Entra joined or hybrid joined computer.
+EOF
+}
+
+confirm() {
+  local answer
+  [[ -t 0 ]] || fail "An interactive terminal is required."
+  IFS= read -r -p "$1 [y/N] " answer
+  case "${answer}" in
+    y|Y|yes|YES|Yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+normal_user() {
+  local candidate
+  candidate="${SUDO_USER:-${USER:-}}"
+  [[ -n "${candidate}" && "${candidate}" != "root" ]] || \
+    fail "Run this as the account that should use the YubiKey, not as root."
+  printf '%s\n' "${candidate}"
+}
+
+run_as_user() {
+  local login_user="$1"
+  shift
+  if [[ "$(id -u)" -eq 0 ]]; then
+    sudo -u "${login_user}" "$@"
+  else
+    "$@"
+  fi
+}
+
+macos_identities() {
+  sc_auth identities 2>/dev/null | awk '
+    {
+      for (i = 1; i <= NF; i++) {
+        value = $i
+        gsub(/[^[:xdigit:]]/, "", value)
+        if (length(value) == 40 || length(value) == 64) print value
+      }
+    }
+  ' | awk '!seen[$0]++'
+}
+
+choose_macos_identity() {
+  local hashes hash count choice index
+  hashes="$(macos_identities)"
+  [[ -n "${hashes}" ]] || fail "No usable PIV authentication certificate was found. Insert the YubiKey and ensure slot 9a contains its certificate."
+  count="$(printf '%s\n' "${hashes}" | awk 'NF { count++ } END { print count + 0 }')"
+  if [[ "${count}" -eq 1 ]]; then
+    printf '%s\n' "${hashes}"
+    return 0
+  fi
+
+  printf 'Available smart-card identities:\n' >&2
+  index=1
+  while IFS= read -r hash; do
+    [[ -n "${hash}" ]] || continue
+    printf '  %s) %s\n' "${index}" "${hash}" >&2
+    index=$((index + 1))
+  done <<EOF
+${hashes}
+EOF
+  IFS= read -r -p "Choose an identity: " choice
+  [[ "${choice}" =~ ^[0-9]+$ ]] || fail "Invalid identity selection."
+  hash="$(printf '%s\n' "${hashes}" | sed -n "${choice}p")"
+  [[ -n "${hash}" ]] || fail "Invalid identity selection."
+  printf '%s\n' "${hash}"
+}
+
+macos_status() {
+  local login_user="$1"
+  info "Smart-card pairings for ${login_user}"
+  if ! sc_auth list -u "${login_user}"; then
+    warn "No smart-card pairing is configured for ${login_user}."
+  fi
+  printf '\nPassword login remains enabled. FileVault pre-boot unlock still uses the account password.\n'
+}
+
+macos_add_key() {
+  local login_user="$1" hash
+  command -v sc_auth >/dev/null 2>&1 || fail "This macOS version does not provide sc_auth."
+  hash="$(choose_macos_identity)"
+  if sc_auth list -u "${login_user}" 2>/dev/null | grep -Fqi -- "${hash}"; then
+    info "That YubiKey certificate is already paired with ${login_user}."
+    return 0
+  fi
+  printf 'This pairs the selected PIV certificate with %s. Password login remains available.\n' "${login_user}"
+  confirm "Continue?" || fail "Cancelled."
+  sudo sc_auth pair -u "${login_user}" -h "${hash}"
+  info "YubiKey login is paired for ${login_user}."
+  warn "FileVault pre-boot unlock still requires the account password."
+}
+
+macos_disable() {
+  local login_user="$1"
+  confirm "Remove all smart-card pairings for ${login_user}?" || fail "Cancelled."
+  sudo sc_auth unpair -u "${login_user}"
+  info "Smart-card login pairings were removed. Password login was not changed."
+}
+
+linux_is_nixos() {
+  [[ -e /etc/NIXOS ]] || grep -qi '^ID=nixos' /etc/os-release 2>/dev/null
+}
+
+linux_install_pam_u2f() {
+  if command -v pamu2fcfg >/dev/null 2>&1; then
+    PAMU2FCFG=(pamu2fcfg)
+    return 0
+  fi
+  if linux_is_nixos && command -v nix >/dev/null 2>&1; then
+    PAMU2FCFG=(nix shell nixpkgs#pam_u2f --command pamu2fcfg)
+    return 0
+  fi
+
+  if command -v apt-get >/dev/null 2>&1; then
+    info "Installing pam_u2f"
+    sudo apt-get update
+    sudo apt-get install -y libpam-u2f
+  elif command -v dnf >/dev/null 2>&1; then
+    info "Installing pam_u2f"
+    sudo dnf install -y pam-u2f
+  elif command -v pacman >/dev/null 2>&1; then
+    info "Installing pam_u2f"
+    sudo pacman -S --needed pam-u2f
+  else
+    fail "Install pam_u2f with this distribution's package manager, then run this command again."
+  fi
+  command -v pamu2fcfg >/dev/null 2>&1 || fail "pamu2fcfg was not found after installing pam_u2f."
+  PAMU2FCFG=(pamu2fcfg)
+}
+
+linux_generate_mapping() {
+  local login_user="$1" append_flag=""
+  local -a command
+  command=("${PAMU2FCFG[@]}" -u "${login_user}" -N -o "${PAM_ORIGIN}" -i "${PAM_ORIGIN}")
+  if sudo test -r "${PAM_AUTHFILE}" && sudo awk -F: -v user="${login_user}" '$1 == user { found=1 } END { exit !found }' "${PAM_AUTHFILE}"; then
+    append_flag="-n"
+    command+=("${append_flag}")
+  fi
+
+  info "Touch the connected YubiKey and enter its FIDO2 PIN when prompted." >&2
+  run_as_user "${login_user}" "${command[@]}"
+}
+
+linux_complete_mapping() {
+  local login_user="$1" generated="$2" existing=""
+  if [[ "${generated}" == "${login_user}:"* ]]; then
+    printf '%s\n' "${generated}"
+    return 0
+  fi
+  if sudo test -r "${PAM_AUTHFILE}"; then
+    existing="$(sudo awk -F: -v user="${login_user}" '$1 == user { print; exit }' "${PAM_AUTHFILE}")"
+  fi
+  [[ -n "${existing}" ]] || return 1
+  case "${generated}" in
+    :*) printf '%s%s\n' "${existing}" "${generated}" ;;
+    *) printf '%s:%s\n' "${existing}" "${generated}" ;;
+  esac
+}
+
+linux_save_mapping() {
+  local login_user="$1" generated="$2" old_file new_file
+  old_file="$(mktemp)"
+  new_file="$(mktemp)"
+  trap 'rm -f "${old_file:-}" "${new_file:-}"' RETURN
+  if sudo test -f "${PAM_AUTHFILE}"; then
+    sudo cat "${PAM_AUTHFILE}" | tee "${old_file}" >/dev/null
+  fi
+
+  awk -F: -v user="${login_user}" '$1 != user' "${old_file}" >"${new_file}"
+  printf '%s\n' "${generated}" >>"${new_file}"
+  sudo install -d -m 0755 "$(dirname "${PAM_AUTHFILE}")"
+  sudo install -m 0600 -o root -g root "${new_file}" "${PAM_AUTHFILE}"
+  trap - RETURN
+  rm -f "${old_file}" "${new_file}"
+}
+
+linux_pam_module_path() {
+  local path
+  path="$(find /lib /usr/lib -type f -name pam_u2f.so -print -quit 2>/dev/null || true)"
+  [[ -n "${path}" ]] || return 1
+  printf '%s\n' "${path}"
+}
+
+linux_insert_pam_block() {
+  local service_file="$1" module_path="$2" temp backup base
+  sudo grep -Fq -- "${PAM_BEGIN}" "${service_file}" 2>/dev/null && return 0
+  sudo grep -Eq '^[[:space:]]*(auth[[:space:]]+.*(include|substack)|@include)[[:space:]]+(common-auth|password-auth|system-auth|system-login|system-local-login)' "${service_file}" || return 1
+
+  temp="$(mktemp)"
+  sudo awk -v begin="${PAM_BEGIN}" -v end="${PAM_END}" -v module="${module_path}" -v authfile="${PAM_AUTHFILE}" -v origin="${PAM_ORIGIN}" '
+    !inserted && $0 ~ /^[[:space:]]*(auth[[:space:]]+.*(include|substack)|@include)[[:space:]]+(common-auth|password-auth|system-auth|system-login|system-local-login)/ {
+      print begin
+      print "auth sufficient " module " authfile=" authfile " origin=" origin " appid=" origin " cue pinverification=1 userverification=0"
+      print end
+      inserted=1
+    }
+    { print }
+    END { if (!inserted) exit 2 }
+  ' "${service_file}" | tee "${temp}" >/dev/null
+
+  sudo install -d -m 0700 "${PAM_BACKUP_DIR}"
+  base="$(basename "${service_file}")"
+  backup="${PAM_BACKUP_DIR}/${base}.$(date +%Y%m%d%H%M%S).bak"
+  sudo cp -p "${service_file}" "${backup}"
+  sudo install -m 0644 -o root -g root "${temp}" "${service_file}"
+  rm -f "${temp}"
+  info "Enabled YubiKey PIN login for ${base} (backup: ${backup})."
+}
+
+linux_configure_pam() {
+  local module_path service_file configured=0
+  module_path="$(linux_pam_module_path)" || fail "pam_u2f.so was not found. Install pam_u2f and retry."
+  for service_file in \
+    /etc/pam.d/gdm-password \
+    /etc/pam.d/lightdm \
+    /etc/pam.d/sddm \
+    /etc/pam.d/plasmalogin \
+    /etc/pam.d/login; do
+    [[ -f "${service_file}" ]] || continue
+    if linux_insert_pam_block "${service_file}" "${module_path}"; then
+      configured=$((configured + 1))
+    else
+      warn "Skipped ${service_file}: no safe authentication include point was found."
+    fi
+  done
+  [[ "${configured}" -gt 0 ]] || fail "The key mapping was saved, but no supported PAM login service could be configured safely. Password login was not changed."
+}
+
+linux_status() {
+  local login_user="$1" key_count=0 service_file managed=0
+  if sudo test -r "${PAM_AUTHFILE}"; then
+    key_count="$(sudo awk -F: -v user="${login_user}" '$1 == user { print NF - 1; exit }' "${PAM_AUTHFILE}")"
+    key_count="${key_count:-0}"
+  fi
+  printf 'YubiKeys enrolled for %s: %s\n' "${login_user}" "${key_count}"
+  for service_file in /etc/pam.d/*; do
+    [[ -f "${service_file}" ]] || continue
+    if sudo grep -Fq -- "${PAM_BEGIN}" "${service_file}" 2>/dev/null; then
+      printf 'Managed PAM service: %s\n' "${service_file}"
+      managed=$((managed + 1))
+    fi
+  done
+  if linux_is_nixos; then
+    printf 'NixOS PAM services are configured declaratively by this repository.\n'
+  elif [[ "${managed}" -eq 0 ]]; then
+    printf 'Managed PAM services: none\n'
+  fi
+  printf 'Password login remains enabled as the fallback.\n'
+}
+
+linux_remove_pam_blocks() {
+  local service_file temp
+  for service_file in /etc/pam.d/*; do
+    [[ -f "${service_file}" ]] || continue
+    sudo grep -Fq -- "${PAM_BEGIN}" "${service_file}" 2>/dev/null || continue
+    temp="$(mktemp)"
+    sudo awk -v begin="${PAM_BEGIN}" -v end="${PAM_END}" '
+      $0 == begin { skipping=1; next }
+      $0 == end { skipping=0; next }
+      !skipping { print }
+    ' "${service_file}" | tee "${temp}" >/dev/null
+    sudo install -m 0644 -o root -g root "${temp}" "${service_file}"
+    rm -f "${temp}"
+    info "Disabled YubiKey PIN login for $(basename "${service_file}")."
+  done
+}
+
+linux_remove_user_mapping() {
+  local login_user="$1" temp
+  sudo test -f "${PAM_AUTHFILE}" || return 0
+  temp="$(mktemp)"
+  sudo awk -F: -v user="${login_user}" '$1 != user' "${PAM_AUTHFILE}" | tee "${temp}" >/dev/null
+  sudo install -m 0600 -o root -g root "${temp}" "${PAM_AUTHFILE}"
+  rm -f "${temp}"
+}
+
+linux_add_key() {
+  local login_user="$1" generated complete_mapping
+  linux_install_pam_u2f
+  "${PAMU2FCFG[@]}" --help 2>&1 | grep -q -- '--pin-verification' || \
+    fail "This pamu2fcfg is too old to require a FIDO2 PIN. Upgrade pam_u2f and retry."
+  generated="$(linux_generate_mapping "${login_user}")"
+  complete_mapping="$(linux_complete_mapping "${login_user}" "${generated}")" || \
+    fail "pamu2fcfg returned an invalid mapping; no login files were changed."
+  [[ "${complete_mapping}" == "${login_user}:"* ]] || fail "pamu2fcfg returned an invalid mapping; no login files were changed."
+  linux_save_mapping "${login_user}" "${complete_mapping}"
+
+  if linux_is_nixos; then
+    info "The key mapping is saved. Run ./setup switch to activate the repository's NixOS PAM configuration."
+  else
+    linux_configure_pam
+  fi
+  info "YubiKey PIN login is enabled for ${login_user}. Run this command again for each additional key."
+  warn "GNOME Keyring or KDE Wallet may still request the account password after a passwordless login."
+}
+
+linux_disable() {
+  local login_user="$1"
+  confirm "Remove this script's YubiKey login configuration for ${login_user}?" || fail "Cancelled."
+  if ! linux_is_nixos; then
+    linux_remove_pam_blocks
+  fi
+  linux_remove_user_mapping "${login_user}"
+  info "YubiKey login enrollment was removed. Password login was not changed."
+}
+
+windows_script_path() {
+  local directory path
+  directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+  path="${directory}/yubikey-login-windows.ps1"
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "${path}"
+  elif command -v wslpath >/dev/null 2>&1; then
+    wslpath -w "${path}"
+  else
+    printf '%s\n' "${path}"
+  fi
+}
+
+run_windows_helper() {
+  local action="$1" ps_action="Enable" shell_path script_path
+  case "${action}" in
+    status) ps_action="Status" ;;
+    disable) ps_action="Disable" ;;
+  esac
+  script_path="$(windows_script_path)"
+  if command -v powershell.exe >/dev/null 2>&1; then
+    shell_path="powershell.exe"
+  elif command -v pwsh.exe >/dev/null 2>&1; then
+    shell_path="pwsh.exe"
+  else
+    fail "Windows PowerShell was not found. Run yubikey-login-windows.ps1 directly in PowerShell."
+  fi
+  "${shell_path}" -NoProfile -ExecutionPolicy Bypass -File "${script_path}" -Action "${ps_action}"
+}
+
+action="add-key"
+case "${1:-}" in
+  ""|--add-key) action="add-key" ;;
+  --status) action="status" ;;
+  --disable) action="disable" ;;
+  -h|--help) usage; exit 0 ;;
+  *) usage >&2; fail "Unknown option: $1" ;;
+esac
+[[ $# -le 1 ]] || fail "Only one action may be supplied."
+
+kernel="$(uname -s)"
+case "${kernel}" in
+  Darwin)
+    login_user="$(normal_user)"
+    case "${action}" in
+      add-key) macos_add_key "${login_user}" ;;
+      status) macos_status "${login_user}" ;;
+      disable) macos_disable "${login_user}" ;;
+    esac
+    ;;
+  Linux)
+    if grep -qiE '(microsoft|wsl)' /proc/sys/kernel/osrelease /proc/version 2>/dev/null; then
+      run_windows_helper "${action}"
+    else
+      login_user="$(normal_user)"
+      case "${action}" in
+        add-key) linux_add_key "${login_user}" ;;
+        status) linux_status "${login_user}" ;;
+        disable) linux_disable "${login_user}" ;;
+      esac
+    fi
+    ;;
+  MINGW*|MSYS*|CYGWIN*) run_windows_helper "${action}" ;;
+  *) fail "Unsupported operating system: ${kernel}" ;;
+esac

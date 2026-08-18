@@ -25,13 +25,15 @@ in
     enable = true;
     enableZshIntegration = true;
     # Homebrew 6 requires the explicit `install` subcommand before accepting
-    # --force-cleanup. Current nix-darwin emits the flag against the legacy
-    # shorthand form, so express the equivalent compatible command directly.
+    # --force-cleanup. Keep formula and cask cleanup non-interactive, but never
+    # remove Mac App Store applications: `mas list` cannot tell whether an app
+    # was installed by this configuration, the App Store UI, or an MDM.
     onActivation = {
       autoUpdate = true;
       upgrade = true;
       cleanup = "none";
-      extraFlags = [ "install" "--cleanup" ];
+      extraEnv.HOMEBREW_BUNDLE_CLEANUP_NO_MAS = "1";
+      extraFlags = [ "install" "--force-cleanup" ];
     };
     casks = pkgs.callPackage ./casks.nix { };
     brews = pkgs.callPackage ./brews.nix { };

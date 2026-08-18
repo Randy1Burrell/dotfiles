@@ -281,6 +281,27 @@ in
     }];
   };
 
+  # A root-owned mapping lets login work before an encrypted home directory is
+  # unlocked. `sufficient` preserves the normal password stack as a fallback.
+  # The setup script creates /etc/u2f_mappings after verifying the FIDO2 PIN.
+  security.pam = {
+    u2f = {
+      control = "sufficient";
+      settings = {
+        authfile = "/etc/u2f_mappings";
+        origin = "pam://dotfiles-yubikey-login";
+        appid = "pam://dotfiles-yubikey-login";
+        cue = true;
+        pinverification = 1;
+        userverification = 0;
+      };
+    };
+    services = {
+      login.u2f.enable = true;
+      lightdm.u2f.enable = true;
+    };
+  };
+
   fonts.packages = with pkgs; [
     dejavu_fonts
     emacs-all-the-icons-fonts
@@ -295,6 +316,7 @@ in
     agenix.packages."${pkgs.stdenv.hostPlatform.system}".default
     gitFull
     inetutils
+    pam_u2f
   ];
 
   system.stateVersion = "21.05"; # Don't change this

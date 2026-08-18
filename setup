@@ -5,6 +5,10 @@ set -Eeuo pipefail
 # Keep setup usable after nix-darwin removes /run/current-system from a shell
 # whose command cache and PATH still reference that generation.
 export PATH="${PATH:-}:/usr/bin:/bin:/usr/sbin:/sbin"
+# Every Nix operation in this script is flake-based. Do not inherit an older
+# nix-darwin generation's channel-backed NIX_PATH during the switch that
+# replaces it.
+export NIX_PATH="nixpkgs=flake:nixpkgs"
 hash -r
 
 resolve_script_path() {
@@ -76,6 +80,8 @@ Key and GPG actions:
   check-keys   Verify the SSH/Agenix files and GPG agent
   copy-keys    Copy keys from a mounted drive after starting GPG
   create-keys  Create SSH/Agenix keys after starting GPG
+  yubikey-login
+               Enable local computer login with a YubiKey PIN
 
 Environment:
   GITHUB_USER  Supply the GitHub username for an unattended first run.
@@ -1151,13 +1157,23 @@ run_action() {
   shift
 
   case "${action}" in
-    switch|build|check|apply|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys) ;;
+    switch|build|check|apply|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login) ;;
     -h|--help) usage; return 0 ;;
     *) usage >&2; fail "Unknown action: ${action}" ;;
   esac
 
   if [[ "${action}" == "github-user" || "${action}" == "set-github-user" ]]; then
     change_github_username "$@"
+    return $?
+  fi
+
+  if [[ "${action}" == "yubikey-login" ]]; then
+    info "Configuring local computer login with a YubiKey PIN"
+    "${REPO_ROOT}/yubikey-login" "$@" || return $?
+    if [[ -e /etc/NIXOS && "${1:-}" != "--status" && "${1:-}" != "--disable" ]]; then
+      info "Activating the declarative NixOS login configuration"
+      run_action switch
+    fi
     return $?
   fi
 
@@ -1362,6 +1378,8 @@ Choose an action:
   14) refresh-secrets-lock
                     Refresh only the private secrets lock entry
   15) github-user  Show or change the saved GitHub username
+  16) yubikey-login
+                    Enable local computer login with a YubiKey PIN
    q) quit
 EOF
 }
@@ -1393,6 +1411,7 @@ interactive_menu() {
       13|pull-secrets) action="pull-secrets" ;;
       14|refresh-secrets-lock) action="refresh-secrets-lock" ;;
       15|github-user|set-github-user) action="github-user" ;;
+      16|yubikey-login) action="yubikey-login" ;;
       q|Q|quit|exit)
         info "Exiting setup"
         return 0

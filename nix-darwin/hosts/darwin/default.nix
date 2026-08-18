@@ -1,4 +1,4 @@
-{ self, agenix, config, pkgs, user, ... }:
+{ self, agenix, config, lib, pkgs, user, ... }:
 {
 
   imports = [
@@ -20,6 +20,9 @@
   # Setup user, packages, programs
   nix = {
     package = pkgs.nix;
+    # Flakes provide nixpkgs directly. Replace nix-darwin's legacy default
+    # instead of merging with its now-absent root channels directory.
+    nixPath = lib.mkForce [ "nixpkgs=flake:nixpkgs" ];
     settings.trusted-users = [ "@admin" "${user}" ];
 
     gc = {
@@ -74,7 +77,7 @@
     # $ darwin-rebuild changelog
     stateVersion = 4;
 
-    # Turn off NIX_PATH warnings now that we're using flakes
+    # The flake-backed NIX_PATH above does not require channel validation.
     checks.verifyNixPath = false;
 
     # Set Git commit hash for darwin-version.

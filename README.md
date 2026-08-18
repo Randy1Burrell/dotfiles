@@ -236,10 +236,36 @@ and when copying diagnostic output.
 | `./setup check-keys` | Checks the expected SSH and Agenix key files and the agent socket. |
 | `./setup copy-keys` | Copies a complete key set from a mounted drive. |
 | `./setup create-keys` | Interactively creates the GitHub and Agenix ED25519 key pairs. |
+| `./setup yubikey-login` | Adds the connected YubiKey as a local computer-login method while preserving password recovery. |
 
 The command-line parser accepts arguments after `--` for flake applications
 that support additional arguments.  The current key commands are configured
 through environment variables and interactive prompts instead.
+
+### Local login with a YubiKey PIN
+
+Run the login action once with each YubiKey connected. Each key is enrolled
+independently, so any enrolled key can be used at the login screen:
+
+```bash
+./setup yubikey-login
+./setup yubikey-login --status
+./setup yubikey-login --disable
+```
+
+The action deliberately keeps the normal account password enabled as a
+recovery method and refuses configurations that would require key-only login.
+The PIN and registration mechanism differ by operating system:
+
+| Platform | Login method and limitation |
+|---|---|
+| macOS | Pairs the certificate in the YubiKey PIV authentication slot (9a) with the current account. FileVault pre-boot unlock still uses the account password. |
+| Linux | Enrols the key with `pam_u2f`, requires its FIDO2 PIN, stores mappings in root-owned `/etc/u2f_mappings`, and adds the module as `sufficient` so password login remains available. NixOS applies the PAM portion declaratively during `switch`. |
+| Windows | Opens Microsoft's protected security-key registration pages. Native FIDO2 PIN sign-in is available only on Microsoft Entra joined or hybrid joined computers whose administrator enables security-key sign-in; local accounts and personal Microsoft accounts are not supported. Run `yubikey-login-windows.ps1` directly from PowerShell when Bash is unavailable. |
+
+The OpenPGP, PIV, and FIDO2 applets have separate PINs unless you explicitly
+set them to the same value. A passwordless Linux desktop login may also leave
+GNOME Keyring or KDE Wallet locked until the account password is entered.
 
 The `apply` action mutates template values in the checkout on macOS and NixOS.
 Review or commit the working tree before using it.  On NixOS it asks for a
@@ -308,6 +334,11 @@ frames should normally be opened with:
 ```bash
 emacsclient -c
 ```
+
+Each macOS switch updates and upgrades the declared Homebrew bundle and removes
+unlisted Homebrew formulae and casks without prompting. Mac App Store apps are
+excluded from cleanup because Homebrew cannot distinguish apps installed by the
+configuration from apps installed independently through the App Store or MDM.
 
 `switch` builds the nix-darwin system before running `darwin-rebuild` with
 administrator privileges.  Homebrew failures are reported as part of the
