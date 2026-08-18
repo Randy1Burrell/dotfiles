@@ -138,6 +138,7 @@
       mkApp = scriptName: system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          sshPackage = if pkgs.stdenv.hostPlatform.isLinux then pkgs.openssh_gssapi else pkgs.openssh;
           runtimePackages = with pkgs; [
             bashInteractive
             coreutils
@@ -146,8 +147,7 @@
             git
             gnugrep
             gnupg
-            openssh
-          ] ++ nixpkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+          ] ++ [ sshPackage ] ++ nixpkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
             curl
             iproute2
             unzip

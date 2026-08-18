@@ -634,6 +634,28 @@ ssh -T git@github.com
 A public repository can still fail over SSH when the key is not registered with
 GitHub.  The private `secrets` input additionally requires repository access.
 
+On Ubuntu, `agent refused operation` immediately after SSH offers a `cardno:`
+identity usually means Pinentry is attached to an old terminal. The managed
+Bash and Zsh startup files set `GPG_TTY` and update gpg-agent's startup terminal
+whenever a new interactive shell opens. For immediate recovery in an existing
+shell, run:
+
+```bash
+export GPG_TTY="$(tty)"
+gpg-connect-agent updatestartuptty /bye
+ssh -T git@github.com
+```
+
+Enter the YubiKey PIN when Pinentry appears and touch the key if it flashes.
+If GnuPG instead reports `No pinentry`, `setup` installs a temporary
+`/usr/bin/pinentry-curses` setting before evaluation, backing up an older
+Home Manager link. The activated profile then replaces it with the permanent
+Nix-managed Pinentry path.
+Ubuntu's `/etc/ssh/ssh_config` enables GSSAPI, so the Linux profile uses the
+GSSAPI-enabled Nixpkgs OpenSSH build. Conventional `id_ed25519` and `id_rsa`
+files remain automatic fallbacks when present and are not treated as errors
+when absent.
+
 If Nix reports that the revision locked for `secrets` no longer exists on its
 `main` branch, refresh only that input and retry activation:
 

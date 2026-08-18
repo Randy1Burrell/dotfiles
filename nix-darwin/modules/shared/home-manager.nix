@@ -39,12 +39,24 @@ in
         source ${pkgs.blesh}/share/blesh/ble.sh
       '')
       ''
+        # The SSH-agent protocol cannot tell gpg-agent where Pinentry should
+        # appear. Refresh it for this terminal before a YubiKey is asked to
+        # authenticate or sign.
+        if [[ -t 0 ]]; then
+          export GPG_TTY="$(tty)"
+        fi
+
         # A non-login Bash normally inherits this from its parent. Recompute it
         # when needed, while preserving an agent forwarded into a remote session.
+        gpg_ssh_socket="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)"
         if [[ -z "''${SSH_AUTH_SOCK:-}" || -z "''${SSH_CONNECTION:-}" ]]; then
           unset SSH_AGENT_PID
-          export SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)"
+          export SSH_AUTH_SOCK="$gpg_ssh_socket"
         fi
+        if [[ -n "''${GPG_TTY:-}" && "''${SSH_AUTH_SOCK:-}" == "$gpg_ssh_socket" ]]; then
+          ${pkgs.gnupg}/bin/gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
+        fi
+        unset gpg_ssh_socket
       ''
     ];
   };
@@ -76,6 +88,21 @@ in
         if [[ -f /nix/var/nix/profiles/default/etc/profile.d/nix.sh ]]; then
           . /nix/var/nix/profiles/default/etc/profile.d/nix.sh
         fi
+
+        # Keep Pinentry attached to the active terminal. This is required for
+        # YubiKey SSH operations because ssh-agent requests carry no TTY data.
+        if [[ -t 0 ]]; then
+          export GPG_TTY="$(tty)"
+        fi
+        gpg_ssh_socket="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)"
+        if [[ -z "''${SSH_AUTH_SOCK:-}" || -z "''${SSH_CONNECTION:-}" ]]; then
+          unset SSH_AGENT_PID
+          export SSH_AUTH_SOCK="$gpg_ssh_socket"
+        fi
+        if [[ -n "''${GPG_TTY:-}" && "''${SSH_AUTH_SOCK:-}" == "$gpg_ssh_socket" ]]; then
+          ${pkgs.gnupg}/bin/gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
+        fi
+        unset gpg_ssh_socket
 
         export PATH="$HOME/.pnpm-packages/bin:$HOME/.pnpm-packages:$PATH"
         export PATH="$HOME/.npm-packages/bin:$HOME/bin:$PATH"
@@ -344,16 +371,13 @@ in
   ssh = {
     enable = true;
     enableDefaultConfig = false;
+    package = if pkgs.stdenv.hostPlatform.isLinux then pkgs.openssh_gssapi else pkgs.openssh;
     includes = [ "${config.home.homeDirectory}/.ssh/config_external" ];
     settings = {
       "*" = {
         # Keep gpg-agent available while OpenSSH's conventional default files,
         # including id_ed25519 and id_rsa, remain automatic migration fallbacks.
         IdentityAgent = "$SSH_AUTH_SOCK";
-        IdentityFile = [
-          "~/.ssh/id_ed25519"
-          "~/.ssh/id_rsa"
-        ];
         IdentitiesOnly = false;
         ForwardAgent = false;
         AddKeysToAgent = "no";

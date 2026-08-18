@@ -212,10 +212,68 @@ load_nix() {
   return 1
 }
 
+GPG_PINENTRY_REPAIRED=0
+
+ensure_linux_gpg_pinentry() {
+  local gpg_directory agent_config configured_pinentry pinentry_program
+  local temporary backup=""
+
+  [[ "$(uname -s)" == "Linux" ]] || return 0
+
+  gpg_directory="${GNUPGHOME:-${HOME}/.gnupg}"
+  agent_config="${gpg_directory}/gpg-agent.conf"
+  configured_pinentry="$(
+    awk '$1 == "pinentry-program" { print $2; exit }' "${agent_config}" 2>/dev/null || true
+  )"
+  if [[ -n "${configured_pinentry}" && -x "${configured_pinentry}" ]]; then
+    return 0
+  fi
+
+  if [[ -x /usr/bin/pinentry-curses ]]; then
+    pinentry_program=/usr/bin/pinentry-curses
+  elif pinentry_program="$(command -v pinentry-curses 2>/dev/null)" && \
+    [[ -n "${pinentry_program}" ]]; then
+    :
+  elif pinentry_program="$(command -v pinentry 2>/dev/null)" && \
+    [[ -n "${pinentry_program}" ]]; then
+    :
+  else
+    fail "No usable Pinentry was found. Install pinentry-curses before using the YubiKey."
+  fi
+
+  mkdir -p -- "${gpg_directory}"
+  chmod 700 "${gpg_directory}"
+  temporary="$(mktemp "${gpg_directory}/gpg-agent.conf.XXXXXX")"
+  if [[ -r "${agent_config}" ]]; then
+    awk '$1 != "pinentry-program"' "${agent_config}" > "${temporary}"
+  fi
+  printf 'pinentry-program %s\n' "${pinentry_program}" >> "${temporary}"
+  chmod 600 "${temporary}"
+
+  if [[ -e "${agent_config}" || -L "${agent_config}" ]]; then
+    backup="${agent_config}.setup-backup.$(date +%Y%m%d%H%M%S).$$"
+    mv -- "${agent_config}" "${backup}" || \
+      fail "Could not back up ${agent_config}."
+  fi
+
+  if ! mv -- "${temporary}" "${agent_config}"; then
+    [[ -z "${backup}" ]] || mv -- "${backup}" "${agent_config}" || true
+    fail "Could not install the temporary Linux Pinentry configuration."
+  fi
+
+  [[ -z "${backup}" ]] || warn "Saved the previous GPG agent configuration at ${backup}"
+  info "Configured Linux Pinentry at ${pinentry_program}"
+  GPG_PINENTRY_REPAIRED=1
+}
+
 prepare_gpg_ssh_agent() {
-  local expected_version running_version socket setup_git_ssh_command
+  local expected_version running_version socket ssh_executable setup_git_ssh_command
 
   command -v gpgconf >/dev/null 2>&1 || return 0
+  ensure_linux_gpg_pinentry
+  if (( GPG_PINENTRY_REPAIRED )); then
+    gpgconf --kill all >/dev/null 2>&1 || true
+  fi
   gpgconf --launch gpg-agent >/dev/null 2>&1 || return 0
 
   if command -v gpg-agent >/dev/null 2>&1 && command -v gpg-connect-agent >/dev/null 2>&1; then
@@ -248,9 +306,15 @@ prepare_gpg_ssh_agent() {
   # generated SSH config is active. Conventional default identity files remain
   # available as migration fallbacks because IdentitiesOnly is disabled.
   if [[ -z "${GIT_SSH_COMMAND:-}" ]]; then
+    ssh_executable="$(command -v ssh)"
+    if [[ "$(uname -s)" == "Linux" && -x /usr/bin/ssh ]]; then
+      # Ubuntu's client supports the GSSAPI options in /etc/ssh/ssh_config;
+      # the standard Nixpkgs build does not.
+      ssh_executable=/usr/bin/ssh
+    fi
     printf -v setup_git_ssh_command \
-      'ssh -o IdentityAgent=%q -o IdentitiesOnly=no' \
-      "${socket}"
+      '%q -o IdentityAgent=%q -o IdentitiesOnly=no' \
+      "${ssh_executable}" "${socket}"
     export GIT_SSH_COMMAND="${setup_git_ssh_command}"
   fi
 

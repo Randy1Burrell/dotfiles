@@ -91,6 +91,11 @@ readonly AGENT_CONFIG="${GPG_HOME}/gpg-agent.conf"
 readonly SSH_CONFIG="${SSH_DIR}/config"
 readonly SSH_INCLUDE="${SSH_DIR}/${MANAGED_SSH_INCLUDE}"
 readonly BACKUP_SUFFIX="bootstrap-backup.$(date +%Y%m%d%H%M%S).$$"
+if [[ "$(uname -s)" == "Linux" && -x /usr/bin/ssh ]]; then
+  readonly SSH_EXECUTABLE=/usr/bin/ssh
+else
+  readonly SSH_EXECUTABLE="$(command -v ssh)"
+fi
 
 case "${GPG_HOME}${SSH_DIR}" in
   *$'\n'*) fail "GPG and SSH paths must not contain newlines." ;;
@@ -210,6 +215,16 @@ if grep -Eq '^[[:space:]]*disable-ssh-support([[:space:]]|$)' "${AGENT_CONFIG}" 
 fi
 
 ensure_agent_option "enable-ssh-support"
+if [[ "$(uname -s)" == "Linux" ]] && \
+  ! grep -Eq '^[[:space:]]*pinentry-program[[:space:]]' "${AGENT_CONFIG}"; then
+  if command -v pinentry-curses >/dev/null 2>&1; then
+    ensure_agent_option "pinentry-program $(command -v pinentry-curses)"
+  elif command -v pinentry >/dev/null 2>&1; then
+    ensure_agent_option "pinentry-program $(command -v pinentry)"
+  else
+    fail "No usable Pinentry is installed. Install pinentry-curses and retry."
+  fi
+fi
 chmod 600 "${AGENT_CONFIG}"
 
 if [[ -t 0 ]]; then
@@ -229,7 +244,7 @@ SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
 write_ssh_include "${SSH_AUTH_SOCK}"
 put_include_first
 
-resolved_agent="$(ssh -G -F "${SSH_CONFIG}" localhost 2>/dev/null | \
+resolved_agent="$("${SSH_EXECUTABLE}" -G -F "${SSH_CONFIG}" localhost 2>/dev/null | \
   while IFS= read -r line; do
     if [[ "${line}" == identityagent\ * ]]; then
       printf '%s\n' "${line#identityagent }"

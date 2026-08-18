@@ -23,12 +23,13 @@ in
   services.gpg-agent = {
     enable = true;
     enableSshSupport = true;
+    # A terminal Pinentry works on Ubuntu desktops, virtual consoles, and
+    # headless Linux hosts. macOS keeps its native graphical Pinentry.
+    pinentry.package = if isDarwin then pkgs.pinentry_mac else pkgs.pinentry-curses;
     defaultCacheTtl = defaultCacheSeconds;
     defaultCacheTtlSsh = defaultCacheSeconds;
     maxCacheTtl = maxCacheSeconds;
     maxCacheTtlSsh = maxCacheSeconds;
-  } // lib.optionalAttrs isDarwin {
-    pinentry.package = pkgs.pinentry_mac;
   };
 
   # Apply changed TTLs immediately instead of waiting for the next login. A

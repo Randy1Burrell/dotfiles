@@ -1,5 +1,9 @@
 { config, pkgs, ... }:
 
+let
+  sshPackage = if pkgs.stdenv.hostPlatform.isLinux then pkgs.openssh_gssapi else pkgs.openssh;
+in
+
 {
   home.activation.cloneRepo = config.lib.dag.entryAfter [ "writeBoundary" ] ''
     emacs_dir="$HOME/.emacs.d"
@@ -10,7 +14,7 @@
     # as migration fallbacks until every YubiKey has been authorized.
     repository_git() {
       SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)" \
-        GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh -o IdentitiesOnly=no" \
+        GIT_SSH_COMMAND="${sshPackage}/bin/ssh -o IdentitiesOnly=no" \
         ${pkgs.git}/bin/git "$@"
     }
 

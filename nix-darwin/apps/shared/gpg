@@ -52,6 +52,14 @@ ensure_line "auto-key-retrieve" "${GPG_CONFIG}"
 if [[ "$(uname -s)" == "Darwin" ]] && ! grep -Eq '^pinentry-program[[:space:]]' "${AGENT_CONFIG}"; then
   command -v pinentry-mac >/dev/null 2>&1 || fail "pinentry-mac is unavailable; apply the system configuration first."
   ensure_line "pinentry-program $(command -v pinentry-mac)" "${AGENT_CONFIG}"
+elif [[ "$(uname -s)" == "Linux" ]] && ! grep -Eq '^pinentry-program[[:space:]]' "${AGENT_CONFIG}"; then
+  if command -v pinentry-curses >/dev/null 2>&1; then
+    ensure_line "pinentry-program $(command -v pinentry-curses)" "${AGENT_CONFIG}"
+  elif command -v pinentry >/dev/null 2>&1; then
+    ensure_line "pinentry-program $(command -v pinentry)" "${AGENT_CONFIG}"
+  else
+    fail "No usable Pinentry is installed; install pinentry-curses and retry."
+  fi
 fi
 
 if [[ -t 0 ]]; then

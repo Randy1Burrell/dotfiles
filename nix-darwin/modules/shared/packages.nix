@@ -14,7 +14,7 @@
   fastfetch
   killall
   libllvm
-  openssh
+  (if stdenv.hostPlatform.isLinux then openssh_gssapi else openssh)
   sqlite
   tree-sitter
   wget
