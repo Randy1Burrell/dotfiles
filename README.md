@@ -371,7 +371,9 @@ the current Linux architecture. macOS-only formulae (`mas` and
 `pinentry-mac`), incompatible casks, and Mac App Store applications remain
 macOS-only. Both Bash and Zsh load Linuxbrew's shell environment and
 completions, and `./setup clean` prunes old Linuxbrew files alongside Nix
-generations.
+generations. Homebrew's own public GitHub repositories always use HTTPS during
+these operations, independently of the personal Git URL rewrites and
+GPG-backed SSH agent configuration.
 
 Home Manager writes user-level GNOME settings only. Facilities such as the
 Docker daemon, system firewall, display manager, GNOME installation, and kernel

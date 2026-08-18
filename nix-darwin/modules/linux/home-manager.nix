@@ -16,7 +16,7 @@ let
     exec = "${emacsLauncher} %F";
     icon = "${pkgs.emacs}/share/icons/hicolor/scalable/apps/emacs.svg";
     terminal = false;
-    categories = [ "Development" "TextEditor" ];
+    categories = [ "Development" "TextEditor" "Utility" ];
     mimeTypes = [
       "text/plain"
       "text/x-c"

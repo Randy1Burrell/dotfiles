@@ -58,9 +58,10 @@ else
   result="$(nix --extra-experimental-features 'nix-command flakes' build \
     --impure --no-write-lock-file --no-link --print-out-paths \
     "path:${FLAKE_DIR}#homeConfigurations.${FLAKE_TARGET}.activationPackage")"
+  backup_extension="bk-$(date +%Y%m%d%H%M%S)-$$"
   USER="${DOTFILES_LINUX_USER}" LOGNAME="${DOTFILES_LINUX_USER}" \
     HOME="${DOTFILES_LINUX_HOME}" \
-    HOME_MANAGER_BACKUP_EXT=bk "${result}/activate"
+    HOME_MANAGER_BACKUP_EXT="${backup_extension}" "${result}/activate"
 fi
 
 echo -e "${GREEN}Switch to new generation complete!${NC}"

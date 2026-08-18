@@ -873,6 +873,18 @@ find_linuxbrew() {
   return 1
 }
 
+run_linuxbrew() {
+  # Homebrew's repositories are public HTTPS remotes. Do not let the user's
+  # GitHub HTTPS-to-SSH rewrite or SSH overrides turn brew operations into an
+  # authenticated SSH request that depends on a YubiKey or local SSH key.
+  (
+    unset GIT_SSH GIT_SSH_COMMAND
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    "${LINUXBREW_BIN}" "$@"
+  )
+}
+
 ensure_linuxbrew() {
   local installer status
 
@@ -899,7 +911,13 @@ ensure_linuxbrew() {
   fi
 
   info "Installing Linuxbrew in its supported prefix"
-  if NONINTERACTIVE=1 CI=1 /bin/bash "${installer}"; then
+  if (
+    unset GIT_SSH GIT_SSH_COMMAND
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    NONINTERACTIVE=1 CI=1 /bin/bash "${installer}"
+  ); then
     :
   else
     status=$?
@@ -939,7 +957,7 @@ sync_linuxbrew() {
   esac
 
   info "Updating Linuxbrew"
-  if "${LINUXBREW_BIN}" update; then
+  if run_linuxbrew update; then
     :
   else
     status=$?
@@ -952,8 +970,8 @@ sync_linuxbrew() {
     cask_json="$(mktemp "${TMPDIR:-/tmp}/dotfiles-casks.XXXXXX.json")"
     supported_casks="$(mktemp "${TMPDIR:-/tmp}/dotfiles-supported-casks.XXXXXX")"
 
-    if "${LINUXBREW_BIN}" info --json=v2 --cask "${casks[@]}" > "${cask_json}" && \
-      "${LINUXBREW_BIN}" ruby -rjson -e '
+    if run_linuxbrew info --json=v2 --cask "${casks[@]}" > "${cask_json}" && \
+      run_linuxbrew ruby -rjson -e '
         JSON.parse($stdin.read).fetch("casks", []).each do |cask|
           platforms = cask.fetch("supported_platforms", [])
           puts cask.fetch("token") if platforms.include?(ARGV.fetch(0))
@@ -973,7 +991,7 @@ sync_linuxbrew() {
   fi
 
   info "Installing and upgrading the Linux-compatible macOS Homebrew bundle"
-  if "${LINUXBREW_BIN}" bundle install --upgrade --force-cleanup \
+  if run_linuxbrew bundle install --upgrade --force-cleanup \
     --file="${brewfile}"; then
     :
   else
@@ -984,7 +1002,7 @@ sync_linuxbrew() {
   rm -f -- "${brewfile}"
 
   info "Cleaning old Linuxbrew versions and downloads"
-  "${LINUXBREW_BIN}" cleanup || return $?
+  run_linuxbrew cleanup || return $?
 }
 
 clean_linuxbrew() {
@@ -994,7 +1012,7 @@ clean_linuxbrew() {
   fi
 
   info "Cleaning Linuxbrew downloads and old formula versions"
-  "${LINUXBREW_BIN}" cleanup --prune=7
+  run_linuxbrew cleanup --prune=7
 }
 
 DARWIN_BUILD_OUTPUT=""
@@ -1300,7 +1318,7 @@ run_action() {
           /run/current-system/sw/bin/nixos-rebuild switch --impure \
           --flake "${flake}#${config}" || return $?
       else
-        local result
+        local result backup_extension
 
         info "Building the standalone Home Manager configuration"
         result="$(run_configuration_nix "${platform}" build \
@@ -1308,9 +1326,11 @@ run_action() {
           --no-link --print-out-paths "${flake}#${output}")" || return $?
 
         info "Activating the Ubuntu Home Manager configuration"
+        backup_extension="bk-$(date +%Y%m%d%H%M%S)-$$"
         USER="${DOTFILES_LINUX_USER}" LOGNAME="${DOTFILES_LINUX_USER}" \
           HOME="${DOTFILES_LINUX_HOME}" \
-          HOME_MANAGER_BACKUP_EXT=bk "${result}/activate" || return $?
+          HOME_MANAGER_BACKUP_EXT="${backup_extension}" \
+          "${result}/activate" || return $?
 
         sync_linuxbrew "${detected_system}" "${flake}" || return $?
       fi
