@@ -2,6 +2,10 @@
 
 let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+  # Keep an actively used PIN/passphrase available for four hours, but never
+  # beyond eight hours from its initial entry. Agent restart/logout clears it.
+  defaultCacheSeconds = 4 * 60 * 60;
+  maxCacheSeconds = 8 * 60 * 60;
   publishSshSocket = pkgs.writeShellScript "publish-gpg-ssh-socket" ''
     set -eu
 
@@ -19,13 +23,19 @@ in
   services.gpg-agent = {
     enable = true;
     enableSshSupport = true;
-    defaultCacheTtl = 300;
-    defaultCacheTtlSsh = 300;
-    maxCacheTtl = 1200;
-    maxCacheTtlSsh = 1200;
+    defaultCacheTtl = defaultCacheSeconds;
+    defaultCacheTtlSsh = defaultCacheSeconds;
+    maxCacheTtl = maxCacheSeconds;
+    maxCacheTtlSsh = maxCacheSeconds;
   } // lib.optionalAttrs isDarwin {
     pinentry.package = pkgs.pinentry_mac;
   };
+
+  # Apply changed TTLs immediately instead of waiting for the next login. A
+  # reload intentionally clears any cache created under the previous policy.
+  home.activation.reloadGpgAgentConfiguration = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    $DRY_RUN_CMD ${pkgs.gnupg}/bin/gpgconf --reload gpg-agent >/dev/null 2>&1 || true
+  '';
 
   # Shell integrations set SSH_AUTH_SOCK at runtime. On macOS, publish the
   # same value to launchd so applications started outside a shell inherit it.

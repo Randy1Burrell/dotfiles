@@ -1,7 +1,7 @@
-{ user, ... }:
+{ homeDirectory, user, ... }:
 
 let
-  home           = builtins.getEnv "HOME";
+  home = homeDirectory;
   xdg_configHome = "${home}/.config";
   xdg_dataHome   = "${home}/.local/share";
   xdg_stateHome  = "${home}/.local/state"; in
@@ -157,7 +157,7 @@ let
 
     # Program launcher
     super + @space
-          rofi -config -no-lazy-grab -show drun -modi drun -theme /home/${user}/.config/rofi/launcher.rasi
+          rofi -config -no-lazy-grab -show drun -modi drun -theme ${homeDirectory}/.config/rofi/launcher.rasi
 
     # Terminal emulator
     super + Return

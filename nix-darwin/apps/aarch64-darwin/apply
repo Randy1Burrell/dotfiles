@@ -138,7 +138,9 @@ if [[ -z "$GIT_NAME" ]]; then
   _prompt "${YELLOW}Please enter your name: ${NC}" GIT_NAME
 fi
 
-_prompt "${YELLOW}Please enter your Github username: ${NC}" GITHUB_USER
+if [[ -z "$GITHUB_USER" ]]; then
+  _prompt "${YELLOW}Please enter your Github username: ${NC}" GITHUB_USER
+fi
 _prompt "${YELLOW}Please enter your Github secrets repository name: ${NC}" GITHUB_SECRETS_REPO
 
 export GITHUB_USER

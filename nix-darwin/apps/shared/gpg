@@ -6,6 +6,8 @@ umask 0077
 readonly GPG_DIR="${HOME}/.gnupg"
 readonly AGENT_CONFIG="${GPG_DIR}/gpg-agent.conf"
 readonly GPG_CONFIG="${GPG_DIR}/gpg.conf"
+readonly DEFAULT_CACHE_TTL=14400
+readonly MAX_CACHE_TTL=28800
 
 fail() {
   printf 'error: %s\n' "$*" >&2
@@ -40,10 +42,10 @@ for config_file in "${AGENT_CONFIG}" "${GPG_CONFIG}"; do
 done
 
 ensure_line "enable-ssh-support" "${AGENT_CONFIG}"
-ensure_line "default-cache-ttl 300" "${AGENT_CONFIG}"
-ensure_line "default-cache-ttl-ssh 300" "${AGENT_CONFIG}"
-ensure_line "max-cache-ttl 1200" "${AGENT_CONFIG}"
-ensure_line "max-cache-ttl-ssh 1200" "${AGENT_CONFIG}"
+ensure_line "default-cache-ttl ${DEFAULT_CACHE_TTL}" "${AGENT_CONFIG}"
+ensure_line "default-cache-ttl-ssh ${DEFAULT_CACHE_TTL}" "${AGENT_CONFIG}"
+ensure_line "max-cache-ttl ${MAX_CACHE_TTL}" "${AGENT_CONFIG}"
+ensure_line "max-cache-ttl-ssh ${MAX_CACHE_TTL}" "${AGENT_CONFIG}"
 ensure_line "no-emit-version" "${GPG_CONFIG}"
 ensure_line "auto-key-retrieve" "${GPG_CONFIG}"
 

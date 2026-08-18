@@ -27,9 +27,22 @@ esac
 echo -e "${YELLOW}Starting...${NC}"
 
 if [[ -e /etc/NIXOS ]]; then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    echo -e "${RED}Run nixos-rebuild as your normal NixOS user, not with sudo.${NC}" >&2
+    exit 1
+  fi
+  if [[ -z "${HOME:-}" || "${HOME}" != /* || ! -d "${HOME}" ]]; then
+    echo -e "${RED}HOME must be an existing absolute directory.${NC}" >&2
+    exit 1
+  fi
+  export DOTFILES_NIXOS_USER="$(id -un)"
+  export DOTFILES_NIXOS_HOME="${HOME}"
   # We pass SSH from user to root so root can download secrets from our private Github
-  sudo SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" /run/current-system/sw/bin/nixos-rebuild \
-    switch --flake ".#${FLAKE_TARGET}" "$@"
+  sudo DOTFILES_NIXOS_USER="${DOTFILES_NIXOS_USER}" \
+    DOTFILES_NIXOS_HOME="${DOTFILES_NIXOS_HOME}" \
+    SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
+    /run/current-system/sw/bin/nixos-rebuild switch --impure \
+    --flake ".#${FLAKE_TARGET}" "$@"
 else
   if [[ "$(id -u)" -eq 0 ]]; then
     echo -e "${RED}Run Home Manager as your normal Ubuntu user, not with sudo.${NC}" >&2

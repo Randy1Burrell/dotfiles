@@ -50,16 +50,38 @@
   outputs = { self, darwin, nix-homebrew, brew, homebrew-core, homebrew-cask, home-manager, nixpkgs, disko, agenix, secrets } @inputs:
     let
       user = "randyburrell";
-      # setup supplies these only for an impure standalone Linux evaluation.
-      # Pure checks and the declarative macOS/NixOS targets retain the owner.
+      # setup supplies host identities during impure macOS and Linux
+      # evaluations. Pure checks retain the repository owner's account.
+      darwinUser =
+        let detectedUser = builtins.getEnv "DOTFILES_DARWIN_USER";
+        in if detectedUser != "" then detectedUser else user;
+      darwinHome =
+        let detectedHome = builtins.getEnv "DOTFILES_DARWIN_HOME";
+        in if detectedHome != "" then detectedHome else "/Users/${darwinUser}";
       genericLinuxUser =
         let detectedUser = builtins.getEnv "DOTFILES_LINUX_USER";
         in if detectedUser != "" then detectedUser else user;
       genericLinuxHome =
         let detectedHome = builtins.getEnv "DOTFILES_LINUX_HOME";
         in if detectedHome != "" then detectedHome else "/home/${genericLinuxUser}";
+      nixosUser =
+        let detectedUser = builtins.getEnv "DOTFILES_NIXOS_USER";
+        in if detectedUser != "" then detectedUser else user;
+      nixosHome =
+        let detectedHome = builtins.getEnv "DOTFILES_NIXOS_HOME";
+        in if detectedHome != "" then detectedHome else "/home/${nixosUser}";
+      githubUser =
+        let detectedUser = builtins.getEnv "DOTFILES_GITHUB_USER";
+        in if detectedUser != "" then detectedUser else "randy1burrell";
       linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
       darwinSystems = [ "aarch64-darwin" "x86_64-darwin" ];
+      # The macOS Homebrew module remains the single source of truth for
+      # formulae. Linuxbrew consumes every portable entry from that list.
+      linuxbrewFormulae = nixpkgs.lib.unique (builtins.filter
+        (formula: !(builtins.elem formula [ "mas" "pinentry-mac" ]))
+        (import ./modules/darwin/brews.nix { }));
+      linuxbrewCaskCandidates = nixpkgs.lib.unique
+        (import ./modules/darwin/casks.nix { });
       overlays =
         let path = ./overlays; in
         map (name: import (path + ("/" + name)))
@@ -82,12 +104,27 @@
         extraSpecialArgs = inputs // {
           user = genericLinuxUser;
           homeDirectory = genericLinuxHome;
+          inherit githubUser;
         };
         modules = [
           agenix.homeManagerModules.default
           ./modules/linux/home-manager.nix
         ];
       };
+      mkLinuxbrewBrewfile = system:
+        let pkgs = mkLinuxPkgs system;
+        in pkgs.writeText "Brewfile" ''
+          # Generated from modules/darwin/brews.nix. setup appends casks from
+          # the macOS list when Homebrew reports native Linux support.
+          ${nixpkgs.lib.concatMapStringsSep "\n"
+            (formula: "brew ${builtins.toJSON formula}")
+            linuxbrewFormulae}
+        '';
+      mkLinuxbrewCaskCandidates = system:
+        let pkgs = mkLinuxPkgs system;
+        in pkgs.writeText "linuxbrew-cask-candidates" ''
+          ${nixpkgs.lib.concatStringsSep "\n" linuxbrewCaskCandidates}
+        '';
       forAllSystems = f: nixpkgs.lib.genAttrs (linuxSystems ++ darwinSystems) f;
       devShell = system:
         let pkgs = nixpkgs.legacyPackages.${system}; in {
@@ -151,7 +188,11 @@
       mkDarwinSystem = system: nixbldGid:
         darwin.lib.darwinSystem {
           inherit system;
-          specialArgs = inputs // { inherit user; };
+          specialArgs = inputs // {
+            user = darwinUser;
+            homeDirectory = darwinHome;
+            inherit githubUser;
+          };
           modules = [
             {
               nixpkgs.hostPlatform = system;
@@ -180,6 +221,10 @@
     {
       devShells = forAllSystems devShell;
       apps = nixpkgs.lib.genAttrs linuxSystems mkLinuxApps // nixpkgs.lib.genAttrs darwinSystems mkDarwinApps;
+      packages = nixpkgs.lib.genAttrs linuxSystems (system: {
+        linuxbrew-brewfile = mkLinuxbrewBrewfile system;
+        linuxbrew-cask-candidates = mkLinuxbrewCaskCandidates system;
+      });
 
       # Standalone Home Manager targets for Ubuntu and other non-NixOS Linux
       # distributions. NixOS continues to use the integrated module below.
@@ -197,16 +242,25 @@
 
       nixosConfigurations = nixpkgs.lib.genAttrs linuxSystems (system: nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = inputs;
+        specialArgs = inputs // {
+          user = nixosUser;
+          homeDirectory = nixosHome;
+          inherit githubUser;
+        };
         modules = [
           disko.nixosModules.disko
           home-manager.nixosModules.home-manager
           {
             home-manager = {
               backupFileExtension = "bk";
+              extraSpecialArgs = {
+                user = nixosUser;
+                homeDirectory = nixosHome;
+                inherit githubUser;
+              };
               useGlobalPkgs = true;
               useUserPackages = true;
-              users.${user} = import ./modules/nixos/home-manager.nix;
+              users.${nixosUser} = import ./modules/nixos/home-manager.nix;
             };
           }
           ./hosts/nixos

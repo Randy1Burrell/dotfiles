@@ -108,18 +108,18 @@ in
       workspaces-only-on-primary = true;
     };
 
-    # Ubuntu Dock is based on Dash to Dock and uses the same settings. The dock
-    # stays compact and centered at the bottom, then hides when space is needed.
+    # Ubuntu Dock is based on Dash to Dock and uses the same settings. Keep the
+    # compact, centered bottom dock visible like the default macOS Dock.
     "org/gnome/shell/extensions/dash-to-dock" = {
-      autohide = true;
+      autohide = false;
       background-opacity = 0.8;
       click-action = "minimize-or-previews";
       custom-theme-shrink = true;
       dash-max-icon-size = 48;
-      dock-fixed = false;
+      dock-fixed = true;
       dock-position = "BOTTOM";
       extend-height = false;
-      intellihide = true;
+      intellihide = false;
       intellihide-mode = "ALL_WINDOWS";
       multi-monitor = true;
       running-indicator-style = "DOTS";

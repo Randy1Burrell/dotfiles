@@ -1,7 +1,8 @@
-{ config, inputs, pkgs, agenix, ... }:
+{ config, inputs, pkgs, agenix, homeDirectory, user, ... }:
 
-let user = "randyburrell";
-    keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOk8iAnIaa1deoc7jw8YACPNVka1ZFJxhnU4G74TmS+p" ]; in
+let
+  keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOk8iAnIaa1deoc7jw8YACPNVka1ZFJxhnU4G74TmS+p" ];
+in
 {
   imports = [
     ../../modules/nixos/secrets.nix
@@ -41,7 +42,7 @@ let user = "randyburrell";
 
   # Turn on flag for proprietary software
   nix = {
-    nixPath = [ "nixos-config=/home/${user}/.local/share/src/nixos-config:/etc/nixos" ];
+    nixPath = [ "nixos-config=${homeDirectory}/.local/share/src/nixos-config:/etc/nixos" ];
     settings.allowed-users = [ "${user}" ];
     package = pkgs.nix;
     extraOptions = ''
@@ -103,8 +104,8 @@ let user = "randyburrell";
     syncthing = {
       enable = true;
       openDefaultPorts = true;
-      dataDir = "/home/${user}/.local/share/syncthing";
-      configDir = "/home/${user}/.config/syncthing";
+      dataDir = "${homeDirectory}/.local/share/syncthing";
+      configDir = "${homeDirectory}/.config/syncthing";
       user = "${user}";
       group = "users";
       guiAddress = "127.0.0.1:8384";
@@ -252,6 +253,7 @@ let user = "randyburrell";
   users.users = {
     ${user} = {
       isNormalUser = true;
+      home = homeDirectory;
       extraGroups = [
         "wheel" # Enable ‘sudo’ for the user.
         "docker"

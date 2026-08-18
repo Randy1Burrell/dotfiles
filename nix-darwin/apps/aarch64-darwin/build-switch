@@ -5,16 +5,33 @@ YELLOW='\033[1;33m'
 RED='\033[1;31m'
 NC='\033[0m'
 
+if [ "$(id -u)" -eq 0 ]; then
+  echo "${RED}Run this command as your normal macOS user, not with sudo.${NC}" >&2
+  exit 1
+fi
+if [ -z "${HOME:-}" ] || [ "${HOME#/}" = "${HOME}" ] || [ ! -d "${HOME}" ]; then
+  echo "${RED}HOME must be an existing absolute directory.${NC}" >&2
+  exit 1
+fi
+
 SYSTEM_TYPE="aarch64-darwin"
 FLAKE_SYSTEM="darwinConfigurations.${SYSTEM_TYPE}.system"
 
 export NIXPKGS_ALLOW_UNFREE=1
+export DOTFILES_DARWIN_USER="$(id -un)"
+export DOTFILES_DARWIN_HOME="${HOME}"
 
 echo "${YELLOW}Starting build...${NC}"
-nix --extra-experimental-features 'nix-command flakes' build .#$FLAKE_SYSTEM $@
+nix --extra-experimental-features 'nix-command flakes' build --impure \
+  ".#${FLAKE_SYSTEM}" "$@"
 
 echo "${YELLOW}Switching to new generation...${NC}"
-./result/sw/bin/darwin-rebuild switch --flake .#${SYSTEM_TYPE} $@
+sudo /usr/bin/env \
+  DOTFILES_DARWIN_USER="${DOTFILES_DARWIN_USER}" \
+  DOTFILES_DARWIN_HOME="${DOTFILES_DARWIN_HOME}" \
+  SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
+  ./result/sw/bin/darwin-rebuild switch --impure \
+  --flake ".#${SYSTEM_TYPE}" "$@"
 
 echo "${YELLOW}Cleaning up...${NC}"
 unlink ./result

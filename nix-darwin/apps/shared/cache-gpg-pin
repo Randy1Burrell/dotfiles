@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+fail() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+card_field() {
+  local label="$1"
+  awk -F ':' -v label="${label}" '
+    $0 ~ "^[[:space:]]*" label "[[:space:].]*:" {
+      value = $2
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      print value
+      exit
+    }
+  '
+}
+
+command -v gpg >/dev/null 2>&1 || fail "gpg is unavailable; apply the system configuration first."
+command -v gpg-card >/dev/null 2>&1 || fail "gpg-card is unavailable; apply the system configuration first."
+command -v gpgconf >/dev/null 2>&1 || fail "gpgconf is unavailable; apply the system configuration first."
+
+if [[ -t 0 ]]; then
+  export GPG_TTY
+  GPG_TTY="$(tty)"
+fi
+
+card_status="$(LC_ALL=C gpg --card-status 2>&1)" || \
+  fail "No usable OpenPGP card was found. Connect exactly one YubiKey and retry."
+serial="$(printf '%s\n' "${card_status}" | card_field "Serial number")"
+signature_pin="$(printf '%s\n' "${card_status}" | card_field "Signature PIN")"
+
+[[ -n "${serial}" ]] || fail "Could not determine the connected YubiKey serial number."
+case "${signature_pin}" in
+  "not forced")
+    printf 'YubiKey %s already retains its signature PIN until removal or reset.\n' "${serial}"
+    exit 0
+    ;;
+  forced) ;;
+  *) fail "Could not determine the signature PIN policy for YubiKey ${serial}." ;;
+esac
+
+printf '%s\n' \
+  "This permanently changes OpenPGP settings on YubiKey ${serial}." \
+  "After one successful PIN entry, signing can continue until the card is" \
+  "unplugged, powered down, reset, or switched away from the OpenPGP applet." \
+  "Physical-touch requirements remain unchanged."
+
+confirmation="${GPG_PIN_CACHE_CONFIRM:-}"
+if [[ "${confirmation}" != "yes" ]]; then
+  [[ -t 0 ]] || fail "Set GPG_PIN_CACHE_CONFIRM=yes for non-interactive confirmation."
+  read -r -p "Type yes to change this YubiKey's signature PIN policy: " confirmation
+fi
+[[ "${confirmation}" == "yes" ]] || fail "YubiKey signature PIN policy was not changed."
+
+# FORCESIG is a toggle. Only call it after confirming the current state is
+# forced, otherwise a repeated run would accidentally restore per-signature
+# PIN prompts. Pinentry may request the card's Admin PIN for this operation.
+gpg-card --no-history forcesig || fail "Could not change YubiKey ${serial}."
+
+# Reset scdaemon after the policy transition so its view of the card's PIN
+# verification state cannot be stale on the first subsequent signature.
+gpgconf --kill scdaemon >/dev/null 2>&1 || true
+gpgconf --launch gpg-agent >/dev/null 2>&1 || true
+
+card_status="$(LC_ALL=C gpg --card-status 2>&1)" || \
+  fail "The policy changed, but the YubiKey could not be read afterward. Reconnect it and run gpg --card-status."
+signature_pin="$(printf '%s\n' "${card_status}" | card_field "Signature PIN")"
+[[ "${signature_pin}" == "not forced" ]] || \
+  fail "YubiKey ${serial} still reports its signature PIN as ${signature_pin:-unknown}."
+
+printf 'YubiKey %s now retains its signature PIN until removal or reset.\n' "${serial}"
+printf 'Repeat this command with each remaining YubiKey connected one at a time.\n'

@@ -1,15 +1,14 @@
-{ config, pkgs, agenix, secrets, ... }:
+{ config, pkgs, agenix, homeDirectory, secrets, user, ... }:
 
-let user = "randyburrell"; in
 {
   age.identityPaths = [
-    "/home/${user}/.ssh/id_ed25519_agenix"
-    "/home/${user}/.ssh/id_ed25519"
+    "${homeDirectory}/.ssh/id_ed25519_agenix"
+    "${homeDirectory}/.ssh/id_ed25519"
   ];
 
   age.secrets."id_rsa" = {
     symlink = false;
-    path = "/home/${user}/.ssh/id_rsa";
+    path = "${homeDirectory}/.ssh/id_rsa";
     file = "${secrets}/id_rsa.age";
     mode = "600";
     owner = user;
@@ -18,7 +17,7 @@ let user = "randyburrell"; in
 
   age.secrets."authorized_keys" = {
     symlink = false;
-    path = "/home/${user}/.ssh/authorized_keys";
+    path = "${homeDirectory}/.ssh/authorized_keys";
     file = "${secrets}/authorized_keys.age";
     mode = "600";
     owner = user;
@@ -27,7 +26,7 @@ let user = "randyburrell"; in
 
   age.secrets."config_external" = {
     symlink = false;
-    path = "/home/${user}/.ssh/config_external";
+    path = "${homeDirectory}/.ssh/config_external";
     file = "${secrets}/config_external.age";
     mode = "600";
     owner = user;

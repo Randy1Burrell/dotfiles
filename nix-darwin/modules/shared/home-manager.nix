@@ -1,14 +1,13 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, githubUser ? "randy1burrell", ... }:
 
 let
   name = "randy1burrell";
-  user = "randyburrell";
   email = "rb@randyburrell.info";
 in
 {
   home-manager = {
     enable = true;
-    # path = "${config.users.users.${user}.home}/.config/home-manager";
+    # path = "${config.home.homeDirectory}/.config/home-manager";
   };
 
   java = {
@@ -205,6 +204,7 @@ in
       user = {
         inherit email name;
       };
+      github.user = githubUser;
 
       init.defaultBranch = "main";
       core = {

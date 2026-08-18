@@ -1,7 +1,6 @@
-{ config, pkgs, lib, home-manager, ... }:
+{ config, pkgs, lib, home-manager, homeDirectory, githubUser, user, ... }:
 
 let
-  user = "randyburrell";
   # Define the content of your file as a derivation
   myEmacsLauncher = pkgs.writeScript "emacs-launcher.command" ''
     #!/bin/sh
@@ -17,7 +16,7 @@ in
   # It me
   users.users.${user} = {
     name = "${user}";
-    home = "/Users/${user}";
+    home = homeDirectory;
     isHidden = false;
     shell = pkgs.zsh;
   };
@@ -91,6 +90,7 @@ in
           # only to be changed under very careful conditions.
           sessionVariables = {
             EDITOR = "${pkgs.emacs}/bin/emacsclient -t";
+            GITHUB_USER = githubUser;
           };
 
           enableNixpkgsReleaseCheck = false;
@@ -100,7 +100,9 @@ in
           stateVersion = "23.11";
         };
 
-        programs = { } // import ../shared/home-manager.nix { inherit config pkgs lib; };
+        programs = { } // import ../shared/home-manager.nix {
+          inherit config githubUser pkgs lib;
+        };
 
         # Marked broken Oct 20, 2022 check later to remove this
         # https://github.com/nix-community/home-manager/issues/3344

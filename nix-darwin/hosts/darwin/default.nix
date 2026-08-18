@@ -1,7 +1,4 @@
-{ self, agenix, config, pkgs, ... }:
-
-let user = "randyburrell"; in
-
+{ self, agenix, config, pkgs, user, ... }:
 {
 
   imports = [

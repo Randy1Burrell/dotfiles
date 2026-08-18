@@ -33,6 +33,7 @@ readonly SETUP_PATH="$(resolve_script_path)"
 readonly REPO_ROOT="$(dirname -- "${SETUP_PATH}")"
 readonly FLAKE_DIR="${REPO_ROOT}/nix-darwin"
 readonly NIX_INSTALL_URL="https://nixos.org/nix/install"
+readonly HOMEBREW_INSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
 readonly SECRETS_REMOTE="ssh://git@github.com/randy1burrell/secrets.git"
 
 info() {
@@ -60,6 +61,7 @@ System actions:
   build        Build without activating the configuration
   check        Evaluate without building the configuration
   apply        Personalize the configuration for a machine
+  github-user  Show or change the saved GitHub username
   clean        Remove old system generations and reclaim space
   install-nix  Install upstream Nix, or replace an installer-managed Nix
   update-secrets  Encrypt and push local secrets, then refresh flake.lock
@@ -69,11 +71,14 @@ System actions:
 
 Key and GPG actions:
   gpg          Start and verify the GPG-backed SSH agent
+  cache-gpg-pin
+               Let one connected YubiKey retain its signature PIN until removal
   check-keys   Verify the SSH/Agenix files and GPG agent
   copy-keys    Copy keys from a mounted drive after starting GPG
   create-keys  Create SSH/Agenix keys after starting GPG
 
 Environment:
+  GITHUB_USER  Supply the GitHub username for an unattended first run.
   SYSTEM_CONFIG  Override the flake configuration name selected from the
                  current CPU architecture.
   KEYS_MOUNT_PATH  Select the mounted key directory for copy-keys.
@@ -85,7 +90,95 @@ Environment:
                  Override ~/.ssh/id_ed25519_agenix for encryption/decryption.
   SECRETS_CONFIRM=yes
                  Allow a non-interactive secrets push.
+  GPG_PIN_CACHE_CONFIRM=yes
+                 Confirm a non-interactive YubiKey signature-policy change.
 EOF
+}
+
+github_username_path() {
+  printf '%s/dotfiles/github-user\n' "${XDG_CONFIG_HOME:-${HOME}/.config}"
+}
+
+validate_github_username() {
+  local username="$1"
+
+  [[ ${#username} -ge 1 && ${#username} -le 39 ]] || return 1
+  [[ "${username}" =~ ^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$ ]]
+}
+
+save_github_username() {
+  local username="$1" destination directory temporary
+
+  validate_github_username "${username}" || \
+    fail "GitHub usernames must be 1-39 characters and contain only letters, numbers, or single hyphens that are not first or last."
+
+  destination="$(github_username_path)"
+  directory="$(dirname -- "${destination}")"
+
+  (
+    umask 077
+    mkdir -p -- "${directory}"
+    temporary="$(mktemp "${directory}/github-user.XXXXXX")"
+    printf '%s\n' "${username}" > "${temporary}"
+    mv -f -- "${temporary}" "${destination}"
+  ) || fail "Could not save the GitHub username to ${destination}."
+}
+
+read_saved_github_username() {
+  local destination username
+  destination="$(github_username_path)"
+
+  [[ -r "${destination}" ]] || return 1
+  IFS= read -r username < "${destination}" || true
+  [[ -n "${username}" ]] || return 1
+  printf '%s\n' "${username}"
+}
+
+configure_github_username() {
+  local username="" saved_username=""
+
+  saved_username="$(read_saved_github_username || true)"
+  username="${saved_username:-${GITHUB_USER:-}}"
+
+  if [[ -z "${username}" ]]; then
+    [[ -t 0 ]] || \
+      fail "No GitHub username is saved. Run ${SETUP_PATH} github-user USERNAME, or set GITHUB_USER for this run."
+    IFS= read -r -p "GitHub username (saved for future setup runs): " username
+  fi
+
+  validate_github_username "${username}" || \
+    fail "Invalid GitHub username '${username}'. Run ${SETUP_PATH} github-user to replace it."
+
+  if [[ "${saved_username}" != "${username}" ]]; then
+    save_github_username "${username}"
+    info "Saved GitHub username ${username}"
+  fi
+
+  export GITHUB_USER="${username}"
+  export DOTFILES_GITHUB_USER="${username}"
+}
+
+change_github_username() {
+  local username="${1:-}" current=""
+
+  [[ $# -le 1 ]] || fail "Usage: ${SETUP_PATH} github-user [USERNAME]"
+  current="$(read_saved_github_username || true)"
+
+  if [[ -z "${username}" ]]; then
+    [[ -t 0 ]] || fail "Usage: ${SETUP_PATH} github-user USERNAME"
+    if [[ -n "${current}" ]]; then
+      IFS= read -r -p "GitHub username [${current}]: " username
+      username="${username:-${current}}"
+    else
+      IFS= read -r -p "GitHub username: " username
+    fi
+  fi
+
+  save_github_username "${username}"
+  export GITHUB_USER="${username}"
+  export DOTFILES_GITHUB_USER="${username}"
+  info "GitHub username saved as ${username}"
+  info "Run ${SETUP_PATH} switch to apply it to your shell and Git configuration"
 }
 
 load_nix() {
@@ -646,17 +739,198 @@ configure_generic_linux_identity() {
   info "Using Ubuntu account ${DOTFILES_LINUX_USER} at ${DOTFILES_LINUX_HOME}"
 }
 
+configure_nixos_identity() {
+  local current_uid current_user
+
+  current_uid="$(id -u)"
+  current_user="$(id -un)"
+
+  [[ "${current_uid}" -ne 0 ]] || \
+    fail "Run setup as your normal NixOS user, not with sudo. It will request administrator access when needed."
+  [[ -n "${current_user}" ]] || fail "Could not determine the current NixOS username."
+  [[ -n "${HOME:-}" && "${HOME}" == /* && -d "${HOME}" ]] || \
+    fail "HOME must be an existing absolute directory for the current NixOS user."
+
+  export DOTFILES_NIXOS_USER="${current_user}"
+  export DOTFILES_NIXOS_HOME="${HOME}"
+  info "Using NixOS account ${DOTFILES_NIXOS_USER} at ${DOTFILES_NIXOS_HOME}"
+}
+
+configure_darwin_identity() {
+  local current_uid current_user
+
+  current_uid="$(id -u)"
+  current_user="$(id -un)"
+
+  [[ "${current_uid}" -ne 0 ]] || \
+    fail "Run setup as your normal macOS user, not with sudo. It will request administrator access when needed."
+  [[ -n "${current_user}" ]] || fail "Could not determine the current macOS username."
+  [[ -n "${HOME:-}" && "${HOME}" == /* && -d "${HOME}" ]] || \
+    fail "HOME must be an existing absolute directory for the current macOS user."
+
+  export DOTFILES_DARWIN_USER="${current_user}"
+  export DOTFILES_DARWIN_HOME="${HOME}"
+  info "Using macOS account ${DOTFILES_DARWIN_USER} at ${DOTFILES_DARWIN_HOME}"
+}
+
 run_configuration_nix() {
   local platform="$1" command="$2"
   shift 2
 
-  if [[ "${platform}" == "generic-linux" ]]; then
-    # The standalone Home Manager identity is deliberately supplied at runtime
-    # so the same checkout can activate any normal Ubuntu account.
+  if [[ "${platform}" == "generic-linux" || "${platform}" == "nixos" || "${platform}" == "darwin" ]]; then
+    # User identities are deliberately supplied at runtime so the same checkout
+    # can activate any normal macOS, NixOS, or Ubuntu account.
     run_nix "${command}" --impure "$@"
   else
     run_nix "${command}" "$@"
   fi
+}
+
+LINUXBREW_BIN=""
+
+find_linuxbrew() {
+  local candidate
+
+  if command -v brew >/dev/null 2>&1; then
+    command -v brew
+    return 0
+  fi
+
+  for candidate in \
+    /home/linuxbrew/.linuxbrew/bin/brew \
+    "${HOME}/.linuxbrew/bin/brew"
+  do
+    if [[ -x "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+ensure_linuxbrew() {
+  local installer status
+
+  if LINUXBREW_BIN="$(find_linuxbrew)"; then
+    return 0
+  fi
+
+  command -v apt-get >/dev/null 2>&1 || \
+    fail "Automatic Linuxbrew installation currently supports Ubuntu/Debian hosts with apt-get."
+
+  info "Installing Linuxbrew prerequisites"
+  sudo apt-get update || return $?
+  sudo apt-get install -y build-essential procps curl file git || return $?
+
+  installer="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
+  info "Downloading the official Homebrew installer"
+  if curl --fail --silent --show-error --location \
+    "${HOMEBREW_INSTALL_URL}" --output "${installer}"; then
+    :
+  else
+    status=$?
+    rm -f -- "${installer}"
+    return "${status}"
+  fi
+
+  info "Installing Linuxbrew in its supported prefix"
+  if NONINTERACTIVE=1 CI=1 /bin/bash "${installer}"; then
+    :
+  else
+    status=$?
+    rm -f -- "${installer}"
+    return "${status}"
+  fi
+  rm -f -- "${installer}"
+
+  LINUXBREW_BIN="$(find_linuxbrew)" || \
+    fail "Homebrew finished installing, but its brew executable could not be found."
+}
+
+sync_linuxbrew() {
+  local base_brewfile brewfile cask_candidates cask_json supported_casks
+  local detected_system="$1" flake="$2" linux_platform status supported_count
+  local -a casks=()
+
+  ensure_linuxbrew || return $?
+  base_brewfile="$(run_nix build --no-write-lock-file --no-link --print-out-paths \
+    "${flake}#packages.${detected_system}.linuxbrew-brewfile")" || return $?
+  cask_candidates="$(run_nix build --no-write-lock-file --no-link --print-out-paths \
+    "${flake}#packages.${detected_system}.linuxbrew-cask-candidates")" || return $?
+
+  brewfile="$(mktemp "${TMPDIR:-/tmp}/dotfiles-Brewfile.XXXXXX")"
+  if cp -- "${base_brewfile}" "${brewfile}"; then
+    :
+  else
+    status=$?
+    rm -f -- "${brewfile}"
+    return "${status}"
+  fi
+
+  case "$(uname -m)" in
+    x86_64) linux_platform="x86_64_linux" ;;
+    aarch64|arm64) linux_platform="arm64_linux" ;;
+    *) fail "Unsupported Linuxbrew architecture: $(uname -m)" ;;
+  esac
+
+  info "Updating Linuxbrew"
+  if "${LINUXBREW_BIN}" update; then
+    :
+  else
+    status=$?
+    rm -f -- "${brewfile}"
+    return "${status}"
+  fi
+
+  mapfile -t casks < "${cask_candidates}"
+  if (( ${#casks[@]} > 0 )); then
+    cask_json="$(mktemp "${TMPDIR:-/tmp}/dotfiles-casks.XXXXXX.json")"
+    supported_casks="$(mktemp "${TMPDIR:-/tmp}/dotfiles-supported-casks.XXXXXX")"
+
+    if "${LINUXBREW_BIN}" info --json=v2 --cask "${casks[@]}" > "${cask_json}" && \
+      "${LINUXBREW_BIN}" ruby -rjson -e '
+        JSON.parse($stdin.read).fetch("casks", []).each do |cask|
+          platforms = cask.fetch("supported_platforms", [])
+          puts cask.fetch("token") if platforms.include?(ARGV.fetch(0))
+        end
+      ' "${linux_platform}" < "${cask_json}" > "${supported_casks}"; then
+      while IFS= read -r cask; do
+        [[ -n "${cask}" ]] && printf 'cask "%s"\n' "${cask}" >> "${brewfile}"
+      done < "${supported_casks}"
+      supported_count="$(wc -l < "${supported_casks}")"
+      supported_count="${supported_count//[[:space:]]/}"
+      info "Including ${supported_count} macOS cask candidates with native Linux support"
+    else
+      warn "Could not determine Linux-compatible casks; continuing with portable formulae only."
+    fi
+
+    rm -f -- "${cask_json}" "${supported_casks}"
+  fi
+
+  info "Installing and upgrading the Linux-compatible macOS Homebrew bundle"
+  if "${LINUXBREW_BIN}" bundle install --upgrade --force-cleanup \
+    --file="${brewfile}"; then
+    :
+  else
+    status=$?
+    rm -f -- "${brewfile}"
+    return "${status}"
+  fi
+  rm -f -- "${brewfile}"
+
+  info "Cleaning old Linuxbrew versions and downloads"
+  "${LINUXBREW_BIN}" cleanup || return $?
+}
+
+clean_linuxbrew() {
+  if ! LINUXBREW_BIN="$(find_linuxbrew)"; then
+    info "Linuxbrew is not installed; no Homebrew files need cleaning"
+    return 0
+  fi
+
+  info "Cleaning Linuxbrew downloads and old formula versions"
+  "${LINUXBREW_BIN}" cleanup --prune=7
 }
 
 DARWIN_BUILD_OUTPUT=""
@@ -795,10 +1069,17 @@ run_action() {
   shift
 
   case "${action}" in
-    switch|build|check|apply|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|check-keys|copy-keys|create-keys) ;;
+    switch|build|check|apply|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys) ;;
     -h|--help) usage; return 0 ;;
     *) usage >&2; fail "Unknown action: ${action}" ;;
   esac
+
+  if [[ "${action}" == "github-user" || "${action}" == "set-github-user" ]]; then
+    change_github_username "$@"
+    return $?
+  fi
+
+  configure_github_username
 
   if [[ "${action}" == "install-nix" ]]; then
     install_or_reinstall_nix
@@ -830,7 +1111,7 @@ run_action() {
     return $?
   fi
 
-  if [[ "${action}" == "gpg" || "${action}" == "check-keys" || "${action}" == "copy-keys" || "${action}" == "create-keys" ]]; then
+  if [[ "${action}" == "gpg" || "${action}" == "cache-gpg-pin" || "${action}" == "check-keys" || "${action}" == "copy-keys" || "${action}" == "create-keys" ]]; then
     prepare_gpg_ssh_agent
     info "Running ${action}"
     "${FLAKE_DIR}/apps/shared/${action}" "$@" || return $?
@@ -843,9 +1124,11 @@ run_action() {
   flake="path:${FLAKE_DIR}"
   platform="$(platform_kind)"
 
-  if [[ "${platform}" == "generic-linux" ]]; then
-    configure_generic_linux_identity
-  fi
+  case "${platform}" in
+    darwin) configure_darwin_identity ;;
+    nixos) configure_nixos_identity ;;
+    generic-linux) configure_generic_linux_identity ;;
+  esac
 
   if ! load_nix; then
     if [[ "${platform}" == "nixos" ]]; then
@@ -876,7 +1159,8 @@ run_action() {
       info "Running ${action}"
       (
         cd "${FLAKE_DIR}"
-        run_nix run --no-write-lock-file "${flake}#${action}" -- "$@"
+        run_configuration_nix "${platform}" run --no-write-lock-file \
+          "${flake}#${action}" -- "$@"
       ) || return $?
       info "${action} completed"
       return 0
@@ -885,8 +1169,12 @@ run_action() {
       info "Running ${action}"
       (
         cd "${FLAKE_DIR}"
-        run_nix run --no-write-lock-file "${flake}#${action}" -- "$@"
+        run_configuration_nix "${platform}" run --no-write-lock-file \
+          "${flake}#${action}" -- "$@"
       ) || return $?
+      if [[ "${platform}" == "generic-linux" ]]; then
+        clean_linuxbrew || return $?
+      fi
       info "${action} completed"
       return 0
       ;;
@@ -912,7 +1200,7 @@ run_action() {
       ;;
     build)
       if [[ "${platform}" == "darwin" ]]; then
-        run_darwin_nix_build --no-write-lock-file --print-build-logs \
+        run_darwin_nix_build --impure --no-write-lock-file --print-build-logs \
           --no-link --print-out-paths "${flake}#${output}" || return $?
         repair_darwin_application_store_paths "${DARWIN_BUILD_OUTPUT}"
       else
@@ -925,17 +1213,28 @@ run_action() {
         local result
 
         info "Building before activation"
-        run_darwin_nix_build --no-write-lock-file --print-build-logs \
+        run_darwin_nix_build --impure --no-write-lock-file --print-build-logs \
           --no-link --print-out-paths "${flake}#${output}" || return $?
         result="${DARWIN_BUILD_OUTPUT}"
         repair_darwin_application_store_paths "${result}"
 
         info "Activating the macOS configuration"
-        sudo "${result}/sw/bin/darwin-rebuild" switch --flake "${flake}#${config}" || return $?
+        sudo /usr/bin/env \
+          DOTFILES_DARWIN_USER="${DOTFILES_DARWIN_USER}" \
+          DOTFILES_DARWIN_HOME="${DOTFILES_DARWIN_HOME}" \
+          DOTFILES_GITHUB_USER="${DOTFILES_GITHUB_USER}" \
+          SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
+          "${result}/sw/bin/darwin-rebuild" switch --impure \
+          --flake "${flake}#${config}" || return $?
       elif [[ "${platform}" == "nixos" ]]; then
         info "Building and activating the NixOS configuration"
-        sudo --preserve-env=SSH_AUTH_SOCK \
-          nixos-rebuild switch --flake "${flake}#${config}" || return $?
+        sudo \
+          DOTFILES_NIXOS_USER="${DOTFILES_NIXOS_USER}" \
+          DOTFILES_NIXOS_HOME="${DOTFILES_NIXOS_HOME}" \
+          DOTFILES_GITHUB_USER="${DOTFILES_GITHUB_USER}" \
+          SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
+          /run/current-system/sw/bin/nixos-rebuild switch --impure \
+          --flake "${flake}#${config}" || return $?
       else
         local result
 
@@ -948,6 +1247,8 @@ run_action() {
         USER="${DOTFILES_LINUX_USER}" LOGNAME="${DOTFILES_LINUX_USER}" \
           HOME="${DOTFILES_LINUX_HOME}" \
           HOME_MANAGER_BACKUP_EXT=bk "${result}/activate" || return $?
+
+        sync_linuxbrew "${detected_system}" "${flake}" || return $?
       fi
       ;;
   esac
@@ -965,15 +1266,18 @@ Choose an action:
    4) apply        Personalize the configuration
    5) clean        Remove old system generations
    6) gpg          Start and verify GPG-backed SSH
-   7) check-keys   Verify keys and the GPG agent
-   8) copy-keys    Copy keys from a mounted drive
-   9) create-keys  Create SSH and Agenix keys
-  10) install-nix  Install or replace with upstream Nix
-  11) update-secrets
+   7) cache-gpg-pin
+                    Cache one YubiKey's signature PIN until it is removed
+   8) check-keys   Verify keys and the GPG agent
+   9) copy-keys    Copy keys from a mounted drive
+  10) create-keys  Create SSH and Agenix keys
+  11) install-nix  Install or replace with upstream Nix
+  12) update-secrets
                     Encrypt and push local secrets
-  12) pull-secrets  Pull and decrypt secrets into ~/.ssh
-  13) refresh-secrets-lock
+  13) pull-secrets  Pull and decrypt secrets into ~/.ssh
+  14) refresh-secrets-lock
                     Refresh only the private secrets lock entry
+  15) github-user  Show or change the saved GitHub username
    q) quit
 EOF
 }
@@ -996,13 +1300,15 @@ interactive_menu() {
       4|apply) action="apply" ;;
       5|clean) action="clean" ;;
       6|gpg) action="gpg" ;;
-      7|check-keys) action="check-keys" ;;
-      8|copy-keys) action="copy-keys" ;;
-      9|create-keys) action="create-keys" ;;
-      10|i|install-nix) action="install-nix" ;;
-      11|update-secrets) action="update-secrets" ;;
-      12|pull-secrets) action="pull-secrets" ;;
-      13|refresh-secrets-lock) action="refresh-secrets-lock" ;;
+      7|cache-gpg-pin) action="cache-gpg-pin" ;;
+      8|check-keys) action="check-keys" ;;
+      9|copy-keys) action="copy-keys" ;;
+      10|create-keys) action="create-keys" ;;
+      11|i|install-nix) action="install-nix" ;;
+      12|update-secrets) action="update-secrets" ;;
+      13|pull-secrets) action="pull-secrets" ;;
+      14|refresh-secrets-lock) action="refresh-secrets-lock" ;;
+      15|github-user|set-github-user) action="github-user" ;;
       q|Q|quit|exit)
         info "Exiting setup"
         return 0
@@ -1027,6 +1333,7 @@ interactive_menu() {
 
 main() {
   if [[ $# -eq 0 ]]; then
+    configure_github_username
     interactive_menu
   else
     run_action "$@"

@@ -1,9 +1,10 @@
-{ config, pkgs, lib, ... }:
+{ config, githubUser, homeDirectory, pkgs, lib, user, ... }:
 
 let
-  user = "randyburrell";
-  xdg_configHome = "/home/${user}/.config";
-  shared-programs = import ../shared/home-manager.nix { inherit config pkgs lib; };
+  xdg_configHome = "${homeDirectory}/.config";
+  shared-programs = import ../shared/home-manager.nix {
+    inherit config githubUser pkgs lib;
+  };
   shared-files = import ../shared/files.nix { };
 
   polybar-user_modules = builtins.replaceStrings
@@ -35,11 +36,12 @@ in
 
   home = {
     enableNixpkgsReleaseCheck = false;
-    username = "${user}";
-    homeDirectory = "/home/${user}";
+    username = user;
+    inherit homeDirectory;
     packages = pkgs.callPackage ./packages.nix { };
-    file = shared-files // import ./files.nix { inherit user; };
+    file = shared-files // import ./files.nix { inherit homeDirectory user; };
     stateVersion = "21.05";
+    sessionVariables.GITHUB_USER = githubUser;
   };
 
   # Use a dark theme

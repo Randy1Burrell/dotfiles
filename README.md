@@ -57,10 +57,11 @@ The main entry point is the executable `setup` script in the repository root.
 It detects the operating system and CPU architecture, selects the matching
 flake output, and provides the same interface on every supported platform.
 
-This repository is personalized for the `randyburrell` macOS/NixOS account and
-a private secrets repository. Standalone Home Manager on Ubuntu detects the
-normal account running `setup`, so its username may differ. Other personalized
-values still need to be reviewed before using this as a generic installer.
+This repository is personalized for a private secrets repository and retains
+`randyburrell` as the pure-evaluation fallback. When run normally, `setup`
+detects the active macOS, NixOS, or Ubuntu account, so its username may differ.
+Other personalized values still need review before using this as a generic
+installer.
 
 ## Supported systems
 
@@ -210,6 +211,10 @@ the menu appears again.  Select `quit` when finished.
 ./setup
 ```
 
+The first setup run asks for the GitHub username and saves it privately in
+`~/.config/dotfiles/github-user`. Later runs reuse it without prompting. Use
+the `github-user` menu item or the direct command below whenever it changes.
+
 Every menu action is also available directly, which is preferable in scripts
 and when copying diagnostic output.
 
@@ -221,6 +226,7 @@ and when copying diagnostic output.
 | `./setup build` | Builds the configuration without activating it. |
 | `./setup switch` | Builds and activates the selected configuration. |
 | `./setup apply` | Personalizes template values on macOS/NixOS; on generic Linux it is equivalent to `switch`. |
+| `./setup github-user [USERNAME]` | Shows the current username in an interactive prompt or saves a replacement. |
 | `./setup clean` | Deletes generations older than seven days and optimizes the applicable Nix store/profile. |
 | `./setup install-nix` | Installs upstream Nix or offers a guarded replacement that leaves nix-darwin uninstalled. |
 | `./setup update-secrets` | Encrypts and pushes local secrets, then refreshes their lock entry. |
@@ -247,6 +253,7 @@ collected, they can no longer be used for rollback.
 
 | Variable | Purpose |
 |---|---|
+| `GITHUB_USER` | Supplies the username during an unattended first run; the saved preference takes precedence afterward. |
 | `SYSTEM_CONFIG` | Overrides the architecture-derived flake configuration name. |
 | `KEYS_MOUNT_PATH` | Selects the directory used by `copy-keys` instead of automatic removable-media discovery. |
 | `SECRETS_SSH_IDENTITY` | Selects the SSH key used to clone and push the private secrets repository. |
@@ -305,6 +312,8 @@ emacsclient -c
 `switch` builds the nix-darwin system before running `darwin-rebuild` with
 administrator privileges.  Homebrew failures are reported as part of the
 activation output and do not disappear merely because the Nix build succeeded.
+The build uses the username reported by `id -un` and the current absolute
+`HOME`; run `setup` as the normal macOS user rather than with `sudo`.
 
 ### NixOS
 
@@ -321,8 +330,11 @@ git diff -- nix-darwin/hosts/nixos nix-darwin/modules/nixos
 Do not run a Disko installation until the resolved device path has been checked
 against `lsblk`.  Disko can repartition and erase the configured disk.
 
-On an installed NixOS host, `./setup switch` delegates to `nixos-rebuild switch`
-and preserves `SSH_AUTH_SOCK` so root can fetch the private flake input.
+On an installed NixOS host, `./setup switch` obtains the current username from
+`id -un`, uses the current absolute `HOME`, and delegates to
+`nixos-rebuild switch`. It preserves that identity and `SSH_AUTH_SOCK` through
+administrator elevation so root evaluates the same account and can fetch the
+private flake input. Run `setup` as the normal NixOS user, never with `sudo`.
 
 ### Ubuntu and other Linux distributions
 
@@ -333,16 +345,33 @@ enable distribution-level services.
 `setup` obtains the standalone Home Manager username from `id -un` and uses the
 current absolute `HOME`; run it as the normal desktop user, never with `sudo`.
 This permits the same checkout to activate accounts such as `grundy-ubuntu`
-without changing the macOS or NixOS username.
+without editing the repository.
 
 The profile includes the shared packages, shell configuration, Git, SSH/GPG,
 Emacs, Vim/Neovim, tmux, fonts, and selected user services. On an Ubuntu GNOME
 desktop it also applies a macOS-inspired WhiteSur dark theme and cursor, a
-compact bottom auto-hiding dock, left-side window controls, natural scrolling,
-and Command-like Super-key window shortcuts. Press Super by itself for GNOME's
-overview search, Super+Return for Alacritty, Super+W to close a window, Super+M
-to minimize, and Super+Tab to switch applications. Log out and back in after
-the first activation so the complete desktop theme and cursor are reloaded.
+compact always-visible bottom dock, left-side window controls, natural
+scrolling, and Command-like Super-key window shortcuts. Press Super by itself
+for GNOME's overview search, Super+Return for Alacritty, Super+W to close a
+window, Super+M to minimize, and Super+Tab to switch applications. Log out and
+back in after the first activation so the complete desktop theme and cursor are
+reloaded.
+
+The Ubuntu profile installs an Emacs desktop entry directly in
+`~/.local/share/applications`, so searching for **Emacs** in GNOME opens an
+`emacsclient` frame and starts the managed daemon when necessary.
+
+Ubuntu also uses Homebrew on Linux for the portable formulae in the macOS
+Homebrew list. The first `./setup switch` installs the supported Linuxbrew
+prefix and its Ubuntu build prerequisites when needed. Every switch then runs
+Homebrew update, installs and upgrades the shared formulae, removes unmanaged
+formulae to match the declared bundle, and cleans old versions. It also checks
+the macOS cask list and includes any cask that Homebrew reports as supporting
+the current Linux architecture. macOS-only formulae (`mas` and
+`pinentry-mac`), incompatible casks, and Mac App Store applications remain
+macOS-only. Both Bash and Zsh load Linuxbrew's shell environment and
+completions, and `./setup clean` prunes old Linuxbrew files alongside Nix
+generations.
 
 Home Manager writes user-level GNOME settings only. Facilities such as the
 Docker daemon, system firewall, display manager, GNOME installation, and kernel
@@ -362,6 +391,28 @@ When activation encounters an unmanaged file at a Home Manager destination,
 Home Manager starts `gpg-agent` with SSH support on every platform.  Bash and
 Zsh export the agent's SSH socket, and macOS also publishes it to launchd so GUI
 applications can inherit the same value.
+
+The agent keeps an actively used GPG or SSH credential cached for four hours,
+with an eight-hour hard limit from the initial PIN/passphrase entry. Restarting
+the agent, logging out, or rebooting clears the agent cache. GnuPG resets the
+four-hour idle timer whenever the cached credential is used, but the hard limit
+still applies.
+
+An OpenPGP YubiKey has a separate signature policy. Its factory-style
+`forced` policy requests the PIN for every commit signature and is not governed
+by the agent's time limits. To let a card retain its signature PIN, connect one
+YubiKey at a time and run:
+
+```bash
+./setup cache-gpg-pin
+```
+
+Confirm the persistent card change and enter the Admin PIN if Pinentry asks.
+Repeat for all three YubiKeys. OpenPGP cards do not provide an hour-based
+signature-PIN timer: after this change, the PIN remains valid on the card until
+it is unplugged, powered down, reset, or switched away from the OpenPGP applet.
+Unplug the key whenever you want to lock it immediately. Any configured
+physical-touch requirement still applies to every operation.
 
 The expected key files are:
 

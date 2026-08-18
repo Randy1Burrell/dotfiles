@@ -305,7 +305,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
    `(tsx-debug-node
      modes (tsx-ts-mode)
      command "node"
-     command-args ("/Users/randyburrell/.emacs.d/debug-adapters/extension/dist/debugAdapter.js" :autoport)
+     command-args (,(expand-file-name "debug-adapters/extension/dist/debugAdapter.js" user-emacs-directory) :autoport)
      port :autoport
      :type "pwa-node"
      :runtimeExecutable "ts-node"
@@ -321,7 +321,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
    `(tsx-debug-node-attach
      modes (tsx-ts-mode)
      command "node"
-     command-args ("/Users/randyburrell/.emacs.d/debug-adapters/extension/dist/debugAdapter.js" :autoport)
+     command-args (,(expand-file-name "debug-adapters/extension/dist/debugAdapter.js" user-emacs-directory) :autoport)
      port :autoport
      :type "pwa-chrome"
      :url "http://localhost:3000"

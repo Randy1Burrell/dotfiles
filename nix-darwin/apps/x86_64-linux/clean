@@ -13,10 +13,24 @@ readonly SYSTEM_CONFIG="${SYSTEM_CONFIG:-${detected_system}}"
 
 printf '\033[1;33mCleaning system generations older than seven days...\033[0m\n'
 if [[ -e /etc/NIXOS ]]; then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    printf '\033[1;31mRun cleanup as your normal NixOS user, not with sudo.\033[0m\n' >&2
+    exit 1
+  fi
+  if [[ -z "${HOME:-}" || "${HOME}" != /* || ! -d "${HOME}" ]]; then
+    printf '\033[1;31mHOME must be an existing absolute directory.\033[0m\n' >&2
+    exit 1
+  fi
+  export DOTFILES_NIXOS_USER="$(id -un)"
+  export DOTFILES_NIXOS_HOME="${HOME}"
+
   sudo nix-collect-garbage --delete-older-than 7d
 
   printf '\033[1;33mRebuilding the boot files for %s...\033[0m\n' "${SYSTEM_CONFIG}"
-  sudo nixos-rebuild boot \
+  sudo DOTFILES_NIXOS_USER="${DOTFILES_NIXOS_USER}" \
+    DOTFILES_NIXOS_HOME="${DOTFILES_NIXOS_HOME}" \
+    SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
+    /run/current-system/sw/bin/nixos-rebuild boot --impure \
     --flake "path:${FLAKE_DIR}#${SYSTEM_CONFIG}" \
     --install-bootloader
 
