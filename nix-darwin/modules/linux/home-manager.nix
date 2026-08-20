@@ -45,6 +45,7 @@ in
     packages = pkgs.callPackage ../shared/packages.nix { };
     file = sharedFiles;
     sessionPath = [
+      "/snap/bin"
       "/home/linuxbrew/.linuxbrew/bin"
       "/home/linuxbrew/.linuxbrew/sbin"
     ];

@@ -75,13 +75,22 @@
         in if detectedUser != "" then detectedUser else "randy1burrell";
       linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
       darwinSystems = [ "aarch64-darwin" "x86_64-darwin" ];
+      ubuntuAptPackages = import ./modules/linux/apt-packages.nix;
+      ubuntuSnaps = import ./modules/linux/snaps.nix;
+      ubuntuSnapsFor = system: builtins.filter
+        (snap: builtins.elem system (snap.systems or linuxSystems))
+        ubuntuSnaps;
+      ubuntuSnapCasksFor = system: map (snap: snap.cask)
+        (builtins.filter (snap: snap ? cask) (ubuntuSnapsFor system));
       # The macOS Homebrew module remains the single source of truth for
-      # formulae. Linuxbrew consumes every portable entry from that list.
+      # formulae. Linuxbrew consumes every portable entry from that list, but
+      # leaves Snap-backed GUI applications to Ubuntu's native integration.
       linuxbrewFormulae = nixpkgs.lib.unique (builtins.filter
         (formula: !(builtins.elem formula [ "mas" "pinentry-mac" ]))
         (import ./modules/darwin/brews.nix { }));
-      linuxbrewCaskCandidates = nixpkgs.lib.unique
-        (import ./modules/darwin/casks.nix { });
+      linuxbrewCaskCandidates = system: nixpkgs.lib.unique (builtins.filter
+        (cask: !(builtins.elem cask (ubuntuSnapCasksFor system)))
+        (import ./modules/darwin/casks.nix { }));
       overlays =
         let path = ./overlays; in
         map (name: import (path + ("/" + name)))
@@ -123,8 +132,22 @@
       mkLinuxbrewCaskCandidates = system:
         let pkgs = mkLinuxPkgs system;
         in pkgs.writeText "linuxbrew-cask-candidates" ''
-          ${nixpkgs.lib.concatStringsSep "\n" linuxbrewCaskCandidates}
+          ${nixpkgs.lib.concatStringsSep "\n" (linuxbrewCaskCandidates system)}
         '';
+      mkUbuntuAptPackages = system:
+        let pkgs = mkLinuxPkgs system;
+        in pkgs.writeText "ubuntu-apt-packages"
+          "${nixpkgs.lib.concatStringsSep "\n" ubuntuAptPackages}\n";
+      mkUbuntuSnapPackages = system:
+        let
+          pkgs = mkLinuxPkgs system;
+          renderSnap = snap: nixpkgs.lib.concatStringsSep "\t" [
+            snap.name
+            (snap.channel or "latest/stable")
+            (if (snap.classic or false) then "classic" else "strict")
+          ];
+        in pkgs.writeText "ubuntu-snap-packages"
+          "${nixpkgs.lib.concatMapStringsSep "\n" renderSnap (ubuntuSnapsFor system)}\n";
       forAllSystems = f: nixpkgs.lib.genAttrs (linuxSystems ++ darwinSystems) f;
       devShell = system:
         let pkgs = nixpkgs.legacyPackages.${system}; in {
@@ -224,6 +247,8 @@
       packages = nixpkgs.lib.genAttrs linuxSystems (system: {
         linuxbrew-brewfile = mkLinuxbrewBrewfile system;
         linuxbrew-cask-candidates = mkLinuxbrewCaskCandidates system;
+        ubuntu-apt-packages = mkUbuntuAptPackages system;
+        ubuntu-snap-packages = mkUbuntuSnapPackages system;
       });
 
       # Standalone Home Manager targets for Ubuntu and other non-NixOS Linux

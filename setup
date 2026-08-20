@@ -65,6 +65,8 @@ System actions:
   build        Build without activating the configuration
   check        Evaluate without building the configuration
   apply        Personalize the configuration for a machine
+  apt          Install and upgrade declared Ubuntu APT packages
+  snaps        Install and refresh declared Ubuntu Snap packages
   github-user  Show or change the saved GitHub username
   clean        Remove old system generations and reclaim space
   install-nix  Install upstream Nix, or replace an installer-managed Nix
@@ -862,6 +864,106 @@ run_configuration_nix() {
   fi
 }
 
+build_ubuntu_manifest() {
+  local detected_system="$1" flake="$2" manifest="$3"
+
+  run_nix build --no-write-lock-file --no-link --print-out-paths \
+    "${flake}#packages.${detected_system}.${manifest}"
+}
+
+sync_apt_packages() {
+  local detected_system="$1" flake="$2" apt_get manifest package
+  local -a packages=()
+
+  apt_get="$(command -v apt-get || true)"
+  [[ -n "${apt_get}" ]] || \
+    fail "The declared APT packages can only be installed on Ubuntu/Debian hosts with apt-get."
+
+  manifest="$(build_ubuntu_manifest \
+    "${detected_system}" "${flake}" ubuntu-apt-packages)" || return $?
+
+  while IFS= read -r package; do
+    [[ -n "${package}" ]] || continue
+    [[ "${package}" != -* && "${package}" != *[[:space:]]* ]] || \
+      fail "Invalid APT package name in ${manifest}: ${package}"
+    packages+=("${package}")
+  done < "${manifest}"
+
+  if (( ${#packages[@]} == 0 )); then
+    info "No Ubuntu APT packages are declared"
+    return 0
+  fi
+
+  info "Updating Ubuntu APT package metadata"
+  sudo "${apt_get}" -o DPkg::Lock::Timeout=120 update || return $?
+
+  info "Installing and upgrading ${#packages[@]} declared Ubuntu APT packages"
+  sudo /usr/bin/env DEBIAN_FRONTEND=noninteractive \
+    "${apt_get}" -o DPkg::Lock::Timeout=120 install --yes \
+    "${packages[@]}" || return $?
+}
+
+sync_snap_packages() {
+  local detected_system="$1" flake="$2" manifest snap_bin
+  local name channel confinement
+  local -a snap_args=()
+
+  manifest="$(build_ubuntu_manifest \
+    "${detected_system}" "${flake}" ubuntu-snap-packages)" || return $?
+  if [[ ! -s "${manifest}" ]]; then
+    info "No Ubuntu Snap packages are declared"
+    return 0
+  fi
+
+  snap_bin="$(command -v snap || true)"
+  [[ -n "${snap_bin}" ]] || \
+    fail "snap is unavailable after APT reconciliation. Check the snapd installation and retry."
+
+  if command -v systemctl >/dev/null 2>&1 && \
+     systemctl list-unit-files snapd.socket >/dev/null 2>&1; then
+    info "Ensuring the Ubuntu Snap service is available"
+    sudo systemctl enable --now snapd.socket || return $?
+  fi
+
+  info "Waiting for Ubuntu Snap initialization"
+  sudo "${snap_bin}" wait system seed.loaded || return $?
+
+  while IFS=$'\t' read -r name channel confinement; do
+    [[ -n "${name}" ]] || continue
+    [[ "${name}" != -* && "${name}" != *[[:space:]]* ]] || \
+      fail "Invalid Snap package name in ${manifest}: ${name}"
+    [[ -n "${channel}" && "${channel}" != -* && "${channel}" != *[[:space:]]* ]] || \
+      fail "Invalid Snap channel for ${name}: ${channel}"
+    case "${confinement}" in
+      strict|classic) ;;
+      *) fail "Invalid Snap confinement for ${name}: ${confinement}" ;;
+    esac
+
+    if "${snap_bin}" list "${name}" >/dev/null 2>&1; then
+      info "Refreshing Snap ${name} from ${channel}"
+      sudo "${snap_bin}" refresh "${name}" --channel="${channel}" || return $?
+    else
+      snap_args=(install "${name}" --channel="${channel}")
+      [[ "${confinement}" == "classic" ]] && snap_args+=(--classic)
+      info "Installing Snap ${name} from ${channel} (${confinement})"
+      sudo "${snap_bin}" "${snap_args[@]}" || return $?
+    fi
+  done < "${manifest}"
+}
+
+clean_ubuntu_package_caches() {
+  local apt_get
+
+  apt_get="$(command -v apt-get || true)"
+  if [[ -z "${apt_get}" ]]; then
+    info "APT is not installed; no Ubuntu package cache needs cleaning"
+    return 0
+  fi
+
+  info "Cleaning downloaded Ubuntu APT packages"
+  sudo "${apt_get}" clean
+}
+
 LINUXBREW_BIN=""
 
 find_linuxbrew() {
@@ -898,7 +1000,8 @@ run_linuxbrew() {
 }
 
 ensure_linuxbrew() {
-  local installer status
+  local installer prerequisite status
+  local -a missing_prerequisites=()
 
   if LINUXBREW_BIN="$(find_linuxbrew)"; then
     return 0
@@ -907,9 +1010,14 @@ ensure_linuxbrew() {
   command -v apt-get >/dev/null 2>&1 || \
     fail "Automatic Linuxbrew installation currently supports Ubuntu/Debian hosts with apt-get."
 
-  info "Installing Linuxbrew prerequisites"
-  sudo apt-get update || return $?
-  sudo apt-get install -y build-essential procps curl file git || return $?
+  for prerequisite in build-essential procps curl file git; do
+    if ! dpkg-query -W -f='${Status}\n' "${prerequisite}" 2>/dev/null | \
+         grep -qx 'install ok installed'; then
+      missing_prerequisites+=("${prerequisite}")
+    fi
+  done
+  (( ${#missing_prerequisites[@]} == 0 )) || \
+    fail "Linuxbrew prerequisites are missing (${missing_prerequisites[*]}). Run ${SETUP_PATH} apt first."
 
   installer="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
   info "Downloading the official Homebrew installer"
@@ -1163,7 +1271,7 @@ run_action() {
   shift
 
   case "${action}" in
-    switch|build|check|apply|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login|yubikey-agenix) ;;
+    switch|build|check|apply|apt|snaps|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login|yubikey-agenix) ;;
     -h|--help) usage; return 0 ;;
     *) usage >&2; fail "Unknown action: ${action}" ;;
   esac
@@ -1270,6 +1378,24 @@ run_action() {
   info "Using ${config} from ${FLAKE_DIR}"
 
   case "${action}" in
+    apt)
+      [[ "${platform}" == "generic-linux" ]] || \
+        fail "The apt action is only available on Ubuntu/Debian hosts using the standalone Home Manager configuration."
+      info "Reconciling declared Ubuntu APT packages"
+      sync_apt_packages "${detected_system}" "${flake}" || return $?
+      info "APT package reconciliation completed"
+      return 0
+      ;;
+    snaps)
+      [[ "${platform}" == "generic-linux" ]] || \
+        fail "The snaps action is only available on Ubuntu/Debian hosts using the standalone Home Manager configuration."
+      info "Ensuring Snap's declared Ubuntu host dependencies are installed"
+      sync_apt_packages "${detected_system}" "${flake}" || return $?
+      info "Reconciling declared Ubuntu Snap packages"
+      sync_snap_packages "${detected_system}" "${flake}" || return $?
+      info "Snap package reconciliation completed"
+      return 0
+      ;;
     apply)
       if [[ "${platform}" == "generic-linux" ]]; then
         info "Applying the standalone Home Manager configuration"
@@ -1294,6 +1420,7 @@ run_action() {
       ) || return $?
       if [[ "${platform}" == "generic-linux" ]]; then
         clean_linuxbrew || return $?
+        clean_ubuntu_package_caches || return $?
       fi
       info "${action} completed"
       return 0
@@ -1370,6 +1497,8 @@ run_action() {
           HOME_MANAGER_BACKUP_EXT="${backup_extension}" \
           "${result}/activate" || return $?
 
+        sync_apt_packages "${detected_system}" "${flake}" || return $?
+        sync_snap_packages "${detected_system}" "${flake}" || return $?
         sync_linuxbrew "${detected_system}" "${flake}" || return $?
       fi
       ;;
@@ -1404,6 +1533,8 @@ Choose an action:
                     Enable local computer login with a YubiKey PIN
   17) yubikey-agenix
                     Provision a YubiKey for Agenix encryption
+  18) apt          Install and upgrade declared Ubuntu APT packages
+  19) snaps        Install and refresh declared Ubuntu Snap packages
    q) quit
 EOF
 }
@@ -1437,6 +1568,8 @@ interactive_menu() {
       15|github-user|set-github-user) action="github-user" ;;
       16|yubikey-login) action="yubikey-login" ;;
       17|yubikey-agenix) action="yubikey-agenix" ;;
+      18|apt) action="apt" ;;
+      19|snaps|snap) action="snaps" ;;
       q|Q|quit|exit)
         info "Exiting setup"
         return 0
@@ -1468,4 +1601,6 @@ main() {
   fi
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

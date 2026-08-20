@@ -226,6 +226,8 @@ and when copying diagnostic output.
 | `./setup build` | Builds the configuration without activating it. |
 | `./setup switch` | Builds and activates the selected configuration. |
 | `./setup apply` | Personalizes template values on macOS/NixOS; on generic Linux it is equivalent to `switch`. |
+| `./setup apt` | On Ubuntu, installs or upgrades the APT packages declared by Nix without removing other packages. |
+| `./setup snaps` | On Ubuntu, ensures `snapd` is installed and installs or refreshes the Snaps declared by Nix. |
 | `./setup github-user [USERNAME]` | Shows the current username in an interactive prompt or saves a replacement. |
 | `./setup clean` | Deletes generations older than seven days and optimizes the applicable Nix store/profile. |
 | `./setup install-nix` | Installs upstream Nix or offers a guarded replacement that leaves nix-darwin uninstalled. |
@@ -397,15 +399,44 @@ The Ubuntu profile installs an Emacs desktop entry directly in
 `~/.local/share/applications`, so searching for **Emacs** in GNOME opens an
 `emacsclient` frame and starts the managed daemon when necessary.
 
+Ubuntu host packages are declared separately from the Home Manager profile.
+Edit `nix-darwin/modules/linux/apt-packages.nix` for distribution-owned APT
+packages and `nix-darwin/modules/linux/snaps.nix` for Snap applications. The
+APT list intentionally contains only host integration needed by this setup:
+Linuxbrew prerequisites, smart-card/YubiKey support, and `snapd`. Ordinary
+command-line and development tools should remain in the shared Nix package
+list whenever possible.
+
+After Home Manager activates, every Ubuntu `./setup switch` updates APT
+metadata, installs or upgrades the declared APT packages, installs or refreshes
+the declared Snap applications on their selected channels, and then reconciles
+Linuxbrew. These system operations request `sudo`; run `setup` as the normal
+desktop user rather than as root. Use `./setup apt` or `./setup snaps` to run
+the respective reconciliation independently. The `snaps` action also runs the
+APT reconciliation first so a new machine receives `snapd` before Snap is
+used. `/snap/bin` is added to the managed login path.
+
+APT and Snap remain Ubuntu-owned mutable package systems. Nix generates their
+desired manifests, but their files are not part of a Nix generation and cannot
+be rolled back with Home Manager. Reconciliation never removes undeclared APT
+packages or Snaps, so software installed manually by the user remains intact.
+`./setup clean` clears the downloaded APT package cache but deliberately avoids
+`apt autoremove` and does not delete Snap revisions.
+
+The committed Snap list uses upstream or verified publishers. Community and
+unofficial repacks are not installed unattended; add one explicitly only after
+reviewing its current Snap Store publisher and confinement.
+
 Ubuntu also uses Homebrew on Linux for the portable formulae in the macOS
 Homebrew list. The first `./setup switch` installs the supported Linuxbrew
 prefix and its Ubuntu build prerequisites when needed. Every switch then runs
 Homebrew update, installs and upgrades the shared formulae, removes unmanaged
 formulae to match the declared bundle, and cleans old versions. It also checks
 the macOS cask list and includes any cask that Homebrew reports as supporting
-the current Linux architecture. macOS-only formulae (`mas` and
-`pinentry-mac`), incompatible casks, and Mac App Store applications remain
-macOS-only. Both Bash and Zsh load Linuxbrew's shell environment and
+the current Linux architecture. Casks mapped to the declared Ubuntu Snaps are
+excluded to prevent duplicate applications. macOS-only formulae (`mas` and
+`pinentry-mac`), incompatible and unmapped casks, and Mac App Store applications
+remain macOS-only. Both Bash and Zsh load Linuxbrew's shell environment and
 completions, and `./setup clean` prunes old Linuxbrew files alongside Nix
 generations. Homebrew's own public GitHub repositories always use HTTPS during
 these operations, independently of the personal Git URL rewrites and
@@ -848,7 +879,10 @@ manual or previous installation.
 
 ### Ubuntu does not configure an OS-level service
 
-This is expected.  Standalone Home Manager manages the user environment, not
-Ubuntu's system services.  Install or enable the required daemon through Ubuntu
-or promote that machine to the NixOS configuration when complete system
-management is desired.
+Standalone Home Manager still manages only the user environment. The `setup`
+wrapper can install the explicitly declared APT packages and Snaps through
+Ubuntu, and it enables `snapd.socket` when available, but it does not turn
+arbitrary Home Manager services into Ubuntu system services. Add required host
+packages to `nix-darwin/modules/linux/apt-packages.nix`, configure other daemons
+through Ubuntu, or promote that machine to the NixOS configuration when
+complete system management is desired.
