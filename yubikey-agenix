@@ -156,17 +156,40 @@ release_gpg_smartcard() {
 }
 
 repair_management_key() {
+  local piv_info management_algorithm
   start_linux_pcscd
   release_gpg_smartcard
 
   info "Current PIV status (this does not verify or consume a PIN attempt)"
-  run_ykman piv info
+  piv_info="$(run_ykman piv info)"
+  printf '%s\n' "${piv_info}"
+
+  if printf '%s\n' "${piv_info}" | grep -Eiq '(protected by PIN|PIN-protected)'; then
+    info "The management key is already PIN-protected; no repair is needed"
+    return 0
+  fi
+
+  management_algorithm="$(printf '%s\n' "${piv_info}" |
+    sed -nE 's/^[[:space:]]*Management key algorithm:[[:space:]]*([^[:space:]]+).*$/\1/p' |
+    head -n 1)"
   printf '\nThis changes only the PIV management key used for administrative writes.\n'
   printf 'It does not change the PIV PIN and does not erase certificates or private keys, including slot 9a.\n'
-  printf 'You may be asked for the current management key and the correct PIV PIN. Do not continue if either is unknown.\n'
+  if printf '%s\n' "${piv_info}" | grep -Eiq 'WARNING: Using default Management key'; then
+    printf 'The current management key is the factory default, so leave the current-key prompt blank.\n'
+  else
+    warn "This card uses a custom, unprotected ${management_algorithm:-PIV} management key."
+    printf 'You must enter the current saved management key; leaving the prompt blank will fail.\n'
+    if [[ "${management_algorithm}" == "TDES" ]]; then
+      printf 'A TDES management key is 48 hexadecimal characters. It is not the PIV PIN, PUK, OpenPGP PIN, or FIDO2 PIN.\n'
+    fi
+    confirm "Do you have the current management key?" || \
+      fail "The key cannot be recovered from the card. No changes were made. Do not reset PIV while slot 9a is needed for computer login."
+  fi
   confirm "Convert it to a random PIN-protected TDES management key?" || fail "Cancelled without changing the card."
 
-  run_ykman piv access change-management-key --algorithm TDES --protect
+  if ! run_ykman piv access change-management-key --algorithm TDES --protect; then
+    fail "Management-key authentication failed. The card was not changed. Retry only after locating the current management key; a PIV reset would erase slot 9a."
+  fi
   info "The PIV management key is now compatible with age-plugin-yubikey"
   info "Run ./setup yubikey-agenix again to provision the Age identity"
 }
@@ -177,10 +200,9 @@ preflight_management_key() {
     return 0
   fi
 
-  if printf '%s\n' "${piv_info}" | grep -Eiq 'management key.*AES' && \
-     ! printf '%s\n' "${piv_info}" | grep -Eiq '(protected by PIN|PIN-protected)'; then
+  if ! printf '%s\n' "${piv_info}" | grep -Eiq '(protected by PIN|PIN-protected|WARNING: Using default Management key)'; then
     printf '%s\n' "${piv_info}"
-    fail "This card has an unprotected AES PIV management key, which age-plugin-yubikey cannot use. Run ./setup yubikey-agenix --repair-management-key first."
+    fail "This card has a custom, unprotected PIV management key, which age-plugin-yubikey cannot use. Locate the saved current management key, then run ./setup yubikey-agenix --repair-management-key. Leaving its prompt blank will fail."
   fi
 }
 

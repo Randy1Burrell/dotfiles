@@ -560,12 +560,18 @@ are not supported`, inspect and repair only the management key with:
 ```
 
 The repair first displays the card's read-only PIV status, including its
-remaining PIN attempts, and asks for confirmation. It converts the management
-key to a random PIN-protected TDES key but does not change the PIV PIN, reset the
-PIV applet, or erase certificates and private keys such as the macOS login
-credential in slot 9a. Cancel if the current PIV PIN or management key is
-unknown. Never use `ykman piv reset` as a workaround because that erases every
-PIV slot.
+remaining PIN attempts, and asks for confirmation. If the output has neither a
+`Using default Management key` warning nor a `protected by PIN` message, the
+card has a custom unprotected management key. Locate the saved current key
+before continuing; for TDES it is 48 hexadecimal characters, is separate from
+every PIN and PUK, and leaving the prompt blank will fail. The management key
+cannot be recovered from the card.
+
+The repair converts that key to a random PIN-protected TDES key but does not
+change the PIV PIN, reset the PIV applet, or erase certificates and private keys
+such as the macOS login credential in slot 9a. Cancel if the current management
+key is unknown. Never use `ykman piv reset` as a workaround because that erases
+every PIV slot.
 
 Useful checks are:
 
