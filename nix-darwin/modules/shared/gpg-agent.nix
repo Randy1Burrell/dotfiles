@@ -34,7 +34,11 @@ in
 
   # Apply changed TTLs immediately instead of waiting for the next login. A
   # reload intentionally clears any cache created under the previous policy.
+  # Dirmngr is not socket-managed by Home Manager, so stop a daemon inherited
+  # from the host distribution or an older profile. The managed gpg client
+  # will lazily start the matching version when it is next needed.
   home.activation.reloadGpgAgentConfiguration = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    $DRY_RUN_CMD ${pkgs.gnupg}/bin/gpgconf --kill dirmngr >/dev/null 2>&1 || true
     $DRY_RUN_CMD ${pkgs.gnupg}/bin/gpgconf --reload gpg-agent >/dev/null 2>&1 || true
   '';
 

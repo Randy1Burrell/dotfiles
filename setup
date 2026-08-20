@@ -227,6 +227,98 @@ load_nix() {
 }
 
 GPG_PINENTRY_REPAIRED=0
+GPG_SUITE_BIN_DIR=""
+GPG_BIN=""
+GPGCONF_BIN=""
+GPG_AGENT_BIN=""
+GPG_CONNECT_AGENT_BIN=""
+
+select_managed_gnupg_suite() {
+  local candidate fallback="" bin_directory
+  local -a candidates=()
+
+  # Home Manager owns GnuPG and its socket-activated agent. Prefer that
+  # profile over Linuxbrew or the host distribution so clients, daemons, and
+  # sockets always come from one release.
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    candidates+=(
+      /run/current-system/sw/bin/gpgconf
+      "${HOME}/.nix-profile/bin/gpgconf"
+    )
+  else
+    candidates+=(
+      "${HOME}/.nix-profile/bin/gpgconf"
+      /run/current-system/sw/bin/gpgconf
+    )
+  fi
+
+  fallback="$(command -v gpgconf 2>/dev/null || true)"
+  [[ -z "${fallback}" ]] || candidates+=("${fallback}")
+
+  for candidate in "${candidates[@]}"; do
+    [[ -x "${candidate}" ]] || continue
+    bin_directory="$(dirname -- "${candidate}")"
+    if [[ -x "${bin_directory}/gpg" && \
+          -x "${bin_directory}/gpg-agent" && \
+          -x "${bin_directory}/gpg-connect-agent" ]]; then
+      GPG_SUITE_BIN_DIR="${bin_directory}"
+      GPG_BIN="${bin_directory}/gpg"
+      GPGCONF_BIN="${candidate}"
+      GPG_AGENT_BIN="${bin_directory}/gpg-agent"
+      GPG_CONNECT_AGENT_BIN="${bin_directory}/gpg-connect-agent"
+
+      # Shared setup actions are repository scripts rather than Nix app
+      # wrappers, so give them the same coherent suite selected here.
+      export PATH="${GPG_SUITE_BIN_DIR}:${PATH}"
+      export DOTFILES_GPG="${GPG_BIN}"
+      export DOTFILES_GPGCONF="${GPGCONF_BIN}"
+      export DOTFILES_GPG_AGENT="${GPG_AGENT_BIN}"
+      export DOTFILES_GPG_CONNECT_AGENT="${GPG_CONNECT_AGENT_BIN}"
+      hash -r
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+sync_github_gpg_public_keys() {
+  local curl_bin key_file
+
+  [[ -n "${GITHUB_USER:-}" && -n "${GPG_BIN}" ]] || return 0
+  curl_bin="$(command -v curl 2>/dev/null || true)"
+  [[ -n "${curl_bin}" ]] || {
+    warn "curl is unavailable; skipping GitHub OpenPGP public-key synchronization."
+    return 0
+  }
+
+  key_file="$(mktemp "${TMPDIR:-/tmp}/dotfiles-github-gpg.XXXXXX")"
+  if ! "${curl_bin}" --fail --silent --show-error --location \
+    --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 \
+    "https://github.com/${GITHUB_USER}.gpg" --output "${key_file}"; then
+    rm -f -- "${key_file}"
+    warn "Could not download ${GITHUB_USER}'s public OpenPGP certificates from GitHub; continuing with the local keyring."
+    return 0
+  fi
+
+  if [[ ! -s "${key_file}" ]] || \
+     ! "${GPG_BIN}" --batch --show-keys "${key_file}" >/dev/null 2>&1; then
+    rm -f -- "${key_file}"
+    warn "GitHub did not return a usable OpenPGP certificate for ${GITHUB_USER}."
+    return 0
+  fi
+
+  if "${GPG_BIN}" --batch --import-options import-minimal \
+    --import "${key_file}" >/dev/null 2>&1; then
+    info "Synchronized ${GITHUB_USER}'s public OpenPGP certificates from GitHub"
+    # Importing the public certificate first lets GnuPG associate any
+    # connected OpenPGP card with its non-exportable secret keys.
+    "${GPG_BIN}" --batch --card-status >/dev/null 2>&1 || true
+  else
+    warn "Could not import ${GITHUB_USER}'s public OpenPGP certificates into the local keyring."
+  fi
+  rm -f -- "${key_file}"
+}
 
 ensure_linux_gpg_pinentry() {
   local gpg_directory agent_config configured_pinentry pinentry_program
@@ -281,37 +373,50 @@ ensure_linux_gpg_pinentry() {
 }
 
 prepare_gpg_ssh_agent() {
-  local expected_version running_version socket ssh_executable setup_git_ssh_command
+  local expected_version running_version running_dirmngr_version socket
+  local ssh_executable setup_git_ssh_command
 
-  command -v gpgconf >/dev/null 2>&1 || return 0
+  select_managed_gnupg_suite || return 0
   ensure_linux_gpg_pinentry
   if (( GPG_PINENTRY_REPAIRED )); then
-    gpgconf --kill all >/dev/null 2>&1 || true
+    "${GPGCONF_BIN}" --kill all >/dev/null 2>&1 || true
   fi
-  gpgconf --launch gpg-agent >/dev/null 2>&1 || return 0
+  "${GPGCONF_BIN}" --launch gpg-agent >/dev/null 2>&1 || return 0
 
-  if command -v gpg-agent >/dev/null 2>&1 && command -v gpg-connect-agent >/dev/null 2>&1; then
-    expected_version="$(gpg-agent --version 2>/dev/null | awk 'NR == 1 { print $3; exit }')"
+  if [[ -x "${GPG_AGENT_BIN}" && -x "${GPG_CONNECT_AGENT_BIN}" ]]; then
+    expected_version="$("${GPG_AGENT_BIN}" --version 2>/dev/null | awk 'NR == 1 { print $3; exit }')"
     running_version="$(
-      gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+      "${GPG_CONNECT_AGENT_BIN}" 'GETINFO version' /bye 2>/dev/null |
         awk '$1 == "D" { print $2; exit }' || true
     )"
 
     if [[ -n "${expected_version}" && -n "${running_version}" && "${running_version}" != "${expected_version}" ]]; then
       warn "Restarting stale gpg-agent ${running_version} with managed version ${expected_version}."
-      gpgconf --kill all >/dev/null 2>&1 || true
-      gpgconf --launch gpg-agent >/dev/null 2>&1 || \
+      "${GPGCONF_BIN}" --kill all >/dev/null 2>&1 || true
+      "${GPGCONF_BIN}" --launch gpg-agent >/dev/null 2>&1 || \
         fail "Could not launch the managed gpg-agent ${expected_version}."
       running_version="$(
-        gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+        "${GPG_CONNECT_AGENT_BIN}" 'GETINFO version' /bye 2>/dev/null |
           awk '$1 == "D" { print $2; exit }' || true
       )"
       [[ "${running_version}" == "${expected_version}" ]] || \
         fail "Expected gpg-agent ${expected_version}, but socket reports ${running_version:-unknown}."
     fi
+
+    running_dirmngr_version="$(
+      "${GPG_CONNECT_AGENT_BIN}" --dirmngr 'GETINFO version' /bye 2>/dev/null |
+        awk '$1 == "D" { print $2; exit }' || true
+    )"
+    if [[ -n "${expected_version}" && -n "${running_dirmngr_version}" && \
+          "${running_dirmngr_version}" != "${expected_version}" ]]; then
+      warn "Stopping stale dirmngr ${running_dirmngr_version}; managed GnuPG is ${expected_version}."
+      "${GPGCONF_BIN}" --kill dirmngr >/dev/null 2>&1 || true
+    fi
   fi
 
-  socket="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || true)"
+  sync_github_gpg_public_keys
+
+  socket="$("${GPGCONF_BIN}" --list-dirs agent-ssh-socket 2>/dev/null || true)"
   [[ -n "${socket}" ]] || return 0
 
   export SSH_AUTH_SOCK="${socket}"
@@ -335,9 +440,7 @@ prepare_gpg_ssh_agent() {
   if [[ -t 0 ]]; then
     export GPG_TTY
     GPG_TTY="$(tty)"
-    if command -v gpg-connect-agent >/dev/null 2>&1; then
-      gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
-    fi
+    "${GPG_CONNECT_AGENT_BIN}" --quiet updatestartuptty /bye >/dev/null 2>&1 || true
   fi
 }
 

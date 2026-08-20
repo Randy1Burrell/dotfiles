@@ -434,9 +434,11 @@ Homebrew update, installs and upgrades the shared formulae, removes unmanaged
 formulae to match the declared bundle, and cleans old versions. It also checks
 the macOS cask list and includes any cask that Homebrew reports as supporting
 the current Linux architecture. Casks mapped to the declared Ubuntu Snaps are
-excluded to prevent duplicate applications. macOS-only formulae (`mas` and
-`pinentry-mac`), incompatible and unmapped casks, and Mac App Store applications
-remain macOS-only. Both Bash and Zsh load Linuxbrew's shell environment and
+excluded to prevent duplicate applications. The macOS-only `mas` formula,
+incompatible and unmapped casks, and Mac App Store applications remain
+macOS-only. GnuPG, GPGME, and Pinentry are excluded from Homebrew on every
+platform because Home Manager owns that complete security-sensitive toolchain
+and its agents. Both Bash and Zsh load Linuxbrew's shell environment and
 completions, and `./setup clean` prunes old Linuxbrew files alongside Nix
 generations. Homebrew's own public GitHub repositories always use HTTPS during
 these operations, independently of the personal Git URL rewrites and
@@ -794,6 +796,22 @@ If GnuPG instead reports `No pinentry`, `setup` installs a temporary
 `/usr/bin/pinentry-curses` setting before evaluation, backing up an older
 Home Manager link. The activated profile then replaces it with the permanent
 Nix-managed Pinentry path.
+
+`setup` also imports the public OpenPGP certificates published for the saved
+GitHub username before asking GnuPG to inspect a connected card. This is
+required on a new computer: the YubiKey holds the private ECDH operation, but
+GnuPG still needs the matching public certificate in the local keyring. If a
+certificate is not published on GitHub, add it to the GitHub account or import
+an exported public certificate manually, then run `./setup gpg` with the card
+connected. `No secret key` after that normally means the encrypted file targets
+a different YubiKey key.
+
+Home Manager is the only GnuPG provider in the managed macOS and Linux
+profiles. `setup` deliberately selects `/run/current-system/sw/bin/gpgconf` on
+macOS/NixOS or `~/.nix-profile/bin/gpgconf` on standalone Linux, together with
+the matching client and agent programs. Activation stops a stale `dirmngr`;
+Homebrew reconciliation removes undeclared GnuPG/GPGME/Pinentry formulae.
+
 Ubuntu's `/etc/ssh/ssh_config` enables GSSAPI, so the Linux profile uses the
 GSSAPI-enabled Nixpkgs OpenSSH build. Conventional `id_ed25519` and `id_rsa`
 files remain automatic fallbacks when present and are not treated as errors

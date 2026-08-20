@@ -2361,7 +2361,15 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code
 
-  (setq epg-gpg-program "gpg2")
+  ;; Prefer Home Manager's stable profile path so a graphical Emacs cannot
+  ;; accidentally select a Linuxbrew or host-distribution GnuPG client.
+  (let ((managed-gpg (expand-file-name "~/.nix-profile/bin/gpg2")))
+    (setq epg-gpg-program
+          (cond
+           ((file-executable-p managed-gpg) managed-gpg)
+           ((executable-find "gpg2"))
+           ((executable-find "gpg"))
+           (t "gpg2"))))
   (setenv "GPG_AGENT_INFO" nil)
   (setq auth-sources '("~/.emacs.d/secrets/.authinfo.gpg"))
 

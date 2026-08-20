@@ -85,8 +85,17 @@
       # The macOS Homebrew module remains the single source of truth for
       # formulae. Linuxbrew consumes every portable entry from that list, but
       # leaves Snap-backed GUI applications to Ubuntu's native integration.
+      # GnuPG, GPGME, and Pinentry stay Nix-managed on Linux so Home Manager's
+      # socket-activated daemons cannot be mixed with Linuxbrew clients from a
+      # different release.
       linuxbrewFormulae = nixpkgs.lib.unique (builtins.filter
-        (formula: !(builtins.elem formula [ "mas" "pinentry-mac" ]))
+        (formula: !(builtins.elem formula [
+          "gnupg"
+          "gpgme"
+          "mas"
+          "pinentry"
+          "pinentry-mac"
+        ]))
         (import ./modules/darwin/brews.nix { }));
       linuxbrewCaskCandidates = system: nixpkgs.lib.unique (builtins.filter
         (cask: !(builtins.elem cask (ubuntuSnapCasksFor system)))
