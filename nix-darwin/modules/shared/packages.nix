@@ -46,10 +46,18 @@
   noto-fonts-color-emoji
   meslo-lgs-nf
 
-  # Node.js development tools
+  # Language servers and development tools
+  basedpyright
   bash-language-server
+  dockerfile-language-server
+  gopls
+  nil
   prettier
+  rust-analyzer
+  terraform-ls
   typescript-language-server
+  vscode-langservers-extracted
+  yaml-language-server
   nodejs
 
   # Text and terminal utilities

@@ -130,6 +130,22 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
+  (use-package corfu
+    :ensure t
+    :demand t
+    :custom
+    (corfu-auto t)
+    (corfu-auto-delay 0.2)
+    (corfu-auto-prefix 2)
+    (corfu-cycle t)
+    (corfu-quit-no-match 'separator)
+    :config
+    ;; The upstream configuration enables this from `after-init-hook'.  Make
+    ;; the desired state explicit so reloading this module cannot toggle it.
+    (remove-hook 'after-init-hook #'global-corfu-mode)
+    (global-corfu-mode 1)
+    (corfu-popupinfo-mode 1))
+
   (use-package svg-lib)
   (use-package kind-icon
     :ensure t
@@ -444,6 +460,14 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (add-hook 'text-mode-hook 'rb/display-line-numbers-mode)
     (add-hook 'treemacs-mode-hook 'rb/display-line-numbers-mode))
 
+  ;; Use one accessible face for automatic occurrences from both the local
+  ;; symbol highlighter and Eglot's documentHighlight support.
+  (custom-set-faces
+   '(symbol-overlay-default-face
+     ((t (:background "#1d4ed8" :foreground "#ffffff" :weight semi-bold))))
+   '(eglot-highlight-symbol-face
+     ((t (:background "#1d4ed8" :foreground "#ffffff" :weight semi-bold)))))
+
   (provide 'init-editing-utils-customizations)
   ;;; init-editing-utils-customizations.el ends here
 
@@ -451,49 +475,68 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
 **** Eglot
 #+begin_src emacs-lisp :tangle ~/.emacs.d/custom/init-eglot-customizations.el :mkdirp yes
-  ;;; init-eglot-customizations.el --- Provides evil -*- lexical-binding: t -*-
+  ;;; init-eglot-customizations.el --- Eglot and completion setup -*- lexical-binding: t -*-
   ;;; Commentary:
-  ;; vim like bindings
+  ;; Start an installed language server automatically and expose its
+  ;; completion-at-point backend through Corfu.
   ;;; Code:
-  (with-eval-after-load 'eglot
-    (add-to-list 'eglot-server-programs '((web-mode) . ("typescript-language-server")))
-    (add-to-list 'eglot-server-programs '((rust-mode rust-ts-mode) . ("rust-analyzer"))))
 
-  (dolist (mode '(bash-ts-mode-hook
+  (with-eval-after-load 'eglot
+    (add-to-list 'eglot-server-programs
+                 '((web-mode :language-id "typescriptreact")
+                   . ("typescript-language-server" "--stdio")))
+    (add-to-list 'eglot-server-programs
+                 `((nix-mode nix-ts-mode)
+                   . ,(eglot-alternatives '("nil" "nixd"))))
+    (add-to-list 'eglot-server-programs
+                 '((rust-mode rust-ts-mode) . ("rust-analyzer"))))
+
+  (defun rb/eglot-ensure ()
+    "Start Eglot, reporting a missing or broken server without breaking MODE."
+    (condition-case err
+        (eglot-ensure)
+      (error
+       (message "Eglot could not start for %s: %s"
+                major-mode (error-message-string err)))))
+
+  (dolist (mode '(sh-mode-hook
+                  bash-ts-mode-hook
                   c-mode-hook
+                  c-ts-mode-hook
+                  c++-mode-hook
+                  c++-ts-mode-hook
                   css-mode-hook
                   css-ts-mode-hook
-                  closure-ts-mode-hook
-                  dart-mode-hook
                   dockerfile-mode-hook
-                  js-mode-hook
-                  js-ts-mode-hook
-                  less-css-mode-hook
-                  php-mode-hook
-                  python-mode-hook
-                  python-ts-mode-hook
-                  prisma-ts-mode-hook
-                  ruby-mode-hook
-                  ruby-ts-mode-hook
-                  rust-mode-hook
+                  dockerfile-ts-mode-hook
                   go-mode-hook
                   go-ts-mode-hook
+                  go-mod-ts-mode-hook
+                  html-mode-hook
+                  html-ts-mode-hook
+                  web-mode-hook
+                  js-mode-hook
+                  js-ts-mode-hook
+                  json-mode-hook
+                  json-ts-mode-hook
+                  nix-mode-hook
+                  nix-ts-mode-hook
+                  python-mode-hook
+                  python-ts-mode-hook
+                  rust-mode-hook
                   rust-ts-mode-hook
-                  sass-mode-hook
-                  scss-mode-hook
                   terraform-mode-hook
                   typescript-mode-hook
+                  typescript-ts-mode-hook
                   tsx-ts-mode-hook
-                  ts-mode-hook
                   yaml-mode-hook
-                  c++-mode-hook))
-    (add-hook mode 'eglot-ensure))
+                  yaml-ts-mode-hook))
+    (remove-hook mode #'eglot-ensure)
+    (add-hook mode #'rb/eglot-ensure))
 
-  ;; Added from https://www.reddit.com/r/emacs/comments/185fkg6/emacs_lagging_help_me_understand_this_profiler/
-  (setq eglot-autoshutdown t)
-  (setq eglot-sync-connect 0)
-  (setq eglot-events-buffer-size nil)
-  (fset #'jsonrpc--log-event #'ignore)
+  (setq eglot-autoshutdown t
+        eglot-sync-connect 3
+        eglot-events-buffer-size 2000000)
   (add-hook 'focus-out-hook 'garbage-collect)
 
   (provide 'init-eglot-customizations)
@@ -1381,6 +1424,10 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Code:
 
   (use-package org-noter)
+
+  ;; Fontify code in source blocks with the source language's major mode.
+  (setq org-src-fontify-natively t
+        org-src-tab-acts-natively t)
 
   ;; ATTENTION: org-noter-djvu needs the package ‘djvu’
   (unless (package-installed-p 'djvu)
@@ -2631,6 +2678,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     :config
     (global-treesit-auto-mode))
 
+  (global-font-lock-mode 1)
+  (setq treesit-font-lock-level 4)
+
   (defun rb/treesit-install-all-grammars ()
     "Install every grammar listed in `treesit-language-source-alist'."
     (interactive)
@@ -2643,8 +2693,10 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode))
 
-  (setq major-mode-remap-alist
-        '((python-mode . python-ts-mode)))
+  ;; Preserve the remaps discovered by the upstream configuration and
+  ;; `treesit-auto' instead of replacing the entire table.
+  (add-to-list 'major-mode-remap-alist
+               '(python-mode . python-ts-mode))
 
   (provide 'init-treesitter-customizations)
   ;;; init-treesitter-customizations.el ends here
@@ -2804,6 +2856,9 @@ and the additions can be reviewed or disabled independently.
     :config
     (setq doom-themes-enable-bold t
           doom-themes-enable-italic t)
+    ;; Layering two complete themes produces partially inherited font-lock
+    ;; faces. Keep one authoritative theme active.
+    (mapc #'disable-theme (copy-sequence custom-enabled-themes))
     (load-theme 'doom-one t)
     (doom-themes-visual-bell-config)
     (doom-themes-org-config))
