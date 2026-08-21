@@ -38,6 +38,45 @@
       (add-hook 'emacs-startup-hook
                 (lambda () (setq gc-cons-threshold normal-gc-cons-threshold))))
 
+    ;; Keep redisplay and fontification responsive while typing or scrolling.
+    (setq fast-but-imprecise-scrolling t
+          inhibit-compacting-font-caches t
+          jit-lock-defer-time 0.05
+          redisplay-skip-fontification-on-input t)
+
+    ;; Eglot enables Flymake when its asynchronous connection is ready. The
+    ;; upstream global hook needlessly loads every diagnostic backend while a
+    ;; file is still being displayed.
+    (remove-hook 'prog-mode-hook #'flymake-mode)
+    (remove-hook 'text-mode-hook #'flymake-mode)
+    (remove-hook 'find-file-hook #'vc-darcs-find-file-hook)
+    (setq vc-handled-backends '(Git))
+
+    (defun rb/call-in-live-buffer (buffer function)
+      "Call FUNCTION in BUFFER when BUFFER is still live."
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (funcall function))))
+
+    (defun rb/run-in-current-buffer-when-idle (delay function)
+      "Call FUNCTION in the current buffer after DELAY idle seconds."
+      (run-with-idle-timer delay nil
+                          #'rb/call-in-live-buffer
+                          (current-buffer)
+                          function))
+
+    (defun rb/prewarm-daemon-libraries ()
+      "Preload common editing libraries while the Emacs daemon is idle."
+      (dolist (feature '(project xref vc-git flymake flycheck compile etags
+                        markdown-mode org))
+        (require feature nil t)))
+
+    ;; macOS, Ubuntu, and NixOS launch graphical frames through emacsclient.
+    ;; Their login daemon can absorb one-time library costs before the first
+    ;; frame or file is requested, without delaying a directly launched Emacs.
+    (when (daemonp)
+      (run-with-idle-timer 1 nil #'rb/prewarm-daemon-libraries))
+
 
     (require 'init-use-package)
 
@@ -77,7 +116,10 @@
     (require 'init-treesitter-customizations)
     (require 'init-webdev)
     (require 'init-golang)
-    (require 'init-org-customizations)
+    ;; Org Noter, Org Element, and the encryption helpers account for several
+    ;; seconds of startup. Configure them when Org is first requested instead.
+    (with-eval-after-load 'org
+      (require 'init-org-customizations))
     (require 'init-eglot-customizations)
     (require 'init-pdf)
     (require 'init-nix-customizations)
@@ -97,6 +139,39 @@
     ;;; init.el ends here
 
   #+end_src
+
+*** Preload File
+#+begin_src emacs-lisp :tangle ~/.emacs.d/lisp/init-preload-local.el :mkdirp yes
+  ;;; init-preload-local.el --- Work deferred before the main init -*- lexical-binding: t -*-
+  ;;; Commentary:
+  ;;; Code:
+
+  ;; The upstream configuration requests every available Org Babel language
+  ;; the moment the first Org file opens. Preserve that configuration, but do
+  ;; the library loading once Emacs is idle so the buffer appears immediately.
+  (defvar rb/deferred-org-babel-load nil)
+
+  (defun rb/run-deferred-org-babel-load (original arguments)
+    "Run deferred Org Babel ORIGINAL with ARGUMENTS."
+    (advice-remove 'org-babel-do-load-languages
+                   #'rb/defer-org-babel-languages)
+    (setq rb/deferred-org-babel-load nil)
+    (apply original arguments))
+
+  (defun rb/defer-org-babel-languages (original &rest arguments)
+    "Schedule the initial Org Babel ORIGINAL call with ARGUMENTS."
+    (unless (timerp rb/deferred-org-babel-load)
+      (setq rb/deferred-org-babel-load
+            (run-with-idle-timer 1 nil
+                                #'rb/run-deferred-org-babel-load
+                                original arguments))))
+
+  (advice-add 'org-babel-do-load-languages :around
+              #'rb/defer-org-babel-languages)
+
+  (provide 'init-preload-local)
+  ;;; init-preload-local.el ends here
+#+end_src
 
 *** Lisp Folder
     Decrypt and remove the crypt directive or it won't tangle
@@ -146,14 +221,14 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (global-corfu-mode 1)
     (corfu-popupinfo-mode 1))
 
-  (use-package svg-lib)
+  (use-package svg-lib :defer t)
   (use-package kind-icon
     :ensure t
-    :after corfu
+    :commands kind-icon-margin-formatter
     :custom
     (kind-icon-blend-background t)
     (kind-icon-default-face 'corfu-default) ; only needed with blend-background
-    :config
+    :init
     (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
 
   (provide 'init-corfu-customizations)
@@ -292,23 +367,20 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Code:
 
   (use-package dape
+    :commands (dape dape-breakpoint-toggle dape-breakpoint-remove-at-point)
     :preface
     ;; By default dape shares the same keybinding prefix as `gud'
     ;; If you do not want to use any prefix, set it to nil.
     ;; (setq dape-key-prefix "\C-x\C-a")
     (setq dape-key-prefix "M-\"")
 
-    :hook
-    ;; Save breakpoints on quit
-    ((kill-emacs . dape-breakpoint-save)
-     ;; Load breakpoints on startup
-     (after-init . dape-breakpoint-load))
-
     :init
     ;; To use window configuration like gud (gdb-mi)
     ;; (setq dape-buffer-window-arrangement 'gud)
 
     :config
+    (dape-breakpoint-load)
+    (add-hook 'kill-emacs-hook #'dape-breakpoint-save)
     ;; Info buffers to the right
     (setq dape-buffer-window-arrangement 'right)
 
@@ -383,7 +455,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
       "h" #'dired-up-directory
       "l" #'dired-find-alternate-file))
 
-  (use-package dired-open)
+  (use-package dired-open
+    :commands (dired-open-file dired-open-xdg))
 
   (use-package dired-hide-dotfiles
     :hook (dired-mode . dired-hide-dotfiles-mode)
@@ -422,6 +495,12 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Code:
 
   (use-package dumb-jump
+    :commands (dumb-jump-go
+               dumb-jump-go-other-window
+               dumb-jump-go-prefer-external
+               dumb-jump-go-prefer-external-other-window
+               dumb-jump-quick-look
+               dumb-jump-back)
     :config
     (setq dumb-jump-force-searcher 'rg))
 
@@ -465,10 +544,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;----------------------------------------------------------------------------
   (defun rb/display-line-numbers-mode ()
     "Setup line number for buffer."
-    (setq display-line-numbers-width 1
-          display-line-numbers-width-start t
+    (setq-local display-line-numbers-width 3
+          display-line-numbers-width-start nil
           display-line-numbers-type 'relative)
-    ;; (global-display-line-numbers-mode      nil)
     (display-line-numbers-mode))
 
   (when (fboundp 'display-line-numbers-mode)
@@ -507,13 +585,17 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (add-to-list 'eglot-server-programs
                  '((rust-mode rust-ts-mode) . ("rust-analyzer"))))
 
-  (defun rb/eglot-ensure ()
-    "Start Eglot, reporting a missing or broken server without breaking MODE."
+  (defun rb/eglot-ensure-now ()
+    "Start Eglot now without allowing an error to break the major mode."
     (condition-case err
         (eglot-ensure)
       (error
        (message "Eglot could not start for %s: %s"
                 major-mode (error-message-string err)))))
+
+  (defun rb/eglot-ensure ()
+    "Schedule Eglot after the newly visited buffer becomes responsive."
+    (rb/run-in-current-buffer-when-idle 0.2 #'rb/eglot-ensure-now))
 
   (dolist (mode '(sh-mode-hook
                   bash-ts-mode-hook
@@ -551,8 +633,11 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (add-hook mode #'rb/eglot-ensure))
 
   (setq eglot-autoshutdown t
-        eglot-sync-connect 3
-        eglot-events-buffer-size 2000000)
+        ;; Start language servers asynchronously so visiting a file never waits
+        ;; for a server process, network mount, or project configuration.
+        eglot-sync-connect nil
+        eglot-send-changes-idle-time 0.2
+        eglot-events-buffer-size 200000)
   (add-hook 'focus-out-hook 'garbage-collect)
 
   (provide 'init-eglot-customizations)
@@ -640,6 +725,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
   (use-package find-file-in-project
+      :commands (find-file-in-project find-file-in-project-at-point)
       :config
       (remove-hook 'file-name-at-point-functions 'ffap-guess-file-name-at-point))
   ;;; init-find-file-in-project.el ends here
@@ -833,7 +919,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
-  (use-package graphql-mode)
+  (use-package graphql-mode
+    :mode "\\.graphqls?\\'")
 
   (provide 'init-graphql)
   ;;; init-graphql.el ends here
@@ -877,23 +964,38 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     ;; Each node in the undo tree should have a timestamp.
     (setq undo-tree-visualizer-timestamps t)
     ;; Show a diff window displaying changes between undo nodes.
-    (setq undo-tree-visualizer-diff t))
+    (setq undo-tree-visualizer-diff t)
+    ;; Loading a persistent undo file can involve disk I/O. Keep persistence,
+    ;; but restore it only after the visited file is already interactive.
+    (remove-hook 'find-file-hook #'undo-tree-load-history-from-hook)
+    (add-hook 'find-file-hook
+              (lambda ()
+                (rb/run-in-current-buffer-when-idle
+                 0.3 #'undo-tree-load-history-from-hook))))
 
   (use-package emojify
     :config (setq emojify-display-style 'image)
-    :init (global-emojify-mode 1)) ;; This will install missing images if needed.
+    :commands emojify-mode)
+
+  (defun rb/enable-emojify-lazily ()
+    "Enable emoji rendering after the current buffer is visible."
+    (rb/run-in-current-buffer-when-idle 0.75 #'emojify-mode))
+
+  (add-hook 'text-mode-hook #'rb/enable-emojify-lazily)
+  (add-hook 'prog-mode-hook #'rb/enable-emojify-lazily)
 
   (use-package synosaurus
     :diminish synosaurus-mode
-    :init    (synosaurus-mode)
+    :commands (synosaurus-choose-and-replace)
+    :bind ("M-#" . synosaurus-choose-and-replace)
     :config  (setq synosaurus-choose-method 'popup) ;; 'ido is default.
-    (global-set-key (kbd "M-#") 'synosaurus-choose-and-replace))
+    )
 
-  (use-package s)
+  (use-package s :defer t)
 
-  (use-package f)
+  (use-package f :defer t)
 
-  (use-package lorem-ipsum)
+  (use-package lorem-ipsum :commands lorem-ipsum-insert-paragraphs)
 
   (use-package origami
     ;; In Lisp languages, by default only function definitions are folded.
@@ -938,12 +1040,14 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;; Yet another snippet extension program
   (use-package yasnippet
     :diminish yas-minor-mode
+    :commands (yas-minor-mode yas-expand yas-insert-snippet)
     :config
     ;; (yas-global-mode 1) ;; Always have this on for when using yasnippet syntax within yankpad
     ;; respect the spacing in my snippet declarations
     (setq yas-indent-line 'fixed))
 
-  (use-package yasnippet-snippets)
+  (use-package yasnippet-snippets
+    :after yasnippet)
 
   (use-package yankpad
     :defer 10
@@ -1181,8 +1285,18 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (setq ispell-program-name aspell)
     (use-package flyspell
       :diminish
-      :hook ((prog-mode . flyspell-prog-mode)
-             ((org-mode text-mode) . flyspell-mode))))
+      :commands (flyspell-mode flyspell-prog-mode))
+
+    (defun rb/enable-flyspell-lazily ()
+      "Start spell checking after the current buffer is visible."
+      (rb/run-in-current-buffer-when-idle
+       0.5
+       (if (derived-mode-p 'prog-mode)
+           #'flyspell-prog-mode
+         #'flyspell-mode)))
+
+    (add-hook 'prog-mode-hook #'rb/enable-flyspell-lazily)
+    (add-hook 'text-mode-hook #'rb/enable-flyspell-lazily))
 
   (eval-after-load "flyspell"
     ' (progn
@@ -1245,6 +1359,9 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (when (file-exists-p rb/languagetool-jar)
     (use-package langtool
+      :commands (langtool-check
+                 langtool-check-done
+                 langtool-correct-buffer)
       :custom
       (langtool-language-tool-jar rb/languagetool-jar)))
 
@@ -1267,7 +1384,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (global-set-key (kbd "C-+") 'text-scale-increase)
   (global-set-key (kbd "C--") 'text-scale-decrease)
 
-  (use-package editorconfig)
+  (use-package editorconfig
+    :commands (editorconfig-mode editorconfig-apply))
 
   (unless (package-installed-p 'editorconfig-generate)
     (package-install 'editorconfig-generate))
@@ -1312,13 +1430,16 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (package-install 'use-package))
 
   (use-package vimrc-mode
-    :diminish)
+    :diminish
+    :mode "\\.vim\\(?:rc\\)?\\'")
 
   (use-package zlc
-    :diminish)
+    :diminish
+    :defer t)
 
   (use-package command-log-mode
     :diminish
+    :commands (command-log-mode global-command-log-mode)
     :config
     (setq global-command-log-mode t)
     (setq command-log-mode-auto-show t))
@@ -1439,7 +1560,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   ;;; Code:
 
-  (use-package org-noter)
+  (use-package org-noter
+    :commands (org-noter org-noter-insert-note org-noter-sync-current-note))
 
   ;; Fontify code in source blocks with the source language's major mode.
   (setq org-src-fontify-natively t
@@ -2031,19 +2153,10 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (add-hook 'org-babel-post-tangle-hook 'rb/org-reveal-after-save-off)
 
   ;; Set org-modules I want to use
-  (setq org-modules
-        '(ol-bbdb
-          ol-bibtex
-          org-crypt
-          ol-docview
-          ol-eww
-          ol-gnus
-          org-habit
-          ol-info
-          ol-irc
-          ol-rmail
-          ol-w3m
-          ol-eshell))
+  ;; Modern Org autoloads link backends when a matching link is followed.
+  ;; Loading every backend here made an ordinary Org file pull in Gnus, EWW,
+  ;; Eshell, mail, and DocView before displaying any text.
+  (setq org-modules nil)
 
   (use-package async)
 
@@ -2156,6 +2269,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (package-install 'use-package))
 
   (use-package pdf-tools
+    :mode ("\\.pdf\\'" . pdf-view-mode)
     :config
     (pdf-loader-install))
 
@@ -2193,6 +2307,46 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (if (bound-and-true-p persp-mode)
         (persp-current-buffers*)
       (buffer-list)))
+
+  (defun rb/project-root-for-path (path)
+    "Return the Projectile or project.el root containing PATH."
+    (let* ((expanded (expand-file-name path))
+           (directory (if (directory-name-p expanded)
+                          expanded
+                        (file-name-directory expanded))))
+      (or (and (fboundp 'projectile-project-root)
+               (ignore-errors (projectile-project-root directory)))
+          (when-let ((project (project-current nil directory)))
+            (project-root project))
+          (locate-dominating-file directory ".git"))))
+
+  (defun rb/project-perspective-name (root)
+    "Return the Perspective name for project ROOT."
+    (or (and (fboundp 'projectile-project-name)
+             (projectile-project-name root))
+        (file-name-nondirectory (directory-file-name root))))
+
+  (defun rb/switch-to-project-perspective (root)
+    "Switch to the Perspective dedicated to project ROOT."
+    (when root
+      (let ((root (file-name-as-directory (expand-file-name root))))
+        (persp-switch (rb/project-perspective-name root))
+        root)))
+
+  (defun rb/find-file-in-project-perspective (file)
+    "Visit FILE inside its project Perspective when it has a project root."
+    (interactive "fOpen file in project perspective: ")
+    (when-let ((root (rb/project-root-for-path file)))
+      (rb/switch-to-project-perspective root))
+    (find-file-existing file)
+    (when (bound-and-true-p persp-mode)
+      (persp-add-buffer (current-buffer))))
+
+  (defun rb/dashboard-switch-project (root)
+    "Open dashboard project ROOT in its dedicated Perspective."
+    (rb/switch-to-project-perspective root)
+    (let ((default-directory (file-name-as-directory root)))
+      (projectile-switch-project-by-name root)))
 
   (defun rb/consult-project-or-perspective-buffer ()
     "Preview and select a buffer from the current Git project or perspective."
@@ -2285,7 +2439,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
-  (use-package prisma-ts-mode)
+  (use-package prisma-ts-mode
+    :mode "\\.prisma\\'")
 
   (defun rb/prisma-mode ()
     "Add some file to `auto-mode-alist'."
@@ -2325,7 +2480,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (unless (package-installed-p 'use-package)
     (package-install 'use-package))
 
-  (use-package protobuf-mode)
+  (use-package protobuf-mode
+    :mode "\\.proto\\'")
 
   (provide 'init-protobuf)
   ;;; init-protobuf.el ends here
@@ -2480,6 +2636,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Code:
 
   (use-package term
+    :ensure nil
+    :commands (term ansi-term)
     :config
     (setq explicit-shell-file-name "zsh") ;; Change this to zsh, etc
     ;;(setq explicit-zsh-args '())         ;; Use 'explicit-<shell>-args for shell-specific args
@@ -2527,15 +2685,18 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
           eshell-scroll-to-bottom-on-input t))
 
   (use-package eshell-git-prompt
-    :diminish)
+    :after eshell
+    :diminish
+    :config
+    (eshell-git-prompt-use-theme 'powerline))
 
   (use-package eshell
+    :ensure nil
+    :commands eshell
     :hook (eshell-first-time-mode . rb/configure-eshell)
     :config
     (with-eval-after-load 'esh-opt
-      (setq eshell-destroy-buffer-when-process-dies t))
-    :init
-    (eshell-git-prompt-use-theme 'powerline))
+      (setq eshell-destroy-buffer-when-process-dies t)))
 
   (dolist (mode '(eshell-mode-hook))
     (add-hook mode 'with-editor-export-editor))
@@ -2572,7 +2733,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
-  (use-package solidity-mode)
+  (use-package solidity-mode
+    :mode "\\.sol\\'")
 
   (provide 'init-solidity)
   ;;; init-solidity.el ends here
@@ -2585,13 +2747,15 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
-  ;; Ask for port when I try to login to dbs (MySQL/PostgreSQL)
-  (require 'sql)
-  (setq sql-postgres-login-params (append sql-postgres-login-params '(port :default 5432)))
-  (setq sql-mysql-login-params (append sql-mysql-login-params '(port :default 3306)))
-
-  (setq-default sql-input-ring-file-name
-                (expand-file-name ".sqli_history" user-emacs-directory))
+  ;; Ask for port when I try to login to dbs (MySQL/PostgreSQL), without
+  ;; loading SQL support until the first SQL buffer or connection.
+  (with-eval-after-load 'sql
+    (setq sql-postgres-login-params
+          (append sql-postgres-login-params '(port :default 5432))
+          sql-mysql-login-params
+          (append sql-mysql-login-params '(port :default 3306)))
+    (setq-default sql-input-ring-file-name
+                  (expand-file-name ".sqli_history" user-emacs-directory)))
 
   (provide 'init-sql-customizations)
   ;;; init-sql-customizations.el ends here
@@ -2704,12 +2868,12 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
 
   (use-package treesit-auto
-    :demand t
-    :config
-    (global-treesit-auto-mode))
+    :commands (treesit-auto-install-all))
 
   (global-font-lock-mode 1)
-  (setq treesit-font-lock-level 4)
+  ;; Level 3 retains rich syntax highlighting without the extra work of the
+  ;; most aggressive decoration level on every edit.
+  (setq treesit-font-lock-level 3)
 
   (defun rb/treesit-install-all-grammars ()
     "Install every grammar listed in `treesit-language-source-alist'."
@@ -2894,9 +3058,28 @@ and the additions can be reviewed or disabled independently.
     (doom-themes-org-config))
 
   (use-package dashboard
-    :after projectile
+    :demand t
     :config
     (dashboard-setup-startup-hook)
+
+    (defun rb/dashboard-insert-recents (list-size)
+      "Insert LIST-SIZE recent files with project-aware actions."
+      (setq dashboard--recentf-cache-item-format nil)
+      (dashboard-mute-apply
+        (recentf-mode 1))
+      (dashboard-insert-section
+       "Recent Files:"
+       (dashboard-shorten-paths recentf-list 'dashboard-recentf-alist 'recents)
+       list-size
+       'recents
+       (dashboard-get-shortcut 'recents)
+       `(lambda (&rest _)
+          (rb/find-file-in-project-perspective
+           (dashboard-expand-path-alist ,el dashboard-recentf-alist)))
+       (dashboard-recentf--propertize-item el)))
+
+    (setf (alist-get 'recents dashboard-item-generators)
+          #'rb/dashboard-insert-recents)
     (setq dashboard-startup-banner 'ascii
           dashboard-banner-logo-title "Welcome to your life"
           dashboard-center-content t
@@ -2905,7 +3088,7 @@ and the additions can be reviewed or disabled independently.
           dashboard-projects-backend 'projectile
           dashboard-set-file-icons t
           dashboard-set-footer nil
-          dashboard-projects-switch-function #'projectile-switch-project-by-name
+          dashboard-projects-switch-function #'rb/dashboard-switch-project
           initial-buffer-choice (lambda ()
                                   (get-buffer-create "*dashboard*")
                                   (dashboard-refresh-buffer))))
@@ -3052,7 +3235,8 @@ and the additions can be reviewed or disabled independently.
   ;;------------------------------------------------------------------------------
   ;; Auto format language servers
   ;;------------------------------------------------------------------------------
-  (use-package apheleia)
+  (use-package apheleia
+    :commands apheleia-mode)
 
   (dolist (mode '(bash-ts-mode-hook
                   c-mode-hook
@@ -3071,18 +3255,21 @@ and the additions can be reviewed or disabled independently.
                   terraform-mode-hook
                   yaml-mode-hook
                   c++-mode-hook))
-    (add-hook mode 'apheleia-mode))
+    (add-hook mode
+              (lambda ()
+                (rb/run-in-current-buffer-when-idle 0.4 #'apheleia-mode))))
+
+  (defun rb/enable-prettier-lazily ()
+    "Enable Prettier after the current buffer is visible."
+    (rb/run-in-current-buffer-when-idle 0.4 #'prettier-mode))
 
   (use-package prettier
-    :hook (after-init . global-prettier-mode)
-    (tsx-ts-mode . prettier-mode)
-    (js-jsx-mode . prettier-mode)
-    (js-jsx-mode . prettier-mode)
-    (json-mode . prettier-mode)
-    (json-ts-mode . prettier-mode)
-    (typescript-ts-mode . prettier-mode))
-
-  (add-hook 'after-init-hook #'global-prettier-mode)
+    :commands prettier-mode
+    :hook ((tsx-ts-mode . rb/enable-prettier-lazily)
+           (js-jsx-mode . rb/enable-prettier-lazily)
+           (json-mode . rb/enable-prettier-lazily)
+           (json-ts-mode . rb/enable-prettier-lazily)
+           (typescript-ts-mode . rb/enable-prettier-lazily)))
 
   ;;------------------------------------------------------------------------------
   ;; Add these files to web-mode list

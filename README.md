@@ -397,7 +397,8 @@ reloaded.
 
 The Ubuntu profile installs an Emacs desktop entry directly in
 `~/.local/share/applications`, so searching for **Emacs** in GNOME opens an
-`emacsclient` frame and starts the managed daemon when necessary.
+`emacsclient` frame. The managed daemon starts with the user session so the
+first frame does not wait for the complete configuration.
 
 Ubuntu host packages are declared separately from the Home Manager profile.
 Edit `nix/modules/linux/apt-packages.nix` for distribution-owned APT
@@ -679,6 +680,17 @@ The active package set uses stock Emacs from the pinned Nixpkgs release on
 macOS and Linux.  On macOS, avoid an unmanaged `/Applications/Emacs.app` from an
 older installation; use the launchd daemon through `emacsclient` or the managed
 application under `/Applications/Nix Apps`.
+
+The macOS, Ubuntu, and NixOS launchers use a login daemon. While that daemon is
+idle it preloads common project, version-control, programming, Markdown, and Org
+libraries. Heavy optional integrations remain deferred until their command or
+file type is used, and language-server startup never blocks file display.
+
+The dashboard's project entries create or select a Perspective named for that
+project before invoking Projectile. Recent-file entries detect the file's
+project root, select the same project-specific Perspective, and add the opened
+buffer to it. A recent file outside a recognized project stays in the current
+Perspective.
 
 ### Vim and Neovim
 

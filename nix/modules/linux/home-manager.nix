@@ -103,5 +103,12 @@ in
   # Reload changed user services during activation without managing Ubuntu's
   # system-level services or desktop session.
   systemd.user.startServices = "sd-switch";
+  # Start Emacs at login so GNOME and command-line launchers only need to create
+  # an emacsclient frame. The daemon also preloads common editor libraries while
+  # idle, keeping the first project file responsive.
+  services.emacs = {
+    enable = true;
+    package = pkgs.emacs;
+  };
   services.udiskie.enable = true;
 }
