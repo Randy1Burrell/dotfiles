@@ -38,6 +38,14 @@
     name = "telegram-desktop";
     cask = "telegram";
   }
+  {
+    name = "chatgpt-desktop";
+    cask = "chatgpt";
+  }
+  {
+    name = "chromium";
+    cask = "chromium";
+  }
 
   # Community or unofficial repacks are intentionally not installed
   # unattended. Add them here only after reviewing their current publisher.
