@@ -35,7 +35,7 @@ resolve_script_path() {
 
 readonly SETUP_PATH="$(resolve_script_path)"
 readonly REPO_ROOT="$(dirname -- "${SETUP_PATH}")"
-readonly FLAKE_DIR="${REPO_ROOT}/nix-darwin"
+readonly FLAKE_DIR="${REPO_ROOT}/nix"
 readonly NIX_INSTALL_URL="https://nixos.org/nix/install"
 readonly HOMEBREW_INSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
 readonly SECRETS_REMOTE="ssh://git@github.com/randy1burrell/secrets.git"

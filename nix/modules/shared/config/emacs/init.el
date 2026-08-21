@@ -82,7 +82,7 @@ standard dotfiles checkout, and finally the deployed read-only copy."
               (expand-file-name "~/.local/share/src/dotfiles")))
          (checkout-source
           (expand-file-name
-           "nix-darwin/modules/shared/config/emacs/config.org"
+           "nix/modules/shared/config/emacs/config.org"
            dotfiles-root))
          (deployed-source (expand-file-name "~/.config/emacs/config.org")))
     (cond

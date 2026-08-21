@@ -167,10 +167,26 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Code:
 
   ;;----------------------------------------------------------------------------
-  ;; Remap option key to super
+  ;; Swap the physical Command/Super and Meta/Alt keys in graphical Emacs.
+  ;; Apply this per frame because daemon-created graphical frames have their
+  ;; own terminal-local modifier settings.
   ;;----------------------------------------------------------------------------
-  (when *is-a-mac*
-    (setq mac-option-modifier 'super))
+  (defun rb/apply-swapped-command-meta-modifiers (&optional frame)
+    "Use Command/Super as Meta and Option/Alt as Super in FRAME."
+    (with-selected-frame (or frame (selected-frame))
+      (cond
+       ((eq window-system 'ns)
+        (setq ns-command-modifier 'meta
+              ns-right-command-modifier 'left
+              ns-alternate-modifier 'super
+              ns-right-alternate-modifier 'left))
+       ((memq window-system '(x pgtk))
+        (setq x-super-keysym 'meta
+              x-alt-keysym 'super)))))
+
+  (add-hook 'after-make-frame-functions
+            #'rb/apply-swapped-command-meta-modifiers)
+  (rb/apply-swapped-command-meta-modifiers)
 
   ;;----------------------------------------------------------------------------
   ;; Setup some stuff for my frame
@@ -2477,6 +2493,12 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (use-package vterm
     :commands vterm
+    :init
+    ;; A module linked to Linuxbrew's libvterm stops loading when Homebrew is
+    ;; cleaned. Build the bundled static library so vterm is self-contained on
+    ;; macOS, Ubuntu, and NixOS.
+    (setq vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=Off"
+          vterm-always-compile-module t)
     :config
     ;; (setq term-prompt-regexp "^[^#$%>\n]*[#$%>] *")  ;; Set this to match your custom shell prompt
     (setq vterm-shell "zsh")                       ;; Set this to customize the shell to launch

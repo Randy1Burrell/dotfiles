@@ -23,9 +23,11 @@ in
   services.gpg-agent = {
     enable = true;
     enableSshSupport = true;
-    # A terminal Pinentry works on Ubuntu desktops, virtual consoles, and
-    # headless Linux hosts. macOS keeps its native graphical Pinentry.
-    pinentry.package = if isDarwin then pkgs.pinentry_mac else pkgs.pinentry-curses;
+    # Graphical Emacs has no controlling TTY, so a curses-only Pinentry fails
+    # with "Inappropriate ioctl for device". The GTK build opens a desktop
+    # dialog and is also built with curses/TTY fallbacks for headless sessions.
+    # macOS keeps its native graphical Pinentry.
+    pinentry.package = if isDarwin then pkgs.pinentry_mac else pkgs.pinentry-gtk2;
     defaultCacheTtl = defaultCacheSeconds;
     defaultCacheTtlSsh = defaultCacheSeconds;
     maxCacheTtl = maxCacheSeconds;

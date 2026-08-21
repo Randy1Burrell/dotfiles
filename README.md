@@ -108,7 +108,7 @@ git clone git@github.com:randy1burrell/dotfiles.git "$DOTFILES_DIR"
 "$DOTFILES_DIR/setup" switch
 ```
 
-Change `DOTFILES_DIR` to any destination.  The script finds `nix-darwin/flake.nix`
+Change `DOTFILES_DIR` to any destination.  The script finds `nix/flake.nix`
 relative to its own resolved location, so it does not depend on the current
 working directory and can also be launched through a symlink.
 
@@ -307,7 +307,7 @@ KEYS_MOUNT_PATH=/Volumes/Keys ./setup copy-keys
 ├── yubikey-agenix                # Hardware-backed Agenix enrolment
 ├── README.md                     # This operator's guide
 ├── configs/                      # Historical/source configurations retained during migration
-└── nix-darwin/
+└── nix/
     ├── flake.nix                 # Inputs, outputs, target systems, and flake apps
     ├── flake.lock                # Reproducible dependency revisions
     ├── apps/
@@ -362,7 +362,7 @@ them before attempting an installation:
 
 ```bash
 ./setup apply
-git diff -- nix-darwin/hosts/nixos nix-darwin/modules/nixos
+git diff -- nix/hosts/nixos nix/modules/nixos
 ```
 
 Do not run a Disko installation until the resolved device path has been checked
@@ -400,8 +400,8 @@ The Ubuntu profile installs an Emacs desktop entry directly in
 `emacsclient` frame and starts the managed daemon when necessary.
 
 Ubuntu host packages are declared separately from the Home Manager profile.
-Edit `nix-darwin/modules/linux/apt-packages.nix` for distribution-owned APT
-packages and `nix-darwin/modules/linux/snaps.nix` for Snap applications. The
+Edit `nix/modules/linux/apt-packages.nix` for distribution-owned APT
+packages and `nix/modules/linux/snaps.nix` for Snap applications. The
 APT list intentionally contains only host integration needed by this setup:
 Linuxbrew prerequisites, smart-card/YubiKey support, and `snapd`. Ordinary
 command-line and development tools should remain in the shared Nix package
@@ -663,7 +663,7 @@ over SSH.  An existing checkout is handled conservatively:
 - a temporary fetch failure does not invalidate an existing checkout.
 
 The personal literate configuration is
-`nix-darwin/modules/shared/config/emacs/config.org`.  Home Manager exposes it as
+`nix/modules/shared/config/emacs/config.org`.  Home Manager exposes it as
 `~/.config/emacs/config.org` and tangles it during activation with the
 Nix-managed Emacs.  Generated modules are written below `~/.emacs.d/custom` and
 `~/.emacs.d/lisp`; the upstream Purcell bootstrap remains a normal Git
@@ -682,7 +682,7 @@ application under `/Applications/Nix Apps`.
 
 ### Vim and Neovim
 
-`nix-darwin/modules/shared/config/vim/shared.vim` is loaded by both Vim and
+`nix/modules/shared/config/vim/shared.vim` is loaded by both Vim and
 Neovim.  Home Manager installs the compatible plugin set for each editor.
 gVim, MacVim, `vi`, `view`, and `vimdiff` inherit the Vim configuration, while
 flavor-specific behavior is guarded by feature checks.
@@ -702,7 +702,7 @@ the group-writable Homebrew completion directories that would otherwise cause
 tmux uses the `screen-256color` terminal, mouse support, persistent sessions,
 and Vim-aware pane navigation.  Its current prefix is `C-x`.  Because `C-x` is
 also a fundamental Emacs prefix, change it in
-`nix-darwin/modules/shared/home-manager.nix` only after choosing a replacement
+`nix/modules/shared/home-manager.nix` only after choosing a replacement
 that does not conflict with the desired Emacs, Vim, or shell workflow.
 
 Git uses `vim` as its editor, signs commits with OpenPGP, pulls with rebase, and
@@ -738,12 +738,12 @@ the current machine.
 To update pinned inputs deliberately:
 
 ```bash
-nix flake update --flake nix-darwin
+nix flake update --flake nix
 ./setup check
 ./setup build
 ```
 
-Review `nix-darwin/flake.lock` before activating an input update.
+Review `nix/flake.lock` before activating an input update.
 
 ## Rollback and recovery
 
@@ -797,6 +797,12 @@ If GnuPG instead reports `No pinentry`, `setup` installs a temporary
 Home Manager link. The activated profile then replaces it with the permanent
 Nix-managed Pinentry path.
 
+Graphical Emacs uses a GTK Pinentry on Linux, with curses and TTY fallbacks for
+virtual consoles and headless sessions. If EasyPG reports `Inappropriate ioctl
+for device`, run `./setup switch`, restart Emacs, and retry; the PIN request
+should appear as a desktop dialog instead of trying to open a nonexistent Emacs
+daemon TTY.
+
 `setup` also imports the public OpenPGP certificates published for the saved
 GitHub username before asking GnuPG to inspect a connected card. This is
 required on a new computer: the YubiKey holds the private ECDH operation, but
@@ -816,6 +822,12 @@ Ubuntu's `/etc/ssh/ssh_config` enables GSSAPI, so the Linux profile uses the
 GSSAPI-enabled Nixpkgs OpenSSH build. Conventional `id_ed25519` and `id_rsa`
 files remain automatic fallbacks when present and are not treated as errors
 when absent.
+
+ELPA vterm modules are built with vterm's vendored static libvterm rather than
+linking to a Homebrew shared library. During activation, a Linux module that
+specifically reports a missing `libvterm.so.0` is moved aside with its build
+directory. The next `M-x vterm` rebuilds it automatically; the preserved files
+remain beside the package with a `broken-system-libvterm-*` suffix.
 
 If Nix reports that the revision locked for `secrets` no longer exists on its
 `main` branch, refresh only that input and retry activation:
@@ -901,6 +913,6 @@ Standalone Home Manager still manages only the user environment. The `setup`
 wrapper can install the explicitly declared APT packages and Snaps through
 Ubuntu, and it enables `snapd.socket` when available, but it does not turn
 arbitrary Home Manager services into Ubuntu system services. Add required host
-packages to `nix-darwin/modules/linux/apt-packages.nix`, configure other daemons
+packages to `nix/modules/linux/apt-packages.nix`, configure other daemons
 through Ubuntu, or promote that machine to the NixOS configuration when
 complete system management is desired.

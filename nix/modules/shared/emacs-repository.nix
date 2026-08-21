@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   sshPackage = if pkgs.stdenv.hostPlatform.isLinux then pkgs.openssh_gssapi else pkgs.openssh;
@@ -63,5 +63,36 @@ in
         --eval '(require (quote org))' \
         --eval '(org-babel-tangle-file "${./config/emacs/config.org}")'
     fi
+  '';
+
+  # Older ELPA vterm modules may have linked against Linuxbrew's unversioned
+  # runtime environment. Quarantine only modules whose loader explicitly says
+  # libvterm.so.0 is missing; the shared Emacs configuration will rebuild them
+  # with vterm's vendored static library on first use.
+  home.activation.repairBrokenVtermModule = config.lib.dag.entryAfter [
+    "tangleEmacsConfig"
+  ] ''
+    ${lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
+      if [[ -v DRY_RUN ]]; then
+        echo "Would inspect existing Emacs vterm modules"
+      else
+        for vterm_module in "$HOME"/.emacs.d/elpa-*/vterm-*/vterm-module.so; do
+          [ -e "$vterm_module" ] || continue
+          if ${pkgs.glibc.bin}/bin/ldd "$vterm_module" 2>&1 | \
+             ${pkgs.gnugrep}/bin/grep -Fq 'libvterm.so.0 => not found'; then
+            vterm_directory="$(${pkgs.coreutils}/bin/dirname -- "$vterm_module")"
+            backup_suffix="broken-system-libvterm-$(${pkgs.coreutils}/bin/date +%Y%m%d%H%M%S)-$$"
+            ${pkgs.coreutils}/bin/mv -- \
+              "$vterm_module" "$vterm_module.$backup_suffix"
+            if [ -d "$vterm_directory/build" ]; then
+              ${pkgs.coreutils}/bin/mv -- \
+                "$vterm_directory/build" \
+                "$vterm_directory/build.$backup_suffix"
+            fi
+            echo "Quarantined broken vterm module $vterm_module; Emacs will rebuild it on first use."
+          fi
+        done
+      fi
+    ''}
   '';
 }

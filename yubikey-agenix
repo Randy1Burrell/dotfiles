@@ -316,7 +316,7 @@ enroll() (
 
 offer_secrets_update() {
   local config_source="${HOME}/.ssh/config_external"
-  [[ -r "${config_source}" ]] || config_source="${REPO_ROOT}/nix-darwin/modules/shared/config/ssh/config_external"
+  [[ -r "${config_source}" ]] || config_source="${REPO_ROOT}/nix/modules/shared/config/ssh/config_external"
   [[ -x "${SETUP_PATH}" ]] || {
     warn "Run setup update-secrets to add all enrolled YubiKeys to the Agenix recipients."
     return 0
