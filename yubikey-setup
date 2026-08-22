@@ -93,7 +93,9 @@ require_normal_user() {
 ensure_dependencies() {
   if command -v ykman >/dev/null 2>&1 && \
      command -v gpg >/dev/null 2>&1 && \
+     command -v gpg-agent >/dev/null 2>&1 && \
      command -v gpgconf >/dev/null 2>&1 && \
+     command -v gpg-connect-agent >/dev/null 2>&1 && \
      command -v openssl >/dev/null 2>&1; then
     return 0
   fi
@@ -114,14 +116,33 @@ release_gpg_smartcard() {
 }
 
 prepare_gpg() {
-  local tty_path
+  local tty_path expected_version running_version
   if tty_path="$(tty 2>/dev/null)" && [[ "${tty_path}" != "not a tty" ]]; then
     export GPG_TTY="${tty_path}"
   fi
   gpgconf --launch gpg-agent >/dev/null 2>&1 || true
-  if command -v gpg-connect-agent >/dev/null 2>&1; then
-    gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
+  expected_version="$(gpg-agent --version 2>/dev/null | awk 'NR == 1 { print $3; exit }')"
+  running_version="$(
+    gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+      awk '$1 == "D" { print $2; exit }' || true
+  )"
+  if [[ -n "${expected_version}" && -n "${running_version}" && \
+        "${running_version}" != "${expected_version}" ]]; then
+    warn "Restarting stale gpg-agent ${running_version} with the selected GnuPG ${expected_version}."
+    gpgconf --kill all >/dev/null 2>&1 || true
+    if [[ "$(uname -s)" == "Linux" ]] && command -v systemctl >/dev/null 2>&1; then
+      systemctl --user daemon-reload >/dev/null 2>&1 || true
+    fi
+    gpgconf --launch gpg-agent >/dev/null 2>&1 || \
+      fail "Could not launch gpg-agent ${expected_version}."
+    running_version="$(
+      gpg-connect-agent 'GETINFO version' /bye 2>/dev/null |
+        awk '$1 == "D" { print $2; exit }' || true
+    )"
+    [[ "${running_version}" == "${expected_version}" ]] || \
+      fail "Expected gpg-agent ${expected_version}, but the socket reports ${running_version:-unknown}. Run ./setup switch, log out of Ubuntu, and log back in before retrying."
   fi
+  gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
 }
 
 detect_one_card() {

@@ -395,6 +395,12 @@ prepare_gpg_ssh_agent() {
     if [[ -n "${expected_version}" && -n "${running_version}" && "${running_version}" != "${expected_version}" ]]; then
       warn "Restarting stale gpg-agent ${running_version} with managed version ${expected_version}."
       "${GPGCONF_BIN}" --kill all >/dev/null 2>&1 || true
+      if [[ "$(uname -s)" == "Linux" ]] && command -v systemctl >/dev/null 2>&1; then
+        # Ubuntu commonly socket-activates gpg-agent. Reload the user units
+        # after a Home Manager upgrade so the next socket connection starts
+        # the managed binary rather than the distribution's older service.
+        systemctl --user daemon-reload >/dev/null 2>&1 || true
+      fi
       "${GPGCONF_BIN}" --launch gpg-agent >/dev/null 2>&1 || \
         fail "Could not launch the managed gpg-agent ${expected_version}."
       running_version="$(
@@ -1431,6 +1437,11 @@ run_action() {
       info "Activating the NixOS smart-card service before provisioning"
       run_action switch || return $?
     fi
+    # This action returns before the general build/switch preparation below,
+    # so reconcile the GnuPG client, agent, and scdaemon explicitly. Without
+    # this, Ubuntu can run the managed client against an older socket-activated
+    # distribution agent and fail to discover an otherwise visible YubiKey.
+    prepare_gpg_ssh_agent
     info "Provisioning one connected YubiKey"
     "${REPO_ROOT}/yubikey-setup" "$@" || return $?
     if [[ "${provision_yubikey}" == yes && "${enrol_yubikey_login}" == yes && -e /etc/NIXOS ]]; then

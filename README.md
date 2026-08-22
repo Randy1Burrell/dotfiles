@@ -573,6 +573,13 @@ Home Manager starts `gpg-agent` with SSH support on every platform.  Bash and
 Zsh export the agent's SSH socket, and macOS also publishes it to launchd so GUI
 applications can inherit the same value.
 
+Before YubiKey provisioning, setup selects Home Manager's complete GnuPG suite
+and verifies that the process behind the agent socket is the same version. On
+Ubuntu it reloads the user systemd units before replacing a stale distribution
+agent, which also ensures the matching `scdaemon` is launched. This prevents a
+newer Nix `gpg` client from failing card discovery against an older Ubuntu
+`gpg-agent` or `scdaemon`.
+
 The agent keeps an actively used GPG or SSH credential cached for four hours,
 with an eight-hour hard limit from the initial PIN/passphrase entry. Restarting
 the agent, logging out, or rebooting clears the agent cache. GnuPG resets the
