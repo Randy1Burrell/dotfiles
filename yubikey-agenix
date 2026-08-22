@@ -148,11 +148,16 @@ start_linux_pcscd() {
 }
 
 release_gpg_smartcard() {
+  local gpgconf_bin
+
   # GnuPG's internal CCID driver can hold an exclusive reader lock. It will
   # start scdaemon again automatically the next time OpenPGP is used.
-  if command -v gpgconf >/dev/null 2>&1; then
-    gpgconf --kill scdaemon >/dev/null 2>&1 || true
+  gpgconf_bin="${DOTFILES_GPGCONF:-}"
+  if [[ -z "${gpgconf_bin}" ]]; then
+    gpgconf_bin="$(command -v gpgconf 2>/dev/null || true)"
   fi
+  [[ -n "${gpgconf_bin}" && -x "${gpgconf_bin}" ]] || return 0
+  "${gpgconf_bin}" --kill scdaemon >/dev/null 2>&1 || true
 }
 
 repair_management_key() {
@@ -270,6 +275,13 @@ test_material() (
 
 connected_identity_output() {
   local output_file="$1"
+
+  # GPG-backed SSH may have used this same card immediately before this call.
+  # Release scdaemon here, at the point of every plugin access, so --status,
+  # --test, enrollment, and callers reached after a Git operation all behave
+  # consistently on Linux.
+  start_linux_pcscd
+  release_gpg_smartcard
   if ! run_plugin --identity > "${output_file}"; then
     fail "Could not read Age identities from the connected YubiKey."
   fi
@@ -282,8 +294,6 @@ enroll() (
   recipients="$(mktemp)"
   trap 'rm -f "${output:-}" "${identities:-}" "${recipients:-}"' EXIT
 
-  start_linux_pcscd
-  release_gpg_smartcard
   connected_identity_output "${output}"
   extract_identities "${output}" > "${identities}"
 
@@ -352,7 +362,8 @@ status() (
 
   output="$(mktemp)"
   trap 'rm -f "${output:-}"' EXIT
-  if run_plugin --identity > "${output}" && grep -q '^AGE-PLUGIN-YUBIKEY-' "${output}"; then
+  connected_identity_output "${output}"
+  if grep -q '^AGE-PLUGIN-YUBIKEY-' "${output}"; then
     printf '\nConnected YubiKey identities:\n'
     cat "${output}"
   else
@@ -362,8 +373,6 @@ status() (
 
 test_connected() (
   local output
-  start_linux_pcscd
-  release_gpg_smartcard
   output="$(mktemp)"
   trap 'rm -f "${output:-}"' EXIT
   connected_identity_output "${output}"

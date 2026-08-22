@@ -424,6 +424,10 @@ prepare_gpg_ssh_agent() {
 
   sync_github_gpg_public_keys
 
+  # Refresh the smart-card inventory before SSH asks the agent for keys. This
+  # is important after changing applets or swapping among several YubiKeys.
+  "${GPG_CONNECT_AGENT_BIN}" 'SCD SERIALNO --all' /bye >/dev/null 2>&1 || true
+
   socket="$("${GPGCONF_BIN}" --list-dirs agent-ssh-socket 2>/dev/null || true)"
   [[ -n "${socket}" ]] || return 0
 
@@ -1418,6 +1422,10 @@ run_action() {
         fi
         ;;
     esac
+    # Select the same managed GnuPG suite used by the other key actions. This
+    # ensures yubikey-agenix terminates the scdaemon that actually owns the
+    # reader instead of an older distribution instance on Ubuntu.
+    prepare_gpg_ssh_agent
     info "Configuring hardware-backed Agenix encryption"
     "${REPO_ROOT}/yubikey-agenix" "$@"
     return $?

@@ -731,6 +731,12 @@ Useful checks are:
 ./setup yubikey-agenix --enroll-only
 ```
 
+On Ubuntu, the setup wrapper selects the managed GnuPG suite and releases
+`scdaemon` before each `age-plugin-yubikey` operation. This is also done after
+the private repository has been cloned through GPG-backed SSH, because that
+authentication can otherwise leave the smart-card reader exclusively owned by
+GnuPG and make Age incorrectly ask for an already-connected YubiKey.
+
 ### Key-management commands
 
 `./setup gpg` creates any missing GPG configuration files, enables SSH support,
