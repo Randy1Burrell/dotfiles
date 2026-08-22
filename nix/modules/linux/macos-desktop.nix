@@ -119,6 +119,9 @@ in
       dock-fixed = true;
       dock-position = "BOTTOM";
       extend-height = false;
+      # Let focused applications receive physical Super+number combinations.
+      # Graphical Emacs maps the physical Super key to Meta.
+      hot-keys = false;
       intellihide = false;
       intellihide-mode = "ALL_WINDOWS";
       multi-monitor = true;
@@ -132,30 +135,55 @@ in
       transparency-mode = "DYNAMIC";
     };
 
-    # Super acts as the closest GNOME equivalent to Command for window
-    # management. Existing Alt shortcuts remain available during migration.
+    # Avoid physical Super shortcuts that would prevent graphical Emacs from
+    # receiving its remapped Meta combinations. Retain conventional non-Super
+    # alternatives for desktop window management.
     "org/gnome/desktop/wm/keybindings" = {
-      close = [ "<Super>w" "<Alt>F4" ];
-      minimize = [ "<Super>m" ];
-      switch-applications = [ "<Super>Tab" "<Alt>Tab" ];
-      switch-applications-backward = [ "<Shift><Super>Tab" "<Shift><Alt>Tab" ];
-      switch-group = [ "<Super>grave" "<Alt>grave" ];
-      switch-group-backward = [ "<Shift><Super>grave" "<Shift><Alt>grave" ];
-      toggle-fullscreen = [ "<Control><Super>f" ];
+      activate-window-menu = [ "<Shift><Alt>F10" ];
+      close = [ "<Alt>F4" ];
+      minimize = [ "<Alt>F9" ];
+      # Keep physical Super+Space available as Emacs Meta+Space, and physical
+      # Alt+Space available as the Emacs Super+Space leader.
+      switch-input-source = [ "<Control><Alt>space" ];
+      switch-input-source-backward = [ "<Shift><Control><Alt>space" ];
+      switch-applications = [ "<Alt>Tab" ];
+      switch-applications-backward = [ "<Shift><Alt>Tab" ];
+      switch-group = [ "<Alt>grave" ];
+      switch-group-backward = [ "<Shift><Alt>grave" ];
+      toggle-fullscreen = [ "F11" ];
+    };
+
+    # GNOME/Ubuntu otherwise grabs these before a focused Emacs frame sees
+    # them. Super alone still opens Activities, while physical Super+S and
+    # Super+number combinations are available as Emacs Meta bindings.
+    "org/gnome/shell/keybindings" = {
+      toggle-overview = [ ];
+      switch-to-application-1 = [ ];
+      switch-to-application-2 = [ ];
+      switch-to-application-3 = [ ];
+      switch-to-application-4 = [ ];
+      switch-to-application-5 = [ ];
+      switch-to-application-6 = [ ];
+      switch-to-application-7 = [ ];
+      switch-to-application-8 = [ ];
+      switch-to-application-9 = [ ];
     };
 
     "org/gnome/settings-daemon/plugins/media-keys" = {
-      area-screenshot = [ "<Shift>Print" "<Shift><Super>4" ];
+      area-screenshot = [ "<Shift>Print" ];
       custom-keybindings = [
         "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/alacritty/"
       ];
-      screenshot = [ "Print" "<Shift><Super>3" ];
-      screensaver = [ "<Super>l" "<Control><Super>q" ];
-      window-screenshot = [ "<Alt>Print" "<Shift><Super>5" ];
+      screenshot = [ "Print" ];
+      screensaver = [ "<Control><Alt>Delete" ];
+      # GNOME normally reserves physical Super+P, which graphical Emacs maps
+      # to its Meta+P perspective prefix. Keep display switching elsewhere.
+      video-out = [ "<Control><Alt>p" ];
+      window-screenshot = [ "<Alt>Print" ];
     };
 
     "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/alacritty" = {
-      binding = "<Super>Return";
+      binding = "<Control><Alt>Return";
       command = "${pkgs.alacritty}/bin/alacritty";
       name = "Open Terminal";
     };

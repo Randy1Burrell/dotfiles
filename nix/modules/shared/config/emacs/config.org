@@ -242,26 +242,36 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Code:
 
   ;;----------------------------------------------------------------------------
-  ;; Swap the physical Command/Super and Meta/Alt keys in graphical Emacs.
-  ;; Apply this per frame because daemon-created graphical frames have their
-  ;; own terminal-local modifier settings.
+  ;; Swap the physical Meta/Alt and Super/Command keys in graphical Emacs on
+  ;; every supported platform: physical Super/Command acts as Meta, while
+  ;; physical Meta/Alt acts as Super. Apply this per frame because
+  ;; daemon-created graphical frames have terminal-local modifier settings.
   ;;----------------------------------------------------------------------------
-  (defun rb/apply-swapped-command-meta-modifiers (&optional frame)
-    "Use Command/Super as Meta and Option/Alt as Super in FRAME."
+  (defun rb/set-platform-modifier-values (system)
+    "Set the modifier variables appropriate for window SYSTEM."
+    (cond
+     ((eq system 'ns)
+      (setq ns-command-modifier 'meta
+            ns-right-command-modifier 'left
+            ns-alternate-modifier 'super
+            ns-right-alternate-modifier 'left))
+     ((memq system '(x pgtk))
+      ;; PGTK/Wayland reports the physical Alt key through GDK's Meta/MOD1
+      ;; state, while X11 can report it through either Alt or Meta depending
+      ;; on the keyboard map. Cover both paths so the swap works on Ubuntu,
+      ;; NixOS, X11, and Wayland.
+      (setq x-super-keysym 'meta
+            x-alt-keysym 'super
+            x-meta-keysym 'super))))
+
+  (defun rb/apply-platform-modifiers (&optional frame)
+    "Swap the physical Meta/Alt and Super/Command keys in FRAME."
     (with-selected-frame (or frame (selected-frame))
-      (cond
-       ((eq window-system 'ns)
-        (setq ns-command-modifier 'meta
-              ns-right-command-modifier 'left
-              ns-alternate-modifier 'super
-              ns-right-alternate-modifier 'left))
-       ((memq window-system '(x pgtk))
-        (setq x-super-keysym 'meta
-              x-alt-keysym 'super)))))
+      (rb/set-platform-modifier-values window-system)))
 
   (add-hook 'after-make-frame-functions
-            #'rb/apply-swapped-command-meta-modifiers)
-  (rb/apply-swapped-command-meta-modifiers)
+            #'rb/apply-platform-modifiers)
+  (rb/apply-platform-modifiers)
 
   ;;----------------------------------------------------------------------------
   ;; Setup some stuff for my frame
