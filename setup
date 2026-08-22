@@ -86,6 +86,8 @@ Key and GPG actions:
                Enable local computer login with a YubiKey PIN
   yubikey-agenix
                Provision a YubiKey for hardware-backed Agenix encryption
+  yubikey-setup
+               Provision one YubiKey for PINs, keys, login, SSH, and Agenix
 
 Environment:
   GITHUB_USER  Supply the GitHub username for an unattended first run.
@@ -876,6 +878,11 @@ darwin_configuration_name() {
   nixbld_gid="$({
     /usr/bin/dscl . -read /Groups/nixbld PrimaryGroupID 2>/dev/null || true
   } | awk '$1 == "PrimaryGroupID:" { print $2; exit }')"
+  if [[ -z "${nixbld_gid}" ]]; then
+    nixbld_gid="$({
+      /usr/bin/dscacheutil -q group -a name nixbld 2>/dev/null || true
+    } | awk '$1 == "gid:" { print $2; exit }')"
+  fi
 
   case "${nixbld_gid}" in
     30000) printf '%s\n' "${system}" ;;
@@ -1374,7 +1381,7 @@ run_action() {
   shift
 
   case "${action}" in
-    switch|build|check|apply|apt|snaps|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login|yubikey-agenix) ;;
+    switch|build|check|apply|apt|snaps|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login|yubikey-agenix|yubikey-setup) ;;
     -h|--help) usage; return 0 ;;
     *) usage >&2; fail "Unknown action: ${action}" ;;
   esac
@@ -1407,6 +1414,29 @@ run_action() {
     esac
     info "Configuring hardware-backed Agenix encryption"
     "${REPO_ROOT}/yubikey-agenix" "$@"
+    return $?
+  fi
+
+  if [[ "${action}" == "yubikey-setup" ]]; then
+    local provision_yubikey=yes enrol_yubikey_login=yes yubikey_option
+    for yubikey_option in "$@"; do
+      case "${yubikey_option}" in
+        --help|-h|--status) provision_yubikey=no ;;
+        --skip-login) enrol_yubikey_login=no ;;
+      esac
+    done
+    if [[ "${provision_yubikey}" == yes && -e /etc/NIXOS ]] && \
+       ! systemctl is-active --quiet pcscd.socket 2>/dev/null && \
+       ! systemctl is-active --quiet pcscd.service 2>/dev/null; then
+      info "Activating the NixOS smart-card service before provisioning"
+      run_action switch || return $?
+    fi
+    info "Provisioning one connected YubiKey"
+    "${REPO_ROOT}/yubikey-setup" "$@" || return $?
+    if [[ "${provision_yubikey}" == yes && "${enrol_yubikey_login}" == yes && -e /etc/NIXOS ]]; then
+      info "Activating the declarative NixOS login configuration"
+      run_action switch
+    fi
     return $?
   fi
 
@@ -1636,8 +1666,10 @@ Choose an action:
                     Enable local computer login with a YubiKey PIN
   17) yubikey-agenix
                     Provision a YubiKey for Agenix encryption
-  18) apt          Install and upgrade declared Ubuntu APT packages
-  19) snaps        Install and refresh declared Ubuntu Snap packages
+  18) yubikey-setup
+                    Provision PINs, keys, login, SSH, and Agenix for one card
+  19) apt          Install and upgrade declared Ubuntu APT packages
+  20) snaps        Install and refresh declared Ubuntu Snap packages
    q) quit
 EOF
 }
@@ -1671,8 +1703,9 @@ interactive_menu() {
       15|github-user|set-github-user) action="github-user" ;;
       16|yubikey-login) action="yubikey-login" ;;
       17|yubikey-agenix) action="yubikey-agenix" ;;
-      18|apt) action="apt" ;;
-      19|snaps|snap) action="snaps" ;;
+      18|yubikey-setup) action="yubikey-setup" ;;
+      19|apt) action="apt" ;;
+      20|snaps|snap) action="snaps" ;;
       q|Q|quit|exit)
         info "Exiting setup"
         return 0

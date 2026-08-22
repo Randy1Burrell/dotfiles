@@ -14,6 +14,8 @@
 - [Setup command](#setup-command)
   - [Interactive mode](#interactive-mode)
   - [Command reference](#command-reference)
+  - [Provision a complete YubiKey](#provision-a-complete-yubikey)
+  - [Local login with a YubiKey PIN](#local-login-with-a-yubikey-pin)
   - [Environment overrides](#environment-overrides)
 - [Repository layout](#repository-layout)
 - [Platform behavior](#platform-behavior)
@@ -240,10 +242,100 @@ and when copying diagnostic output.
 | `./setup create-keys` | Interactively creates the GitHub and Agenix ED25519 key pairs. |
 | `./setup yubikey-login` | Adds the connected YubiKey as a local computer-login method while preserving password recovery. |
 | `./setup yubikey-agenix` | Provisions or imports a hardware-backed Age identity and adds it to the Agenix recipients. |
+| `./setup yubikey-setup` | Guides one connected card through PIN setup, distinct on-card OpenPGP keys, local login, and hardware-backed Agenix enrollment. |
+| `./yubikey-reset [serial]` | Irreversibly clears every resettable application on exactly one connected YubiKey without confirmation prompts. |
 
-The command-line parser accepts arguments after `--` for flake applications
-that support additional arguments.  The current key commands are configured
-through environment variables and interactive prompts instead.
+The command-line parser passes action-specific flags to the selected helper;
+for example, `./setup yubikey-setup --status`. Key commands also use the
+documented environment variables and protected interactive prompts.
+
+### Provision a complete YubiKey
+
+Connect exactly one card, then run:
+
+```bash
+./setup yubikey-setup
+```
+
+Run the workflow separately for each YubiKey. It detects the serial number,
+refuses to continue when another card could be selected accidentally, and
+guides these independent application setups:
+
+| YubiKey application | Configuration |
+|---|---|
+| OpenPGP | Changes the User and Admin PINs, configures a separate Reset Code, opens GnuPG's on-card generator for distinct signing/encryption/authentication keys, enables optional touch, exports the public OpenPGP and SSH keys, and can retain the signing PIN until card removal. |
+| PIV | Changes the PIN and PUK, converts the management key to a random PIN-protected value, preserves or creates the slot 9a login certificate, and gives `age-plugin-yubikey` a retired slot for Agenix. |
+| FIDO2 | Sets or changes the PIN used when Linux or a supported Windows configuration enrolls the card for local login. |
+
+The suggested two-value plan uses an eight-digit everyday PIN for the OpenPGP
+User PIN, PIV PIN, and FIDO2 PIN, and a separate admin/recovery value for the
+OpenPGP Admin PIN and PIV PUK. These applications do not actually share PIN
+storage: the official prompt for each application must receive the intended
+value. Use a unique OpenPGP Reset Code and keep it with offline recovery
+material; it can unblock the OpenPGP User PIN but cannot recover a blocked
+Admin PIN. The random PIV management key is another credential stored on the
+card under PIN protection. The script never reads, echoes, stores, or supplies
+any PIN, PUK, or Reset Code as a command-line argument.
+
+The default workflow is resumable and preserves populated key slots. Inspect a
+card without changing it with:
+
+```bash
+./setup yubikey-setup --status
+```
+
+To irreversibly clear every resettable application without a confirmation
+prompt, connect exactly one card immediately before running:
+
+```bash
+./yubikey-reset
+./yubikey-reset 31379516 # optional serial check
+```
+
+The FIDO reset still requires touching the flashing card, as required by the
+YubiKey itself. A regular YubiKey 5 has no universal factory-reset command, so
+the helper resets FIDO, OATH, OpenPGP, PIV, YubiHSM Auth, Security Domain, and
+both OTP slots separately. It cannot recreate the unique Yubico OTP credential
+originally installed in slot 1 at the factory. Run `./yubikey-reset --help`
+beforehand for the complete data-loss scope and optional access-code variables.
+
+Generating a new OpenPGP identity on an already populated card requires the
+explicit `--reset-openpgp` option and the typed phrase containing its serial
+number. `--reset-piv` has the same guard but erases the macOS login certificate
+and every PIV/Agenix private key on that card. Neither option resets FIDO2, so
+existing passkeys are not erased. Public pre-reset inventories and final
+public keys are stored under
+`~/.local/state/dotfiles/yubikeys/<serial>/`; no private key, PIN, PUK, Reset
+Code, or management key is written there.
+
+```bash
+./setup yubikey-setup --reset-openpgp
+./setup yubikey-setup --reset-piv --reset-openpgp
+```
+
+The on-card OpenPGP and Agenix keys are intentionally non-exportable. Keep the
+file-backed Agenix recovery identity, authorize every card's exported SSH key
+on GitHub and each server, and publish/register every OpenPGP public key used
+for commit signing. After all cards are enrolled, run `./setup update-secrets`
+once to re-encrypt the Agenix files to all saved recipients. A lost card cannot
+be cloned; provision a replacement with a new key, authorize its public
+material, re-encrypt to the new recipient set, and revoke/remove the lost
+card's public credentials.
+
+The managed Git configuration does not hard-code one signing fingerprint.
+During a commit it reads the signing fingerprint from the connected OpenPGP
+card and substitutes it for Git's requested signer; verification and other GPG
+operations pass through unchanged. This lets any separately provisioned card
+sign after its public key is present in the local keyring and registered with
+the relevant Git host. Keep only the card you intend to use connected when
+signing.
+
+For the highest assurance, provision on a clean offline machine after the
+required tools are installed. On-card generation prevents private-key export,
+but an offline environment also reduces the risk that a compromised host
+changes the requested identity or key policy. A fully updated trusted everyday
+computer is a reasonable operational choice when that stronger threat model is
+not required.
 
 ### Local login with a YubiKey PIN
 
@@ -262,9 +354,24 @@ The PIN and registration mechanism differ by operating system:
 
 | Platform | Login method and limitation |
 |---|---|
-| macOS | Pairs the certificate in the YubiKey PIV authentication slot (9a) with the current account. FileVault pre-boot unlock still uses the account password. |
+| macOS | Verifies that the certificate in PIV authentication slot 9a matches its private key, safely repairs a mismatched self-signed certificate, and pairs it with the current account. FileVault pre-boot unlock still uses the account password. |
 | Linux | Enrols the key with `pam_u2f`, requires its FIDO2 PIN, stores mappings in root-owned `/etc/u2f_mappings`, and adds the module as `sufficient` so password login remains available. NixOS applies the PAM portion declaratively during `switch`. |
 | Windows | Opens Microsoft's protected security-key registration pages. Native FIDO2 PIN sign-in is available only on Microsoft Entra joined or hybrid joined computers whose administrator enables security-key sign-in; local accounts and personal Microsoft accounts are not supported. Run `yubikey-login-windows.ps1` directly from PowerShell when Bash is unavailable. |
+
+On macOS, `OSStatus error -67808` or `EC signature verification failed, no
+match` means the identity selected by macOS could not verify a signature from
+the PIV slot 9a private key. The login helper attests on-card keys before
+pairing, calculates macOS's SHA-1 hash of the verified raw public key, and pairs
+only that exact identity. It never selects an unrelated hash merely because it
+is the only one listed. If macOS is still exposing an old certificate, the
+helper asks you to remove and reinsert the card and waits for CryptoTokenKit to
+publish the current identity.
+
+If the helper finds a certificate/private-key mismatch, it backs up the old
+certificate, offers to replace only that certificate, and preserves the private
+key. Remove and reinsert the YubiKey after repair, then run
+`./setup yubikey-login` again. If slot 9a has an `always` or `cached` touch
+policy, touch the key after entering the PIV PIN during pairing and login.
 
 The OpenPGP, PIV, and FIDO2 applets have separate PINs unless you explicitly
 set them to the same value. A passwordless Linux desktop login may also leave
@@ -303,6 +410,8 @@ KEYS_MOUNT_PATH=/Volumes/Keys ./setup copy-keys
 .
 ├── setup                         # Cross-platform command and interactive menu
 ├── bootstrap-gpg-ssh             # Pre-Nix GPG/YubiKey SSH bootstrap
+├── yubikey-setup                 # Guarded complete per-card provisioning
+├── yubikey-reset                 # Non-interactive destructive card reset
 ├── yubikey-login                 # Local account login enrolment
 ├── yubikey-agenix                # Hardware-backed Agenix enrolment
 ├── README.md                     # This operator's guide

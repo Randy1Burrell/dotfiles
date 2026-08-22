@@ -1,0 +1,725 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+umask 0077
+
+resolve_script_path() {
+  local source="${BASH_SOURCE[0]}" directory target
+  if [[ "${source}" != */* ]]; then
+    source="$(command -v -- "${source}")"
+  fi
+  while [[ -L "${source}" ]]; do
+    directory="$(cd -P -- "$(dirname -- "${source}")" && pwd)"
+    target="$(readlink "${source}")"
+    if [[ "${target}" == /* ]]; then
+      source="${target}"
+    else
+      source="${directory}/${target}"
+    fi
+  done
+  directory="$(cd -P -- "$(dirname -- "${source}")" && pwd)"
+  printf '%s/%s\n' "${directory}" "$(basename -- "${source}")"
+}
+
+SCRIPT_PATH="$(resolve_script_path)"
+readonly SCRIPT_PATH
+REPO_ROOT="$(dirname -- "${SCRIPT_PATH}")"
+readonly REPO_ROOT
+readonly LOGIN_SCRIPT="${REPO_ROOT}/yubikey-login"
+readonly AGENIX_SCRIPT="${REPO_ROOT}/yubikey-agenix"
+readonly STATE_ROOT="${XDG_STATE_HOME:-${HOME}/.local/state}/dotfiles/yubikeys"
+ORIGINAL_ARGUMENTS=("$@")
+
+RESET_OPENPGP=no
+RESET_PIV=no
+SKIP_LOGIN=no
+SKIP_AGENIX=no
+STATUS_ONLY=no
+SERIAL=""
+CARD_STATE_DIR=""
+
+info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
+fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<EOF
+Usage: $(basename "${SCRIPT_PATH}") [OPTIONS]
+
+Safely provision one connected YubiKey for OpenPGP signing/SSH, PIV-based
+Agenix encryption, and local computer login. Run the default workflow once for
+each card. Password login remains enabled.
+
+  --status          Inspect the connected card without changing it
+  --reset-openpgp   Erase only the OpenPGP application before provisioning
+  --reset-piv       Erase only the PIV application before provisioning
+  --skip-login      Do not enrol this card for local computer login
+  --skip-agenix     Do not generate/import its hardware-backed Age identity
+  -h, --help        Show this help
+
+The reset options are destructive. Each requires a typed confirmation that
+includes the connected card's serial number. A PIV reset erases the macOS login
+certificate in slot 9a and every retired-slot Agenix key. An OpenPGP reset
+erases that card's signing, encryption, and authentication keys.
+
+PINs, PUKs, and Reset Codes are entered only into Yubico or GnuPG prompts.
+This script never reads, stores, echoes, logs, or passes them as command-line
+arguments.
+EOF
+}
+
+confirm() {
+  local answer
+  [[ -t 0 ]] || fail "An interactive terminal is required."
+  IFS= read -r -p "$1 [y/N] " answer
+  case "${answer}" in
+    y|Y|yes|YES|Yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+require_typed_confirmation() {
+  local expected="$1" explanation="$2" answer
+  printf '%s\n' "${explanation}"
+  IFS= read -r -p "Type '${expected}' to continue: " answer
+  [[ "${answer}" == "${expected}" ]] || fail "Confirmation did not match; nothing was erased."
+}
+
+require_normal_user() {
+  [[ "$(id -u)" -ne 0 ]] || fail "Run this as your normal user, not with sudo."
+  [[ -t 0 && -t 1 ]] || fail "Run this from an interactive terminal."
+}
+
+ensure_dependencies() {
+  if command -v ykman >/dev/null 2>&1 && \
+     command -v gpg >/dev/null 2>&1 && \
+     command -v gpgconf >/dev/null 2>&1 && \
+     command -v openssl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [[ -z "${YUBIKEY_SETUP_NIX_SHELL:-}" ]] && command -v nix >/dev/null 2>&1; then
+    info "Loading YubiKey Manager and GnuPG from Nix"
+    exec nix --extra-experimental-features 'nix-command flakes' shell \
+      nixpkgs#yubikey-manager nixpkgs#gnupg nixpkgs#openssl \
+      --command env YUBIKEY_SETUP_NIX_SHELL=1 \
+      "${SCRIPT_PATH}" "${ORIGINAL_ARGUMENTS[@]}"
+  fi
+
+  fail "ykman, gpg, gpgconf, and openssl are required. Apply this dotfiles configuration or install YubiKey Manager, GnuPG, and OpenSSL, then retry."
+}
+
+release_gpg_smartcard() {
+  gpgconf --kill scdaemon >/dev/null 2>&1 || true
+}
+
+prepare_gpg() {
+  local tty_path
+  if tty_path="$(tty 2>/dev/null)" && [[ "${tty_path}" != "not a tty" ]]; then
+    export GPG_TTY="${tty_path}"
+  fi
+  gpgconf --launch gpg-agent >/dev/null 2>&1 || true
+  if command -v gpg-connect-agent >/dev/null 2>&1; then
+    gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
+  fi
+}
+
+detect_one_card() {
+  local serials count
+  release_gpg_smartcard
+  serials="$(ykman list --serials 2>/dev/null | awk '/^[0-9]+$/ { print }')"
+  count="$(printf '%s\n' "${serials}" | awk 'NF { count++ } END { print count + 0 }')"
+  case "${count}" in
+    0) fail "No YubiKey was found. Insert exactly one card and retry." ;;
+    1) SERIAL="$(printf '%s\n' "${serials}" | awk 'NF { print; exit }')" ;;
+    *)
+      printf 'Connected YubiKey serials:\n%s\n' "${serials}" >&2
+      fail "Connect only the card being provisioned so GnuPG cannot select a different card."
+      ;;
+  esac
+  CARD_STATE_DIR="${STATE_ROOT}/${SERIAL}"
+}
+
+run_ykman() {
+  release_gpg_smartcard
+  ykman --device "${SERIAL}" "$@"
+}
+
+gpg_card_status() {
+  local status card_serial
+  release_gpg_smartcard
+  prepare_gpg
+  status="$(LC_ALL=C gpg --card-status 2>&1)" || {
+    printf '%s\n' "${status}" >&2
+    return 1
+  }
+  card_serial="$(printf '%s\n' "${status}" |
+    sed -nE 's/^[[:space:]]*Serial number[. ]*:[[:space:]]*([^[:space:]]+).*$/\1/p' |
+    head -n 1)"
+  case "${card_serial}" in
+    "${SERIAL}"|*"${SERIAL}"*) ;;
+    *)
+      printf '%s\n' "${status}" >&2
+      fail "GnuPG selected card ${card_serial:-unknown}, not YubiKey ${SERIAL}. Disconnect other smart cards and retry."
+      ;;
+  esac
+  printf '%s\n' "${status}"
+}
+
+save_output() {
+  local destination="$1" temporary
+  shift
+  temporary="$(mktemp "${TMPDIR:-/tmp}/yubikey-setup.XXXXXX")"
+  if "$@" >"${temporary}" 2>&1; then
+    install -m 600 "${temporary}" "${destination}"
+  else
+    warn "Could not collect $(basename "${destination}")."
+  fi
+  rm -f -- "${temporary}"
+}
+
+capture_inventory() {
+  local destination="$1" certificate temporary
+  install -d -m 700 "${destination}"
+  save_output "${destination}/device-info.txt" run_ykman info
+  save_output "${destination}/piv-info.txt" run_ykman piv info
+  save_output "${destination}/openpgp-info.txt" run_ykman openpgp info
+  save_output "${destination}/fido-info.txt" run_ykman fido info
+  save_output "${destination}/openpgp-card-status.txt" gpg_card_status
+
+  certificate="${destination}/piv-9a-certificate.pem"
+  temporary="$(mktemp "${TMPDIR:-/tmp}/yubikey-piv-cert.XXXXXX")"
+  if ! run_ykman piv certificates export 9a "${temporary}" >/dev/null 2>&1; then
+    rm -f -- "${certificate}"
+  else
+    install -m 600 "${temporary}" "${certificate}"
+  fi
+  rm -f -- "${temporary}"
+
+  if command -v age-plugin-yubikey >/dev/null 2>&1; then
+    save_output "${destination}/agenix-identities.txt" \
+      env LC_ALL="${AGE_YUBIKEY_LOCALE:-en_US.UTF-8}" \
+      LANGUAGE="${AGE_YUBIKEY_LANGUAGE:-en-US}" \
+      age-plugin-yubikey --identity --serial "${SERIAL}"
+  fi
+}
+
+show_status() {
+  info "YubiKey ${SERIAL}"
+  run_ykman info
+  printf '\nPIV status:\n'
+  run_ykman piv info
+  printf '\nOpenPGP status:\n'
+  run_ykman openpgp info
+  printf '\nFIDO2 status:\n'
+  run_ykman fido info
+  printf '\nGnuPG card status:\n'
+  gpg_card_status
+  if [[ -r "${HOME}/.config/age/yubikey-recipients.txt" ]]; then
+    printf '\nSaved hardware-backed Age recipients:\n'
+    awk '/^age1yubikey1/ { print "  " $0 }' \
+      "${HOME}/.config/age/yubikey-recipients.txt"
+  fi
+}
+
+guard_piv_retries() {
+  local piv_info line value remaining maximum lowered=0
+  piv_info="$(run_ykman piv info)"
+  while IFS= read -r line; do
+    case "${line}" in
+      *"tries remaining:"*/*)
+        value="${line##*:}"
+        value="$(printf '%s' "${value}" | tr -d '[:space:]')"
+        remaining="${value%%/*}"
+        maximum="${value##*/}"
+        if [[ "${remaining}" =~ ^[0-9]+$ && "${maximum}" =~ ^[0-9]+$ ]] && \
+           (( maximum > 0 && remaining < maximum )); then
+          warn "${line}"
+          lowered=1
+        fi
+        ;;
+    esac
+  done <<EOF
+${piv_info}
+EOF
+  [[ "${lowered}" -eq 0 ]] || \
+    fail "A PIV retry counter is below its configured maximum. Do not guess a PIN or PUK; recover it deliberately before provisioning."
+}
+
+guard_openpgp_retries() {
+  local status retry_line user_retries reset_retries admin_retries
+  status="$(gpg_card_status)"
+  retry_line="$(printf '%s\n' "${status}" |
+    sed -nE 's/^[[:space:]]*PIN retry counter[. ]*:[[:space:]]*(.*)$/\1/p' |
+    head -n 1)"
+  [[ -n "${retry_line}" ]] || return 0
+  read -r user_retries reset_retries admin_retries <<EOF
+${retry_line}
+EOF
+  if [[ "${user_retries}" =~ ^[0-9]+$ ]] && (( user_retries < 3 )); then
+    fail "The OpenPGP User PIN has ${user_retries} attempt(s) remaining (counters: ${retry_line}). Do not guess it; use the Reset Code or Admin PIN to recover it deliberately."
+  fi
+  if [[ "${admin_retries}" =~ ^[0-9]+$ ]] && (( admin_retries < 3 )); then
+    if (( admin_retries == 0 )); then
+      fail "The OpenPGP Admin PIN is blocked (counters: ${retry_line}). Existing keys may still work with the User PIN, but administrative setup requires an OpenPGP reset, which erases those keys."
+    fi
+    fail "The OpenPGP Admin PIN has ${admin_retries} attempt(s) remaining (counters: ${retry_line}). Do not guess it; preserve the card or reset only the OpenPGP application deliberately."
+  fi
+}
+
+reset_requested_applications() {
+  local timestamp
+  timestamp="$(date +%Y%m%d-%H%M%S)"
+  if [[ "${RESET_PIV}" == yes || "${RESET_OPENPGP}" == yes ]]; then
+    info "Saving public pre-reset inventory"
+    capture_inventory "${CARD_STATE_DIR}/pre-reset-${timestamp}"
+  fi
+
+  if [[ "${RESET_PIV}" == yes ]]; then
+    require_typed_confirmation "ERASE PIV ${SERIAL}" \
+      "This permanently erases PIV slot 9a and every PIV/Agenix private key on YubiKey ${SERIAL}. It does not erase OpenPGP or FIDO2."
+    run_ykman piv reset --force
+    info "PIV application reset on YubiKey ${SERIAL}"
+  fi
+
+  if [[ "${RESET_OPENPGP}" == yes ]]; then
+    require_typed_confirmation "ERASE OPENPGP ${SERIAL}" \
+      "This permanently erases every OpenPGP private key on YubiKey ${SERIAL}. It does not erase PIV or FIDO2."
+    run_ykman openpgp reset --force
+    release_gpg_smartcard
+    info "OpenPGP application reset on YubiKey ${SERIAL}"
+  fi
+}
+
+explain_pin_plan() {
+  cat <<EOF
+
+Credential plan for YubiKey ${SERIAL}
+
+  Everyday PIN    OpenPGP User PIN, PIV PIN, and FIDO2 PIN
+  Admin/recovery  OpenPGP Admin PIN and PIV PUK
+  Reset Code      Separate OpenPGP User PIN recovery secret
+  Management key  Random, PIN-protected PIV administration key
+
+The applets do not share PIN storage. Enter your chosen everyday value again
+when each official prompt asks for its new PIN. Use an 8-character numeric
+value if you want one everyday PIN compatible with OpenPGP, PIV, FIDO2, and
+current YubiKey FIPS constraints. Enter the admin/recovery value only when an
+Admin PIN or PUK prompt explicitly asks for it.
+
+Use a unique Reset Code and store it with your offline recovery material. It
+can unblock a forgotten or blocked OpenPGP User PIN, but it cannot recover a
+blocked OpenPGP Admin PIN.
+
+Never guess a current value. Cancel its prompt if you do not know it.
+EOF
+}
+
+configure_piv_credentials() {
+  info "PIV PIN, PUK, and protected management key"
+  run_ykman piv info
+  if confirm "Set or change the PIV everyday PIN and admin/recovery PUK now?"; then
+    printf '\nThe next protected prompt changes the PIV PIN. Enter its current value, then your everyday PIN twice.\n'
+    run_ykman piv access change-pin
+    printf '\nThe next protected prompt changes the PIV PUK. Enter its current value, then your admin/recovery value twice.\n'
+    run_ykman piv access change-puk
+  else
+    warn "Keeping the current PIV PIN and PUK."
+  fi
+
+  info "Ensuring the PIV management key is random and PIN-protected"
+  "${AGENIX_SCRIPT}" --repair-management-key
+}
+
+configure_fido_pin() {
+  local fido_info question
+  info "FIDO2 PIN for Linux/Windows login"
+  fido_info="$(run_ykman fido info)"
+  printf '%s\n' "${fido_info}"
+  if printf '%s\n' "${fido_info}" |
+     grep -Eiq 'PIN([[:space:]]+is|:)[[:space:]]*(not set|unset)'; then
+    question="Set the FIDO2 everyday PIN now?"
+  else
+    question="Set or change the FIDO2 everyday PIN now?"
+  fi
+  if confirm "${question}"; then
+    printf '\nThe next protected prompt is for FIDO2. Use the same everyday value if that is your chosen PIN plan.\n'
+    run_ykman fido access change-pin
+  else
+    warn "Keeping the current FIDO2 PIN. Linux/Windows enrollment will use that PIN."
+  fi
+}
+
+openpgp_has_keys() {
+  local status
+  status="$1"
+  printf '%s\n' "${status}" |
+    awk -F: '
+      /^(Signature key|Encryption key|Authentication key)/ {
+        value=$2
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        if (value != "" && value != "[none]") found=1
+      }
+      END { exit !found }
+    '
+}
+
+openpgp_has_complete_keyset() {
+  local status label value
+  status="$1"
+  for label in "Signature key" "Encryption key" "Authentication key"; do
+    value="$(printf '%s\n' "${status}" |
+      awk -F: -v label="${label}" 'index($0, label) == 1 { print $2; exit }')"
+    case "${value}" in
+      ""|*"[none]"*) return 1 ;;
+    esac
+  done
+}
+
+configure_openpgp_credentials() {
+  printf '\nThe Admin PIN is changed first. Enter its current value and then your admin/recovery value twice.\n'
+  run_ykman openpgp access change-admin-pin
+  printf '\nThe User PIN is changed next. Enter its current value and then your everyday PIN twice.\n'
+  run_ykman openpgp access change-pin
+}
+
+configure_openpgp_reset_code() {
+  local status retry_line reset_retries
+  status="$(gpg_card_status)"
+  retry_line="$(printf '%s\n' "${status}" |
+    sed -nE 's/^[[:space:]]*PIN retry counter[. ]*:[[:space:]]*(.*)$/\1/p' |
+    head -n 1)"
+  read -r _ reset_retries _ <<EOF
+${retry_line}
+EOF
+
+  if [[ "${reset_retries}" =~ ^[0-9]+$ ]] && (( reset_retries > 0 )); then
+    if ! confirm "An OpenPGP Reset Code is already configured. Replace it?"; then
+      info "Preserving the existing OpenPGP Reset Code"
+      return 0
+    fi
+  fi
+
+  cat <<'EOF'
+
+The next protected prompts configure the OpenPGP Reset Code. Enter the current
+Admin PIN, followed by a new, unique Reset Code. Store the Reset Code with your
+offline recovery material, separately from the everyday User PIN.
+
+The Reset Code can unblock the User PIN. It cannot unblock or replace the
+Admin PIN, and this script never sees or stores either secret.
+EOF
+  run_ykman openpgp access change-reset-code
+}
+
+generate_openpgp_keys() {
+  cat <<'EOF'
+
+GnuPG will now open its card editor. At the `gpg/card>` prompt:
+
+  1. Enter `admin`.
+  2. Enter `key-attr` and select Ed25519 for signing/authentication and
+     Curve25519 for encryption when those algorithms are supported. Keeping
+     the card's supported defaults is also valid.
+  3. Enter `generate`.
+  4. Choose `n` when asked for an off-card encryption-key backup so all three
+     new private keys are generated and retained only on this YubiKey.
+  5. Choose an expiry, then enter your name and email. A comment such as the
+     YubiKey serial makes this card's distinct public key easy to identify.
+  6. Enter `quit` after generation completes.
+
+The card editor obtains PINs through Pinentry; this script cannot see them.
+EOF
+  confirm "Open the GnuPG card editor and generate this card's key set?" || \
+    fail "OpenPGP generation was cancelled. Rerun this script when ready."
+  release_gpg_smartcard
+  prepare_gpg
+  gpg --card-edit
+}
+
+configure_openpgp_policies() {
+  if ! confirm "Require touch for OpenPGP signing, decryption, and SSH authentication?"; then
+    warn "OpenPGP touch policies were not changed."
+  else
+    printf '%s\n' 'The Admin PIN may be requested for each policy change. The reversible on policy is used.'
+    ensure_openpgp_touch sig
+    ensure_openpgp_touch dec
+    ensure_openpgp_touch aut
+  fi
+
+  if gpg_card_status | grep -Eq '^Signature PIN[. ]*:[[:space:]]*not forced'; then
+    info "The OpenPGP signing PIN is already retained until card removal or reset"
+  elif confirm "Cache the OpenPGP signing PIN until this card is removed or reset?"; then
+    run_ykman openpgp access set-signature-policy once
+  else
+    warn "The signing PIN policy was not changed; commits may request the PIN every time."
+  fi
+}
+
+ensure_openpgp_touch() {
+  local slot="$1" key_info
+  if key_info="$(run_ykman openpgp keys info "${slot}" 2>/dev/null)" && \
+     printf '%s\n' "${key_info}" |
+       grep -Eiq 'Touch policy:[[:space:]]*(on|fixed|cached|cached-fixed)'; then
+    info "OpenPGP ${slot} touch policy is already enabled"
+    return 0
+  fi
+
+  if [[ "${slot}" == dec ]]; then
+    if ykman openpgp keys set-touch --help 2>&1 |
+       grep -Eq '(^|[^[:alnum:]])dec([^[:alnum:]]|$)'; then
+      run_ykman openpgp keys set-touch dec on
+    else
+      run_ykman openpgp keys set-touch enc on
+    fi
+  else
+    run_ykman openpgp keys set-touch "${slot}" on
+  fi
+}
+
+signature_fingerprint() {
+  local status="$1" fingerprint
+  fingerprint="$(printf '%s\n' "${status}" |
+    awk -F: '/^Signature key/ { print $2; exit }' |
+    tr -d '[:space:]')"
+  case "${fingerprint}" in
+    *[!0-9A-Fa-f]*|"") return 1 ;;
+  esac
+  case "${#fingerprint}" in
+    40|64) printf '%s\n' "${fingerprint}" ;;
+    *) return 1 ;;
+  esac
+}
+
+export_openpgp_public_material() {
+  local status fingerprint public_key ssh_key temporary
+  status="$(gpg_card_status)"
+  fingerprint="$(signature_fingerprint "${status}")" || \
+    fail "Could not determine the OpenPGP signing fingerprint from the connected card."
+  install -d -m 700 "${CARD_STATE_DIR}"
+
+  temporary="$(mktemp "${TMPDIR:-/tmp}/yubikey-openpgp.XXXXXX")"
+  public_key="${CARD_STATE_DIR}/openpgp-public.asc"
+  if gpg --armor --export "${fingerprint}" >"${temporary}" && [[ -s "${temporary}" ]]; then
+    install -m 600 "${temporary}" "${public_key}"
+  else
+    rm -f -- "${temporary}"
+    fail "GnuPG could not export ${fingerprint}. The card keys exist, but their public certificate is missing from this keyring."
+  fi
+
+  ssh_key="${CARD_STATE_DIR}/openpgp-ssh.pub"
+  if gpg --export-ssh-key "${fingerprint}" >"${temporary}" && [[ -s "${temporary}" ]]; then
+    install -m 600 "${temporary}" "${ssh_key}"
+  else
+    rm -f -- "${temporary}"
+    fail "GnuPG could not export an SSH authentication subkey for ${fingerprint}."
+  fi
+  printf '%s\n' "${fingerprint}" >"${CARD_STATE_DIR}/openpgp-fingerprint.txt"
+  chmod 600 "${CARD_STATE_DIR}/openpgp-fingerprint.txt"
+  rm -f -- "${temporary}"
+
+  info "Saved this card's public OpenPGP and SSH keys under ${CARD_STATE_DIR}"
+}
+
+configure_openpgp() {
+  local status
+  info "Distinct OpenPGP signing, encryption, and SSH keys"
+  status="$(gpg_card_status)"
+  printf '%s\n' "${status}"
+  if openpgp_has_keys "${status}"; then
+    if ! openpgp_has_complete_keyset "${status}"; then
+      fail "The OpenPGP application is partially populated. Preserve it or rerun with --reset-openpgp; this script will not overwrite individual slots."
+    fi
+    warn "YubiKey ${SERIAL} already has a complete OpenPGP key set; preserving it. Use --reset-openpgp only when you intend to destroy and replace it."
+  else
+    configure_openpgp_credentials
+    generate_openpgp_keys
+    status="$(gpg_card_status)"
+    openpgp_has_complete_keyset "${status}" || \
+      fail "GnuPG did not report complete signing, encryption, and authentication keys. Nothing else will be written to OpenPGP; rerun to resume."
+  fi
+  configure_openpgp_reset_code
+  configure_openpgp_policies
+  export_openpgp_public_material
+}
+
+ensure_piv_login_certificate() (
+  local public_key certificate subject_name workspace exported_key exported_certificate
+  local attestation certificate_public slot_public_der certificate_public_der
+  install -d -m 700 "${CARD_STATE_DIR}"
+  public_key="${CARD_STATE_DIR}/piv-9a-public.pem"
+  certificate="${CARD_STATE_DIR}/piv-9a-certificate.pem"
+  workspace="$(mktemp -d "${TMPDIR:-/tmp}/yubikey-piv-9a.XXXXXX")"
+  exported_key="${workspace}/public.pem"
+  exported_certificate="${workspace}/certificate.pem"
+  attestation="${workspace}/attestation.pem"
+  certificate_public="${workspace}/certificate-public.pem"
+  slot_public_der="${workspace}/slot-public.der"
+  certificate_public_der="${workspace}/certificate-public.der"
+  trap 'rm -rf -- "${workspace:-}"' EXIT
+
+  if run_ykman piv certificates export 9a "${exported_certificate}" >/dev/null 2>&1; then
+    if run_ykman piv keys attest 9a "${attestation}" >/dev/null 2>&1; then
+      openssl x509 -in "${attestation}" -pubkey -noout >"${exported_key}"
+      openssl x509 -in "${exported_certificate}" -pubkey -noout >"${certificate_public}"
+      openssl pkey -pubin -in "${exported_key}" -outform DER -out "${slot_public_der}"
+      openssl pkey -pubin -in "${certificate_public}" -outform DER -out "${certificate_public_der}"
+      if cmp -s "${slot_public_der}" "${certificate_public_der}"; then
+        install -m 600 "${exported_certificate}" "${certificate}"
+        install -m 600 "${exported_key}" "${public_key}"
+        info "Verified and preserved the existing PIV authentication certificate in slot 9a"
+        return 0
+      fi
+      warn "PIV slot 9a's certificate does not match its private key; replacing only the certificate."
+      install -m 600 "${exported_certificate}" \
+        "${CARD_STATE_DIR}/piv-9a-certificate-mismatched-$(date +%Y%m%d-%H%M%S).pem"
+    elif run_ykman piv keys export --verify 9a "${exported_key}"; then
+      install -m 600 "${exported_certificate}" "${certificate}"
+      install -m 600 "${exported_key}" "${public_key}"
+      info "Verified and preserved the existing PIV authentication certificate in slot 9a"
+      return 0
+    else
+      fail "The existing PIV slot 9a certificate could not be verified against its private key. Restore the matching certificate or reset PIV deliberately."
+    fi
+  fi
+
+  if [[ -s "${exported_key}" ]] || run_ykman piv keys export 9a "${exported_key}" >/dev/null 2>&1; then
+    info "Creating a self-signed login certificate for the existing PIV slot 9a key"
+  else
+    info "Generating a non-exportable P-256 login key in PIV slot 9a"
+    run_ykman piv keys generate \
+      --algorithm eccp256 \
+      --pin-policy once \
+      --touch-policy never \
+      9a "${exported_key}"
+  fi
+
+  subject_name="$(git config --get user.name 2>/dev/null || true)"
+  subject_name="$(printf '%s' "${subject_name:-${USER:-YubiKey user}}" |
+    tr -cd '[:alnum:] ._-')"
+  run_ykman piv certificates generate \
+    --subject "CN=${subject_name} PIV ${SERIAL}" \
+    --valid-days 3650 \
+    9a "${exported_key}"
+  run_ykman piv certificates export 9a "${exported_certificate}"
+  openssl x509 -in "${exported_certificate}" -pubkey -noout >"${certificate_public}"
+  openssl pkey -pubin -in "${exported_key}" -outform DER -out "${slot_public_der}"
+  openssl pkey -pubin -in "${certificate_public}" -outform DER -out "${certificate_public_der}"
+  cmp -s "${slot_public_der}" "${certificate_public_der}" || \
+    fail "The newly generated PIV slot 9a certificate does not match its private key."
+  install -m 600 "${exported_key}" "${public_key}"
+  install -m 600 "${exported_certificate}" "${certificate}"
+  info "Created the PIV slot 9a certificate used by macOS smart-card login"
+)
+
+enroll_local_login() {
+  [[ "${SKIP_LOGIN}" == no ]] || {
+    warn "Skipping local-login enrollment by request."
+    return 0
+  }
+  if confirm "Enroll YubiKey ${SERIAL} for this computer account now?"; then
+    "${LOGIN_SCRIPT}" --add-key
+  else
+    warn "Local-login enrollment was skipped. Run ./setup yubikey-login later."
+  fi
+}
+
+enroll_agenix() {
+  [[ "${SKIP_AGENIX}" == no ]] || {
+    warn "Skipping hardware-backed Agenix enrollment by request."
+    return 0
+  }
+  if confirm "Generate or import this card's hardware-backed Agenix identity now?"; then
+    AGE_YUBIKEY_NAME="Agenix YubiKey ${SERIAL}" \
+      "${AGENIX_SCRIPT}" --enroll-only
+  else
+    warn "Agenix enrollment was skipped. Run ./setup yubikey-agenix later."
+  fi
+}
+
+write_card_summary() {
+  local fingerprint="unknown" ssh_key="${CARD_STATE_DIR}/openpgp-ssh.pub"
+  [[ -r "${CARD_STATE_DIR}/openpgp-fingerprint.txt" ]] && \
+    fingerprint="$(head -n 1 "${CARD_STATE_DIR}/openpgp-fingerprint.txt")"
+  cat >"${CARD_STATE_DIR}/README.txt" <<EOF
+YubiKey serial: ${SERIAL}
+OpenPGP primary fingerprint: ${fingerprint}
+
+This directory contains public metadata only. It does not contain PINs,
+management keys, or exportable copies of any YubiKey private key.
+
+Register openpgp-ssh.pub with GitHub and every SSH server that should accept
+this card. Register openpgp-public.asc as a GPG signing/encryption public key.
+Run the provisioning workflow separately for every additional YubiKey.
+EOF
+  chmod 600 "${CARD_STATE_DIR}/README.txt"
+
+  printf '\nProvisioning for YubiKey %s is complete.\n' "${SERIAL}"
+  printf 'Public inventory: %s\n' "${CARD_STATE_DIR}"
+  printf 'OpenPGP fingerprint: %s\n' "${fingerprint}"
+  if [[ -r "${ssh_key}" ]]; then
+    printf '\nAuthorize this SSH public key on GitHub and every server:\n'
+    cat "${ssh_key}"
+  fi
+  cat <<'EOF'
+
+Run this workflow once for each remaining YubiKey. After all cards are
+enrolled, run `./setup update-secrets` once so every Agenix file is encrypted
+to all saved hardware recipients. Test each card before removing an old
+recipient or treating the setup as recovered.
+EOF
+}
+
+parse_arguments() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --status) STATUS_ONLY=yes ;;
+      --reset-openpgp) RESET_OPENPGP=yes ;;
+      --reset-piv) RESET_PIV=yes ;;
+      --skip-login) SKIP_LOGIN=yes ;;
+      --skip-agenix) SKIP_AGENIX=yes ;;
+      -h|--help) usage; exit 0 ;;
+      *) usage >&2; fail "Unknown option: $1" ;;
+    esac
+    shift
+  done
+  if [[ "${STATUS_ONLY}" == yes ]] && \
+     { [[ "${RESET_OPENPGP}" == yes ]] || [[ "${RESET_PIV}" == yes ]] || \
+       [[ "${SKIP_LOGIN}" == yes ]] || [[ "${SKIP_AGENIX}" == yes ]]; }; then
+    fail "--status cannot be combined with provisioning options."
+  fi
+}
+
+main() {
+  parse_arguments "$@"
+  require_normal_user
+  ensure_dependencies
+  detect_one_card
+  prepare_gpg
+
+  if [[ "${STATUS_ONLY}" == yes ]]; then
+    show_status
+    return 0
+  fi
+
+  install -d -m 700 "${CARD_STATE_DIR}"
+  info "Provisioning exactly one connected card: YubiKey ${SERIAL}"
+  run_ykman info
+  reset_requested_applications
+  guard_piv_retries
+  guard_openpgp_retries
+  explain_pin_plan
+
+  configure_piv_credentials
+  ensure_piv_login_certificate
+  configure_fido_pin
+  configure_openpgp
+  enroll_local_login
+  enroll_agenix
+
+  info "Saving final public inventory"
+  capture_inventory "${CARD_STATE_DIR}"
+  write_card_summary
+}
+
+main "$@"

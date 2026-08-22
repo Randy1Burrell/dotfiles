@@ -8,6 +8,9 @@ PAM_AUTHFILE="/etc/u2f_mappings"
 PAM_BEGIN="# BEGIN dotfiles yubikey-login"
 PAM_END="# END dotfiles yubikey-login"
 PAM_BACKUP_DIR="/var/backups/dotfiles-yubikey-login"
+MACOS_PIV_CERTIFICATE_REPAIRED=no
+MACOS_PIV_PUBLIC_KEY_HASH=""
+MACOS_PIV_SERIAL=""
 
 info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
@@ -59,6 +62,135 @@ run_as_user() {
   fi
 }
 
+macos_detect_one_yubikey() {
+  local serials count
+  command -v ykman >/dev/null 2>&1 || \
+    fail "ykman is required to validate the PIV login certificate before pairing."
+  serials="$(ykman list --serials 2>/dev/null | awk '/^[0-9]+$/ { print }')"
+  count="$(printf '%s\n' "${serials}" | awk 'NF { count++ } END { print count + 0 }')"
+  case "${count}" in
+    0) fail "No YubiKey was found. Insert exactly one card and retry." ;;
+    1) printf '%s\n' "${serials}" | awk 'NF { print; exit }' ;;
+    *) fail "More than one YubiKey is connected. Leave only the card being paired." ;;
+  esac
+}
+
+macos_extract_certificate_public_key() {
+  local certificate="$1" public_key="$2"
+  openssl x509 -in "${certificate}" -pubkey -noout 2>/dev/null >"${public_key}" || \
+    fail "Could not read the public key from $(basename "${certificate}")."
+}
+
+macos_public_keys_match() {
+  local first="$1" second="$2" first_der="$3" second_der="$4"
+  openssl pkey -pubin -in "${first}" -outform DER -out "${first_der}" 2>/dev/null || return 1
+  openssl pkey -pubin -in "${second}" -outform DER -out "${second_der}" 2>/dev/null || return 1
+  cmp -s "${first_der}" "${second_der}"
+}
+
+macos_raw_public_key_hash() {
+  local public_key="$1" workspace="$2" public_der raw_public_key
+  local bit_string_offset hash
+  public_der="${workspace}/apple-public-key.der"
+  raw_public_key="${workspace}/apple-raw-public-key.bin"
+
+  openssl pkey -pubin -in "${public_key}" -outform DER -out "${public_der}" 2>/dev/null || \
+    fail "Could not encode the slot 9a public key for macOS."
+  bit_string_offset="$(
+    openssl asn1parse -inform DER -in "${public_der}" 2>/dev/null |
+      awk '/BIT STRING/ { sub(/:.*/, "", $1); print $1; exit }'
+  )"
+  [[ "${bit_string_offset}" =~ ^[0-9]+$ ]] || \
+    fail "Could not locate the raw slot 9a public key for macOS."
+  openssl asn1parse \
+    -inform DER \
+    -in "${public_der}" \
+    -strparse "${bit_string_offset}" \
+    -out "${raw_public_key}" \
+    -noout 2>/dev/null || \
+    fail "Could not extract the raw slot 9a public key for macOS."
+  hash="$(openssl dgst -sha1 "${raw_public_key}" 2>/dev/null | awk '{ print toupper($NF) }')"
+  [[ "${hash}" =~ ^[[:xdigit:]]{40}$ ]] || \
+    fail "Could not calculate the macOS slot 9a public-key hash."
+  printf '%s\n' "${hash}"
+}
+
+macos_record_piv_identity() {
+  local serial="$1" public_key="$2" workspace="$3"
+  MACOS_PIV_SERIAL="${serial}"
+  MACOS_PIV_PUBLIC_KEY_HASH="$(macos_raw_public_key_hash "${public_key}" "${workspace}")"
+}
+
+macos_prepare_piv_certificate() {
+  local login_user="$1" serial workspace certificate attestation slot_public
+  local certificate_public state_directory backup subject key_info
+  command -v openssl >/dev/null 2>&1 || fail "openssl is required to validate the PIV login certificate."
+  serial="$(macos_detect_one_yubikey)"
+  workspace="$(mktemp -d "${TMPDIR:-/tmp}/yubikey-login-piv.XXXXXX")"
+  certificate="${workspace}/certificate.pem"
+  attestation="${workspace}/attestation.pem"
+  slot_public="${workspace}/slot-public.pem"
+  certificate_public="${workspace}/certificate-public.pem"
+
+  ykman --device "${serial}" piv certificates export 9a "${certificate}" >/dev/null 2>&1 || {
+    rm -rf -- "${workspace}"
+    fail "PIV slot 9a has no certificate. Run ./setup yubikey-setup to create its login key and certificate."
+  }
+  macos_extract_certificate_public_key "${certificate}" "${certificate_public}"
+  key_info="$(ykman --device "${serial}" piv keys info 9a 2>/dev/null || true)"
+  if printf '%s\n' "${key_info}" | grep -Eiq 'Touch policy:[[:space:]]*(always|cached)'; then
+    warn "PIV slot 9a requires touch. Touch the YubiKey after entering its PIN during pairing and login."
+  fi
+
+  if ykman --device "${serial}" piv keys attest 9a "${attestation}" >/dev/null 2>&1; then
+    macos_extract_certificate_public_key "${attestation}" "${slot_public}"
+    if macos_public_keys_match \
+      "${slot_public}" "${certificate_public}" \
+      "${workspace}/slot-public.der" "${workspace}/certificate-public.der"; then
+      macos_record_piv_identity "${serial}" "${certificate_public}" "${workspace}"
+      rm -rf -- "${workspace}"
+      return 0
+    fi
+
+    state_directory="${XDG_STATE_HOME:-${HOME}/.local/state}/dotfiles/yubikeys/${serial}"
+    install -d -m 700 "${state_directory}"
+    backup="${state_directory}/piv-9a-certificate-mismatched-$(date +%Y%m%d-%H%M%S).pem"
+    install -m 600 "${certificate}" "${backup}"
+    warn "PIV slot 9a's certificate does not match its private key."
+    warn "The mismatched certificate was backed up to ${backup}."
+    confirm "Replace only the mismatched certificate while preserving the private key?" || {
+      rm -rf -- "${workspace}"
+      fail "The mismatched certificate was preserved; pairing cannot continue."
+    }
+
+    subject="$(printf '%s' "${login_user} PIV ${serial}" | tr -cd '[:alnum:] ._-')"
+    printf '%s\n' 'Enter the PIV PIN if requested and touch the YubiKey when it flashes.'
+    ykman --device "${serial}" piv certificates generate \
+      --subject "CN=${subject}" \
+      --valid-days 3650 \
+      9a "${slot_public}"
+    ykman --device "${serial}" piv certificates export 9a "${certificate}" >/dev/null
+    macos_extract_certificate_public_key "${certificate}" "${certificate_public}"
+    macos_public_keys_match \
+      "${slot_public}" "${certificate_public}" \
+      "${workspace}/slot-public.der" "${workspace}/certificate-public.der" || \
+      fail "The replacement slot 9a certificate still does not match its private key."
+    macos_record_piv_identity "${serial}" "${certificate_public}" "${workspace}"
+    MACOS_PIV_CERTIFICATE_REPAIRED=yes
+    rm -rf -- "${workspace}"
+    return 0
+  fi
+
+  printf '%s\n' 'This imported PIV key cannot be attested. Enter its PIV PIN and touch the YubiKey to verify the certificate.'
+  if ! ykman --device "${serial}" piv keys export --verify 9a "${slot_public}"; then
+    rm -rf -- "${workspace}"
+    fail "The slot 9a certificate could not be verified against its private key. Restore the matching certificate or reset and reprovision PIV."
+  fi
+
+  macos_record_piv_identity "${serial}" "${certificate_public}" "${workspace}"
+  rm -rf -- "${workspace}"
+}
+
 macos_identities() {
   sc_auth identities 2>/dev/null | awk '
     {
@@ -71,30 +203,53 @@ macos_identities() {
   ' | awk '!seen[$0]++'
 }
 
-choose_macos_identity() {
-  local hashes hash count choice index
-  hashes="$(macos_identities)"
-  [[ -n "${hashes}" ]] || fail "No usable PIV authentication certificate was found. Insert the YubiKey and ensure slot 9a contains its certificate."
-  count="$(printf '%s\n' "${hashes}" | awk 'NF { count++ } END { print count + 0 }')"
-  if [[ "${count}" -eq 1 ]]; then
-    printf '%s\n' "${hashes}"
-    return 0
+macos_identity_is_available() {
+  local expected_hash hash
+  expected_hash="$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')"
+  while IFS= read -r hash; do
+    hash="$(printf '%s' "${hash}" | tr '[:lower:]' '[:upper:]')"
+    [[ "${hash}" == "${expected_hash}" ]] && return 0
+  done < <(macos_identities)
+  return 1
+}
+
+macos_reload_identity() {
+  local serial="$1" expected_hash="$2" detected_serial attempt
+  warn "macOS is exposing a stale smart-card identity instead of the connected YubiKey's current slot 9a key."
+  printf 'Expected public-key hash for YubiKey %s: %s\n' "${serial}" "${expected_hash}" >&2
+  printf 'CryptoTokenKit currently reports:\n' >&2
+  sc_auth identities >&2 || true
+  printf '\nRemove YubiKey %s, then press Return.\n' "${serial}" >&2
+  IFS= read -r
+  if ykman list --serials 2>/dev/null | awk -v serial="${serial}" '$0 == serial { found=1 } END { exit !found }'; then
+    fail "YubiKey ${serial} is still connected. Remove it completely and run this action again."
   fi
 
-  printf 'Available smart-card identities:\n' >&2
-  index=1
-  while IFS= read -r hash; do
-    [[ -n "${hash}" ]] || continue
-    printf '  %s) %s\n' "${index}" "${hash}" >&2
-    index=$((index + 1))
-  done <<EOF
-${hashes}
-EOF
-  IFS= read -r -p "Choose an identity: " choice
-  [[ "${choice}" =~ ^[0-9]+$ ]] || fail "Invalid identity selection."
-  hash="$(printf '%s\n' "${hashes}" | sed -n "${choice}p")"
-  [[ -n "${hash}" ]] || fail "Invalid identity selection."
-  printf '%s\n' "${hash}"
+  printf 'Reinsert YubiKey %s, wait for macOS to detect it, then press Return.\n' "${serial}" >&2
+  IFS= read -r
+  detected_serial="$(macos_detect_one_yubikey)"
+  [[ "${detected_serial}" == "${serial}" ]] || \
+    fail "Expected YubiKey ${serial}, but YubiKey ${detected_serial} was inserted."
+
+  for attempt in {1..15}; do
+    security list-smartcards >/dev/null 2>&1 || true
+    macos_identity_is_available "${expected_hash}" && return 0
+    sleep 1
+  done
+
+  printf 'CryptoTokenKit still reports:\n' >&2
+  sc_auth identities >&2 || true
+  fail "macOS did not publish YubiKey ${serial}'s current slot 9a identity. Log out and back in, reinsert the card, then retry."
+}
+
+choose_macos_identity() {
+  local expected_hash="$1" serial="$2"
+  if ! macos_identity_is_available "${expected_hash}"; then
+    macos_reload_identity "${serial}" "${expected_hash}"
+  fi
+  macos_identity_is_available "${expected_hash}" || \
+    fail "The connected YubiKey's verified identity is unavailable."
+  printf '%s\n' "${expected_hash}"
 }
 
 macos_status() {
@@ -109,13 +264,22 @@ macos_status() {
 macos_add_key() {
   local login_user="$1" hash
   command -v sc_auth >/dev/null 2>&1 || fail "This macOS version does not provide sc_auth."
-  hash="$(choose_macos_identity)"
+  macos_prepare_piv_certificate "${login_user}"
+  if [[ "${MACOS_PIV_CERTIFICATE_REPAIRED}" == yes ]]; then
+    info "The PIV certificate was repaired successfully without replacing its private key."
+    warn "Remove and reinsert this YubiKey so macOS reloads it, then run ./setup yubikey-login again to pair it."
+    return 0
+  fi
+  [[ -n "${MACOS_PIV_PUBLIC_KEY_HASH}" && -n "${MACOS_PIV_SERIAL}" ]] || \
+    fail "The connected YubiKey's verified macOS identity could not be determined."
+  hash="$(choose_macos_identity "${MACOS_PIV_PUBLIC_KEY_HASH}" "${MACOS_PIV_SERIAL}")"
   if sc_auth list -u "${login_user}" 2>/dev/null | grep -Fqi -- "${hash}"; then
     info "That YubiKey certificate is already paired with ${login_user}."
     return 0
   fi
   printf 'This pairs the selected PIV certificate with %s. Password login remains available.\n' "${login_user}"
   confirm "Continue?" || fail "Cancelled."
+  printf '%s\n' 'Enter the PIV PIN when macOS requests it. If the YubiKey flashes, touch it before pairing completes.'
   sudo sc_auth pair -u "${login_user}" -h "${hash}"
   info "YubiKey login is paired for ${login_user}."
   warn "FileVault pre-boot unlock still requires the account password."

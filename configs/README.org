@@ -5453,7 +5453,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   [user]
       email = rb@randyburrell.info
       name = randy1burrell
-      signingkey = 306FAA9223DD193A
 #+end_src
 
 ** Work Sub-Configuration
@@ -5461,7 +5460,6 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   [user]
       email = randy.burrell@tacen.app
       name = randy1burrell
-      signingkey = B5F1EBCDE9F81A3D
 #+end_src
 
 ** Global Ignore

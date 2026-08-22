@@ -3,6 +3,9 @@
 let
   name = "randy1burrell";
   email = "rb@randyburrell.info";
+  gpgYubikeySigner = pkgs.writeShellScript "gpg-yubikey-sign" (
+    builtins.readFile ./config/git/gpg-yubikey-sign
+  );
 in
 {
   home-manager = {
@@ -222,7 +225,6 @@ in
     }];
 
     signing = {
-      key = "B3F07B6956A7DD05EC6BC6174E735276489B2667";
       signByDefault = true;
       format = "openpgp";
     };
@@ -232,6 +234,13 @@ in
         inherit email name;
       };
       github.user = githubUser;
+
+      # Each YubiKey has a distinct OpenPGP identity. Select the signing key
+      # on the currently connected card instead of requesting one hard-coded
+      # card serial through a fixed fingerprint.
+      # gpg.openpgp.program takes precedence over the generic gpg.program
+      # whenever gpg.format is openpgp (as it is above).
+      gpg.openpgp.program = "${gpgYubikeySigner}";
 
       init.defaultBranch = "main";
       core = {

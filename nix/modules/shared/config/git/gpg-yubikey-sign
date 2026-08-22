@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+fail() {
+  printf 'gpg-yubikey-sign: %s\n' "$*" >&2
+  exit 1
+}
+
+gpg_program="$(command -v gpg2 2>/dev/null || command -v gpg 2>/dev/null || true)"
+[[ -n "${gpg_program}" ]] || fail "GnuPG is unavailable"
+
+signing=no
+for argument in "$@"; do
+  case "${argument}" in
+    --sign|--detach-sign|--clear-sign|--clearsign) signing=yes ;;
+    --*) ;;
+    -*)
+      short_options="${argument#-}"
+      case "${short_options}" in
+        *s*|*b*) signing=yes ;;
+      esac
+      ;;
+  esac
+done
+
+if [[ "${signing}" != yes ]]; then
+  exec "${gpg_program}" "$@"
+fi
+
+if tty_path="$(tty 2>/dev/null)" && [[ "${tty_path}" != "not a tty" ]]; then
+  export GPG_TTY="${tty_path}"
+fi
+if command -v gpg-connect-agent >/dev/null 2>&1; then
+  gpg-connect-agent --quiet updatestartuptty /bye >/dev/null 2>&1 || true
+fi
+
+card_status="$(LC_ALL=C "${gpg_program}" --card-status 2>/dev/null)" ||
+  fail "no usable OpenPGP card is connected"
+fingerprint="$(printf '%s\n' "${card_status}" |
+  awk -F: '/^Signature key/ { print $2; exit }' |
+  tr -d '[:space:]')"
+case "${fingerprint}" in
+  *[!0-9A-Fa-f]*|"") fail "the connected card has no OpenPGP signing key" ;;
+esac
+case "${#fingerprint}" in
+  40|64) ;;
+  *) fail "the connected card returned an invalid signing fingerprint" ;;
+esac
+
+rewritten=()
+replace_next=no
+found_local_user=no
+for argument in "$@"; do
+  if [[ "${replace_next}" == yes ]]; then
+    rewritten+=("${fingerprint}")
+    replace_next=no
+    continue
+  fi
+
+  case "${argument}" in
+    -u|--local-user)
+      rewritten+=("${argument}")
+      replace_next=yes
+      found_local_user=yes
+      ;;
+    --local-user=*)
+      rewritten+=("--local-user=${fingerprint}")
+      found_local_user=yes
+      ;;
+    -u?*)
+      rewritten+=("-u${fingerprint}")
+      found_local_user=yes
+      ;;
+    -?*u)
+      # Git normally invokes GPG with the bundled option `-bsau KEY`.
+      rewritten+=("${argument}")
+      replace_next=yes
+      found_local_user=yes
+      ;;
+    *) rewritten+=("${argument}") ;;
+  esac
+done
+
+[[ "${replace_next}" == no ]] || fail "GnuPG's local-user option had no value"
+if [[ "${found_local_user}" == no ]]; then
+  rewritten+=(--local-user "${fingerprint}")
+fi
+
+exec "${gpg_program}" "${rewritten[@]}"
