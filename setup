@@ -33,8 +33,10 @@ resolve_script_path() {
   printf '%s/%s\n' "${directory}" "$(basename -- "${source}")"
 }
 
-readonly SETUP_PATH="$(resolve_script_path)"
-readonly REPO_ROOT="$(dirname -- "${SETUP_PATH}")"
+SETUP_PATH="$(resolve_script_path)"
+readonly SETUP_PATH
+REPO_ROOT="$(dirname -- "${SETUP_PATH}")"
+readonly REPO_ROOT
 readonly FLAKE_DIR="${REPO_ROOT}/nix"
 readonly NIX_INSTALL_URL="https://nixos.org/nix/install"
 readonly HOMEBREW_INSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
@@ -68,6 +70,9 @@ System actions:
   apt          Install and upgrade declared Ubuntu APT packages
   snaps        Install and refresh declared Ubuntu Snap packages
   github-user  Show or change the saved GitHub username
+  github-ssh-key
+               Register the connected YubiKey's OpenPGP SSH key with GitHub
+  doctor       Validate scripts, Nix, Emacs, GnuPG, and GitHub SSH readiness
   clean        Remove old system generations and reclaim space
   install-nix  Install upstream Nix, or replace an installer-managed Nix
   update-secrets  Encrypt and push local secrets, then refresh flake.lock
@@ -93,6 +98,10 @@ Environment:
   GITHUB_USER  Supply the GitHub username for an unattended first run.
   SYSTEM_CONFIG  Override the flake configuration name selected from the
                  current CPU architecture.
+  DOTFILES_NIXOS_HOSTNAME
+                 Override the detected NixOS hostname.
+  DOTFILES_NIXOS_DISK
+                 Override the detected NixOS root disk (for example /dev/nvme0n1).
   KEYS_MOUNT_PATH  Select the mounted key directory for copy-keys.
   SECRETS_UPDATE_IDENTITY
                  Use a specific SSH private key while refreshing secrets.
@@ -417,8 +426,23 @@ prepare_gpg_ssh_agent() {
     )"
     if [[ -n "${expected_version}" && -n "${running_dirmngr_version}" && \
           "${running_dirmngr_version}" != "${expected_version}" ]]; then
-      warn "Stopping stale dirmngr ${running_dirmngr_version}; managed GnuPG is ${expected_version}."
+      warn "Replacing stale dirmngr ${running_dirmngr_version} with managed version ${expected_version}."
+      if [[ "$(uname -s)" == "Linux" ]] && command -v systemctl >/dev/null 2>&1; then
+        # Stop the distribution socket before killing the daemon. Otherwise
+        # Ubuntu immediately starts /usr/bin/dirmngr again when gpgconf checks
+        # the standard socket. The next Home Manager switch installs a unit
+        # override that permanently points this socket at managed GnuPG.
+        systemctl --user stop dirmngr.socket dirmngr.service >/dev/null 2>&1 || true
+      fi
       "${GPGCONF_BIN}" --kill dirmngr >/dev/null 2>&1 || true
+      "${GPGCONF_BIN}" --launch dirmngr >/dev/null 2>&1 || \
+        fail "Could not launch the managed dirmngr ${expected_version}."
+      running_dirmngr_version="$(
+        "${GPG_CONNECT_AGENT_BIN}" --dirmngr 'GETINFO version' /bye 2>/dev/null |
+          awk '$1 == "D" { print $2; exit }' || true
+      )"
+      [[ "${running_dirmngr_version}" == "${expected_version}" ]] || \
+        fail "Expected dirmngr ${expected_version}, but socket reports ${running_dirmngr_version:-unknown}."
     fi
   fi
 
@@ -455,6 +479,89 @@ prepare_gpg_ssh_agent() {
     "${GPG_CONNECT_AGENT_BIN}" --quiet updatestartuptty /bye >/dev/null 2>&1 || true
   fi
 }
+
+register_github_ssh_key() (
+  local authenticated_user auth_fingerprint card_status gh_bin gh_root github_keys
+  local delay key_file public_key serial ssh_key title
+
+  download_github_ssh_keys() {
+    curl --fail --silent --show-error --location \
+      --header 'Cache-Control: no-cache' \
+      --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 \
+      "https://github.com/${GITHUB_USER}.keys" --output "${github_keys}"
+  }
+
+  github_ssh_key_is_registered() {
+    download_github_ssh_keys && \
+      awk 'NF >= 2 { print $1 " " $2 }' "${github_keys}" |
+        grep -Fqx -- "${ssh_key}"
+  }
+
+  command -v curl >/dev/null 2>&1 || fail "curl is required to inspect GitHub SSH keys."
+
+  prepare_gpg_ssh_agent
+  card_status="$("${GPG_BIN}" --with-colons --card-status 2>/dev/null)" || \
+    fail "GnuPG could not read an OpenPGP card. Insert exactly one configured YubiKey and retry."
+  serial="$(awk -F: '$1 == "serial" { print $2; exit }' <<< "${card_status}")"
+  auth_fingerprint="$(awk -F: '$1 == "fpr" && NF >= 4 { print $4; exit }' <<< "${card_status}")"
+  [[ -n "${serial}" && -n "${auth_fingerprint}" ]] || \
+    fail "The connected YubiKey does not report an OpenPGP authentication key. Run ${SETUP_PATH} yubikey-setup first."
+
+  public_key="$("${GPG_BIN}" --export-ssh-key "${auth_fingerprint}!" 2>/dev/null)" || \
+    fail "Could not convert OpenPGP authentication key ${auth_fingerprint} to an SSH public key."
+  ssh_key="$(awk 'NF >= 2 { print $1 " " $2; exit }' <<< "${public_key}")"
+  [[ -n "${ssh_key}" ]] || fail "GnuPG returned an empty SSH public key."
+
+  github_keys="$(mktemp "${TMPDIR:-/tmp}/dotfiles-github-keys.XXXXXX")"
+  key_file="$(mktemp "${TMPDIR:-/tmp}/dotfiles-yubikey-ssh.XXXXXX")"
+  trap 'rm -f -- "${github_keys:-}" "${key_file:-}"' EXIT
+  printf '%s\n' "${public_key}" > "${key_file}"
+
+  if github_ssh_key_is_registered; then
+    info "YubiKey ${serial}'s OpenPGP authentication key is already registered with GitHub user ${GITHUB_USER}"
+    return 0
+  fi
+
+  gh_bin="$(command -v gh 2>/dev/null || true)"
+  if [[ -z "${gh_bin}" ]]; then
+    load_nix || fail "GitHub CLI is not installed and Nix is unavailable to load it. Install gh, then retry."
+    info "Loading GitHub CLI from Nix for this registration"
+    gh_root="$(
+      nix --extra-experimental-features 'nix-command flakes' build \
+        --no-link --print-out-paths 'github:NixOS/nixpkgs/nixos-26.05#gh'
+    )" || fail "Nix could not provide GitHub CLI. Check network access and retry."
+    gh_bin="${gh_root}/bin/gh"
+  fi
+
+  if ! "${gh_bin}" auth status --hostname github.com >/dev/null 2>&1; then
+    [[ -t 0 ]] || \
+      fail "GitHub CLI is not authenticated. Run gh auth login --hostname github.com, then retry."
+    info "Opening GitHub CLI authentication; sign in as ${GITHUB_USER}"
+    "${gh_bin}" auth login --hostname github.com --web --skip-ssh-key \
+      --scopes admin:public_key || \
+      fail "GitHub CLI authentication did not complete."
+  fi
+  authenticated_user="$("${gh_bin}" api user --jq .login 2>/dev/null || true)"
+  [[ "${authenticated_user}" == "${GITHUB_USER}" ]] || \
+    fail "GitHub CLI is authenticated as ${authenticated_user:-unknown}, but setup is configured for ${GITHUB_USER}. Run gh auth switch --hostname github.com --user ${GITHUB_USER}, then retry."
+
+  title="YubiKey ${serial} OpenPGP ($(hostname -s 2>/dev/null || hostname))"
+  info "Registering YubiKey ${serial}'s OpenPGP authentication key with GitHub user ${GITHUB_USER}"
+  if ! "${gh_bin}" ssh-key add "${key_file}" --type authentication --title "${title}"; then
+    fail "GitHub rejected the key registration. Run gh auth refresh --hostname github.com --scopes admin:public_key, then retry."
+  fi
+
+  # Public key endpoints can lag briefly behind a successful API write. Retry
+  # for a few seconds so normal propagation is not reported as a failure.
+  for delay in 0 1 2 3 4; do
+    (( delay == 0 )) || sleep "${delay}"
+    github_ssh_key_is_registered && break
+  done
+  github_ssh_key_is_registered || \
+    fail "GitHub accepted the request but did not publish the key for ${GITHUB_USER}. Check gh ssh-key list before retrying secrets access."
+
+  info "GitHub SSH registration succeeded; ${SETUP_PATH} pull-secrets can now authenticate with this YubiKey"
+)
 
 prepare_darwin_nix_mountpoint() {
   local backup_path="" synthetic_tmp
@@ -938,7 +1045,7 @@ configure_generic_linux_identity() {
 }
 
 configure_nixos_identity() {
-  local current_uid current_user
+  local current_uid current_user detected_disk="" root_source=""
 
   current_uid="$(id -u)"
   current_user="$(id -un)"
@@ -951,7 +1058,27 @@ configure_nixos_identity() {
 
   export DOTFILES_NIXOS_USER="${current_user}"
   export DOTFILES_NIXOS_HOME="${HOME}"
+  export DOTFILES_NIXOS_HOSTNAME="${DOTFILES_NIXOS_HOSTNAME:-$(hostname -s)}"
+  [[ "${DOTFILES_NIXOS_HOSTNAME}" =~ ^[[:alnum:]][[:alnum:]_-]{0,61}[[:alnum:]]$ || \
+     "${DOTFILES_NIXOS_HOSTNAME}" =~ ^[[:alnum:]]$ ]] || \
+    fail "Invalid NixOS hostname ${DOTFILES_NIXOS_HOSTNAME}."
+
+  if [[ -z "${DOTFILES_NIXOS_DISK:-}" ]] && \
+     command -v findmnt >/dev/null 2>&1 && command -v lsblk >/dev/null 2>&1; then
+    root_source="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+    if [[ "${root_source}" == /dev/* ]]; then
+      detected_disk="$(
+        lsblk -sno PATH,TYPE "${root_source}" 2>/dev/null |
+          awk '$2 == "disk" { print $1; exit }' || true
+      )"
+    fi
+  fi
+  export DOTFILES_NIXOS_DISK="${DOTFILES_NIXOS_DISK:-${detected_disk:-/dev/vda}}"
+  [[ "${DOTFILES_NIXOS_DISK}" == /dev/* ]] || \
+    fail "DOTFILES_NIXOS_DISK must be an absolute /dev path."
+
   info "Using NixOS account ${DOTFILES_NIXOS_USER} at ${DOTFILES_NIXOS_HOME}"
+  info "Using NixOS host ${DOTFILES_NIXOS_HOSTNAME} and root disk ${DOTFILES_NIXOS_DISK}"
 }
 
 configure_darwin_identity() {
@@ -1111,12 +1238,10 @@ run_linuxbrew() {
   # Homebrew's repositories are public HTTPS remotes. Do not let the user's
   # GitHub HTTPS-to-SSH rewrite or SSH overrides turn brew operations into an
   # authenticated SSH request that depends on a YubiKey or local SSH key.
-  (
-    unset GIT_SSH GIT_SSH_COMMAND
-    export GIT_CONFIG_GLOBAL=/dev/null
-    export GIT_CONFIG_NOSYSTEM=1
+  env -u GIT_SSH -u GIT_SSH_COMMAND \
+    GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_CONFIG_NOSYSTEM=1 \
     "${LINUXBREW_BIN}" "$@"
-  )
 }
 
 ensure_linuxbrew() {
@@ -1151,13 +1276,11 @@ ensure_linuxbrew() {
   fi
 
   info "Installing Linuxbrew in its supported prefix"
-  if (
-    unset GIT_SSH GIT_SSH_COMMAND
-    export GIT_CONFIG_GLOBAL=/dev/null
-    export GIT_CONFIG_NOSYSTEM=1
-    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    NONINTERACTIVE=1 CI=1 /bin/bash "${installer}"
-  ); then
+  if env -u GIT_SSH -u GIT_SSH_COMMAND \
+    GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_CONFIG_NOSYSTEM=1 \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    NONINTERACTIVE=1 CI=1 /bin/bash "${installer}"; then
     :
   else
     status=$?
@@ -1210,6 +1333,8 @@ sync_linuxbrew() {
     cask_json="$(mktemp "${TMPDIR:-/tmp}/dotfiles-casks.XXXXXX.json")"
     supported_casks="$(mktemp "${TMPDIR:-/tmp}/dotfiles-supported-casks.XXXXXX")"
 
+    # The Ruby program intentionally uses Ruby's $stdin global.
+    # shellcheck disable=SC2016
     if run_linuxbrew info --json=v2 --cask "${casks[@]}" > "${cask_json}" && \
       run_linuxbrew ruby -rjson -e '
         JSON.parse($stdin.read).fetch("casks", []).each do |cask|
@@ -1391,13 +1516,24 @@ run_action() {
   shift
 
   case "${action}" in
-    switch|build|check|apply|apt|snaps|github-user|set-github-user|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login|yubikey-agenix|yubikey-setup) ;;
+    switch|build|check|apply|apt|snaps|github-user|set-github-user|github-ssh-key|doctor|clean|install-nix|update-secrets|pull-secrets|refresh-secrets-lock|gpg|cache-gpg-pin|check-keys|copy-keys|create-keys|yubikey-login|yubikey-agenix|yubikey-setup) ;;
     -h|--help) usage; return 0 ;;
     *) usage >&2; fail "Unknown action: ${action}" ;;
   esac
 
   if [[ "${action}" == "github-user" || "${action}" == "set-github-user" ]]; then
     change_github_username "$@"
+    return $?
+  fi
+
+  if [[ "${action}" == "github-ssh-key" ]]; then
+    configure_github_username
+    register_github_ssh_key
+    return $?
+  fi
+
+  if [[ "${action}" == "doctor" ]]; then
+    "${REPO_ROOT}/doctor" "$@"
     return $?
   fi
 
@@ -1630,6 +1766,8 @@ run_action() {
         sudo \
           DOTFILES_NIXOS_USER="${DOTFILES_NIXOS_USER}" \
           DOTFILES_NIXOS_HOME="${DOTFILES_NIXOS_HOME}" \
+          DOTFILES_NIXOS_HOSTNAME="${DOTFILES_NIXOS_HOSTNAME}" \
+          DOTFILES_NIXOS_DISK="${DOTFILES_NIXOS_DISK}" \
           DOTFILES_GITHUB_USER="${DOTFILES_GITHUB_USER}" \
           SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
           /run/current-system/sw/bin/nixos-rebuild switch --impure \
@@ -1689,6 +1827,9 @@ Choose an action:
                     Provision PINs, keys, login, SSH, and Agenix for one card
   19) apt          Install and upgrade declared Ubuntu APT packages
   20) snaps        Install and refresh declared Ubuntu Snap packages
+  21) github-ssh-key
+                    Register this YubiKey's OpenPGP SSH key with GitHub
+  22) doctor        Validate scripts, Nix, Emacs, GnuPG, and GitHub SSH
    q) quit
 EOF
 }
@@ -1725,6 +1866,8 @@ interactive_menu() {
       18|yubikey-setup) action="yubikey-setup" ;;
       19|apt) action="apt" ;;
       20|snaps|snap) action="snaps" ;;
+      21|github-ssh-key) action="github-ssh-key" ;;
+      22|doctor) action="doctor" ;;
       q|Q|quit|exit)
         info "Exiting setup"
         return 0

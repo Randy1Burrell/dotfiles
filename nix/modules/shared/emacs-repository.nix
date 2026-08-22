@@ -1,20 +1,14 @@
 { config, lib, pkgs, ... }:
 
-let
-  sshPackage = if pkgs.stdenv.hostPlatform.isLinux then pkgs.openssh_gssapi else pkgs.openssh;
-in
-
 {
   home.activation.cloneRepo = config.lib.dag.entryAfter [ "writeBoundary" ] ''
     emacs_dir="$HOME/.emacs.d"
-    repo_url="git@github.com:purcell/emacs.d.git"
+    # This upstream repository is public. HTTPS keeps initial activation from
+    # needlessly depending on a configured GitHub SSH key or inserted YubiKey.
+    repo_url="https://github.com/purcell/emacs.d.git"
 
-    # Use gpg-agent even on a new machine where Home Manager has not linked the
-    # generated SSH config yet. Conventional identity files remain available
-    # as migration fallbacks until every YubiKey has been authorized.
     repository_git() {
-      SSH_AUTH_SOCK="$(${pkgs.gnupg}/bin/gpgconf --list-dirs agent-ssh-socket)" \
-        GIT_SSH_COMMAND="${sshPackage}/bin/ssh -o IdentitiesOnly=no" \
+      GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
         ${pkgs.git}/bin/git "$@"
     }
 
@@ -22,8 +16,8 @@ in
       echo "Would clone or update $emacs_dir"
     elif [ ! -e "$emacs_dir" ]; then
       if ! repository_git clone --branch main "$repo_url" "$emacs_dir"; then
-        echo "GitHub SSH authentication through gpg-agent and the migration fallback keys failed." >&2
-        echo "Insert an authorized YubiKey or register a fallback public key, then run setup switch again." >&2
+        echo "Could not clone the public Emacs configuration repository over HTTPS." >&2
+        echo "Check network access, then run setup switch again." >&2
         exit 1
       fi
     elif [ -d "$emacs_dir/.git" ]; then

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage: apply
+
+Confirm the dynamic account information used by this dotfiles configuration.
+The setup command stores the GitHub username before invoking this helper.
+No repository source files are rewritten.
+EOF
+  exit 0
+fi
+[[ $# -eq 0 ]] || {
+  printf 'error: apply does not accept arguments; use ./setup github-user USERNAME to change accounts.\n' >&2
+  exit 1
+}
+
+[[ "$(id -u)" -ne 0 ]] || {
+  printf 'error: run apply as your normal user, not with sudo.\n' >&2
+  exit 1
+}
+[[ -n "${HOME:-}" && "${HOME}" == /* && -d "${HOME}" ]] || {
+  printf 'error: HOME must be an existing absolute directory.\n' >&2
+  exit 1
+}
+
+printf 'Local account: %s\n' "$(id -un)"
+printf 'Home directory: %s\n' "${HOME}"
+printf 'GitHub account: %s\n' "${GITHUB_USER:-not supplied}"
+if [[ -e /etc/NIXOS ]]; then
+  printf 'NixOS hostname: %s\n' "${DOTFILES_NIXOS_HOSTNAME:-not supplied}"
+  printf 'NixOS root disk: %s\n' "${DOTFILES_NIXOS_DISK:-not supplied}"
+fi
+printf 'Git author: %s <%s>\n' \
+  "$(git config --get user.name 2>/dev/null || printf 'not configured')" \
+  "$(git config --get user.email 2>/dev/null || printf 'not configured')"
+printf 'Personalization is dynamic; no Nix source files needed modification.\n'

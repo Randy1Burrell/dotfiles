@@ -90,12 +90,14 @@ readonly SSH_DIR="${HOME}/.ssh"
 readonly AGENT_CONFIG="${GPG_HOME}/gpg-agent.conf"
 readonly SSH_CONFIG="${SSH_DIR}/config"
 readonly SSH_INCLUDE="${SSH_DIR}/${MANAGED_SSH_INCLUDE}"
-readonly BACKUP_SUFFIX="bootstrap-backup.$(date +%Y%m%d%H%M%S).$$"
+BACKUP_SUFFIX="bootstrap-backup.$(date +%Y%m%d%H%M%S).$$"
+readonly BACKUP_SUFFIX
 if [[ "$(uname -s)" == "Linux" && -x /usr/bin/ssh ]]; then
-  readonly SSH_EXECUTABLE=/usr/bin/ssh
+  SSH_EXECUTABLE=/usr/bin/ssh
 else
-  readonly SSH_EXECUTABLE="$(command -v ssh)"
+  SSH_EXECUTABLE="$(command -v ssh)"
 fi
+readonly SSH_EXECUTABLE
 
 case "${GPG_HOME}${SSH_DIR}" in
   *$'\n'*) fail "GPG and SSH paths must not contain newlines." ;;
@@ -276,6 +278,7 @@ agent_keys="$(SSH_AUTH_SOCK="${SSH_AUTH_SOCK}" ssh-add -L 2>/dev/null || true)"
 info "GPG-backed SSH bootstrap is ready"
 printf 'Agent socket: %s\n' "${SSH_AUTH_SOCK}"
 printf 'SSH public identities available from gpg-agent:\n%s\n' "${agent_keys}"
-printf '\nYou can now clone over SSH, for example:\n'
-printf '  git clone git@github.com:randy1burrell/dotfiles.git "$HOME/dotfiles"\n'
-printf '\nIf the clone is rejected, register the public key shown above with the Git host first.\n'
+printf '\nRegister the public key shown above with GitHub, then clone over SSH:\n'
+printf '  ssh -T git@github.com\n'
+printf "  git clone git@github.com:randy1burrell/dotfiles.git \"\$HOME/dotfiles\"\n"
+printf '\nThe dotfiles checkout and private repositories will then use this YubiKey over SSH.\n'

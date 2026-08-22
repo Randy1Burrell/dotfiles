@@ -2,7 +2,8 @@
 
 set -Eeuo pipefail
 
-readonly FLAKE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+FLAKE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+readonly FLAKE_DIR
 
 case "$(uname -m)" in
   x86_64) detected_system=x86_64-linux ;;
@@ -21,7 +22,8 @@ if [[ -e /etc/NIXOS ]]; then
     printf '\033[1;31mHOME must be an existing absolute directory.\033[0m\n' >&2
     exit 1
   fi
-  export DOTFILES_NIXOS_USER="$(id -un)"
+  DOTFILES_NIXOS_USER="$(id -un)"
+  export DOTFILES_NIXOS_USER
   export DOTFILES_NIXOS_HOME="${HOME}"
 
   sudo nix-collect-garbage --delete-older-than 7d

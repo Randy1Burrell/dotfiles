@@ -1,4 +1,4 @@
-{ lib, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
@@ -34,11 +34,45 @@ in
     maxCacheTtlSsh = maxCacheSeconds;
   };
 
+  # Ubuntu ships user-level dirmngr socket units whose ExecStart points at the
+  # distribution GnuPG.  Without an override, contacting the standard socket
+  # can silently start /usr/bin/dirmngr alongside Home Manager's newer GnuPG
+  # client.  Own this unit as well so every process in the suite has exactly
+  # the same version and GNUPGHOME.
+  systemd.user.services.dirmngr = lib.mkIf (!isDarwin) {
+    Unit = {
+      Description = "GnuPG network certificate management daemon";
+      Documentation = "man:dirmngr(8)";
+      Requires = "dirmngr.socket";
+      After = "dirmngr.socket";
+      RefuseManualStart = true;
+    };
+    Service = {
+      ExecStart = "${pkgs.gnupg}/bin/dirmngr --supervised";
+      ExecReload = "${pkgs.gnupg}/bin/gpgconf --reload dirmngr";
+      Environment = [ "GNUPGHOME=${config.programs.gpg.homedir}" ];
+    };
+  };
+
+  systemd.user.sockets.dirmngr = lib.mkIf (!isDarwin) {
+    Unit = {
+      Description = "GnuPG network certificate management daemon";
+      Documentation = "man:dirmngr(8)";
+    };
+    Socket = {
+      ListenStream = "%t/gnupg/S.dirmngr";
+      Service = "dirmngr.service";
+      SocketMode = "0600";
+      DirectoryMode = "0700";
+    };
+    Install.WantedBy = [ "sockets.target" ];
+  };
+
   # Apply changed TTLs immediately instead of waiting for the next login. A
   # reload intentionally clears any cache created under the previous policy.
-  # Dirmngr is not socket-managed by Home Manager, so stop a daemon inherited
-  # from the host distribution or an older profile. The managed gpg client
-  # will lazily start the matching version when it is next needed.
+  # Stop a daemon inherited from the host distribution or an older profile.
+  # Home Manager's systemd reconciliation then starts the matching version on
+  # Linux; the managed gpg client starts it lazily on macOS.
   home.activation.reloadGpgAgentConfiguration = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     $DRY_RUN_CMD ${pkgs.gnupg}/bin/gpgconf --kill dirmngr >/dev/null 2>&1 || true
     $DRY_RUN_CMD ${pkgs.gnupg}/bin/gpgconf --reload gpg-agent >/dev/null 2>&1 || true

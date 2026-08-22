@@ -214,7 +214,7 @@ macos_identity_is_available() {
 }
 
 macos_reload_identity() {
-  local serial="$1" expected_hash="$2" detected_serial attempt
+  local serial="$1" expected_hash="$2" detected_serial
   warn "macOS is exposing a stale smart-card identity instead of the connected YubiKey's current slot 9a key."
   printf 'Expected public-key hash for YubiKey %s: %s\n' "${serial}" "${expected_hash}" >&2
   printf 'CryptoTokenKit currently reports:\n' >&2
@@ -231,7 +231,7 @@ macos_reload_identity() {
   [[ "${detected_serial}" == "${serial}" ]] || \
     fail "Expected YubiKey ${serial}, but YubiKey ${detected_serial} was inserted."
 
-  for attempt in {1..15}; do
+  for _ in {1..15}; do
     security list-smartcards >/dev/null 2>&1 || true
     macos_identity_is_available "${expected_hash}" && return 0
     sleep 1

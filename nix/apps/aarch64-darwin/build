@@ -1,31 +1,6 @@
-#!/bin/sh -e
+#!/usr/bin/env bash
 
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-RED='\033[1;31m'
-NC='\033[0m'
+set -Eeuo pipefail
 
-if [ "$(id -u)" -eq 0 ]; then
-  echo "${RED}Run this command as your normal macOS user, not with sudo.${NC}" >&2
-  exit 1
-fi
-if [ -z "${HOME:-}" ] || [ "${HOME#/}" = "${HOME}" ] || [ ! -d "${HOME}" ]; then
-  echo "${RED}HOME must be an existing absolute directory.${NC}" >&2
-  exit 1
-fi
-
-SYSTEM_TYPE="aarch64-darwin"
-FLAKE_SYSTEM="darwinConfigurations.${SYSTEM_TYPE}.system"
-
-export NIXPKGS_ALLOW_UNFREE=1
-export DOTFILES_DARWIN_USER="$(id -un)"
-export DOTFILES_DARWIN_HOME="${HOME}"
-
-echo "${YELLOW}Starting build...${NC}"
-nix --extra-experimental-features 'nix-command flakes' build --impure \
-  ".#${FLAKE_SYSTEM}" "$@"
-
-echo "${YELLOW}Cleaning up...${NC}"
-unlink ./result
-
-echo "${GREEN}Switch to new generation complete!${NC}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+exec "${SCRIPT_DIR}/../../../setup" build "$@"

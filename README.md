@@ -161,8 +161,8 @@ timestamped backups, and waits for a YubiKey so it can show the available SSH
 public key. Conventional `~/.ssh/id_ed25519` and `~/.ssh/id_rsa` identities
 remain automatic fallbacks during the migration.
 
-Once the displayed public key is registered with GitHub, clone and activate
-the configuration:
+Register the displayed public key with GitHub, then clone the dotfiles
+repository over SSH and activate it:
 
 ```bash
 DOTFILES_DIR="$HOME/dotfiles"
@@ -189,13 +189,11 @@ machine must have an SSH identity with access to that repository before the
 flake can evaluate.  The private key and decrypted secrets must never be
 committed to this public repository.
 
-Insert the YubiKey containing the OpenPGP authentication key, start the managed
-agent, and register the public key reported by `ssh-add -L` with GitHub before
-the first build:
+Insert the YubiKey containing the OpenPGP authentication key and register that
+card before the first build. Repeat the registration action once per card:
 
 ```bash
-./setup gpg
-ssh-add -L
+./setup github-ssh-key
 ssh -T git@github.com
 ```
 
@@ -227,10 +225,12 @@ and when copying diagnostic output.
 | `./setup check` | Evaluates the selected configuration without building it. |
 | `./setup build` | Builds the configuration without activating it. |
 | `./setup switch` | Builds and activates the selected configuration. |
-| `./setup apply` | Personalizes template values on macOS/NixOS; on generic Linux it is equivalent to `switch`. |
+| `./setup apply` | Shows the dynamically resolved account and machine values without rewriting source files; on generic Linux it is equivalent to `switch`. |
 | `./setup apt` | On Ubuntu, installs or upgrades the APT packages declared by Nix without removing other packages. |
 | `./setup snaps` | On Ubuntu, ensures `snapd` is installed and installs or refreshes the Snaps declared by Nix. |
 | `./setup github-user [USERNAME]` | Shows the current username in an interactive prompt or saves a replacement. |
+| `./setup github-ssh-key` | Registers the connected YubiKey's OpenPGP authentication key with the saved GitHub account. It loads `gh` through Nix and opens login when needed. |
+| `./setup doctor` | Validates every maintained script and Nix source, tangles and parses Emacs configuration, and checks GnuPG, tree-sitter, and GitHub SSH readiness. Use `--static` to skip machine-specific checks. |
 | `./setup clean` | Deletes generations older than seven days and optimizes the applicable Nix store/profile. |
 | `./setup install-nix` | Installs upstream Nix or offers a guarded replacement that leaves nix-darwin uninstalled. |
 | `./setup update-secrets` | Encrypts and pushes local secrets, then refreshes their lock entry. |
@@ -775,9 +775,10 @@ automatic upstream creation are also declared through Home Manager.
 
 ### Emacs
 
-Home Manager keeps `~/.emacs.d` as a Git checkout of
-`git@github.com:purcell/emacs.d.git`.  A missing checkout is cloned from `main`
-over SSH.  An existing checkout is handled conservatively:
+Home Manager keeps `~/.emacs.d` as a Git checkout of the public
+`https://github.com/purcell/emacs.d.git` repository. A missing checkout is
+cloned from `main` over HTTPS without requiring a YubiKey. An existing checkout
+is handled conservatively:
 
 - local changes are preserved and no update is attempted;
 - a checkout on a branch other than `main` is preserved;
@@ -949,8 +950,11 @@ a different YubiKey key.
 Home Manager is the only GnuPG provider in the managed macOS and Linux
 profiles. `setup` deliberately selects `/run/current-system/sw/bin/gpgconf` on
 macOS/NixOS or `~/.nix-profile/bin/gpgconf` on standalone Linux, together with
-the matching client and agent programs. Activation stops a stale `dirmngr`;
-Homebrew reconciliation removes undeclared GnuPG/GPGME/Pinentry formulae.
+the matching client and agent programs. On Linux, Home Manager owns the
+`dirmngr` user service and socket as well, so Ubuntu cannot silently reactivate
+an older distribution daemon. Activation replaces any already-running stale
+instance; Homebrew reconciliation removes undeclared GnuPG/GPGME/Pinentry
+formulae.
 
 Ubuntu's `/etc/ssh/ssh_config` enables GSSAPI, so the Linux profile uses the
 GSSAPI-enabled Nixpkgs OpenSSH build. Conventional `id_ed25519` and `id_rsa`

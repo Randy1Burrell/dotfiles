@@ -2293,6 +2293,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (make-directory rb/perspective-state-directory t)
 
   (require 'consult)
+  (require 'seq)
 
   (defun rb/current-buffer-git-root ()
     "Return the Git root associated with the current buffer, or nil."
@@ -2304,9 +2305,20 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
   (defun rb/current-perspective-buffer-list ()
     "Return live buffers belonging to the current perspective."
-    (if (bound-and-true-p persp-mode)
-        (persp-current-buffers*)
-      (buffer-list)))
+    (let ((buffers
+           (if (and (bound-and-true-p persp-mode)
+                    (fboundp 'persp-current-buffers*))
+               (condition-case nil
+                   ;; Include perspective-global buffers such as *scratch*,
+                   ;; *Messages*, and the dashboard.
+                   (persp-current-buffers* t)
+                 (error (buffer-list)))
+             (buffer-list))))
+      ;; Perspective state can retain a killed buffer briefly. Consult expects
+      ;; actual live buffer objects and otherwise fails while building or
+      ;; previewing candidates.
+      (delete-dups
+       (seq-filter #'buffer-live-p (cons (current-buffer) buffers)))))
 
   (defun rb/project-root-for-path (path)
     "Return the Projectile or project.el root containing PATH."
@@ -2842,6 +2854,8 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   ;;; Commentary:
   ;;; Code:
 
+  (require 'treesit)
+
   (setq treesit-language-source-alist
         '((bash "https://github.com/tree-sitter/tree-sitter-bash")
           (cmake "https://github.com/uyha/tree-sitter-cmake")
@@ -2865,7 +2879,19 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
           (rust "https://github.com/tree-sitter/tree-sitter-rust" )
           (dart "https://github.com/UserNobody14/tree-sitter-dart")))
 
-
+  ;; Home Manager installs precompiled grammars into the profile. Teach Emacs
+  ;; about every active Nix profile so startup never depends on cloning and
+  ;; compiling grammars from the network.
+  (let ((profile-directories
+         (append
+          (list (expand-file-name "~/.nix-profile/lib")
+                (format "/etc/profiles/per-user/%s/lib" (user-login-name))
+                "/run/current-system/sw/lib")
+          (mapcar (lambda (profile) (expand-file-name "lib" profile))
+                  (split-string (or (getenv "NIX_PROFILES") "") nil t)))))
+    (dolist (directory (delete-dups profile-directories))
+      (when (file-directory-p directory)
+        (add-to-list 'treesit-extra-load-path directory))))
 
   (use-package treesit-auto
     :commands (treesit-auto-install-all))
@@ -2885,12 +2911,20 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
          (message "Could not install %s grammar: %s"
                   language (error-message-string err))))))
 
-  (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode))
+  (defun rb/nix-major-mode ()
+    "Use `nix-ts-mode' when its grammar is ready, otherwise use `nix-mode'."
+    (interactive)
+    (if (and (fboundp 'treesit-ready-p) (treesit-ready-p 'nix t))
+        (nix-ts-mode)
+      (nix-mode)))
+
+  (add-to-list 'auto-mode-alist '("\\.nix\\'" . rb/nix-major-mode))
 
   ;; Preserve the remaps discovered by the upstream configuration and
   ;; `treesit-auto' instead of replacing the entire table.
-  (add-to-list 'major-mode-remap-alist
-               '(python-mode . python-ts-mode))
+  (when (and (fboundp 'treesit-ready-p) (treesit-ready-p 'python t))
+    (add-to-list 'major-mode-remap-alist
+                 '(python-mode . python-ts-mode)))
 
   (provide 'init-treesitter-customizations)
   ;;; init-treesitter-customizations.el ends here

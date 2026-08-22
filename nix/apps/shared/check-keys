@@ -2,7 +2,8 @@
 
 set -Eeuo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly SSH_DIR="${HOME}/.ssh"
 
 "${SCRIPT_DIR}/gpg"

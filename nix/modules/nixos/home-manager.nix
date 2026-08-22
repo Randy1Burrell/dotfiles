@@ -55,6 +55,9 @@ in
       name = "Adwaita-dark";
       package = pkgs.adwaita-icon-theme;
     };
+    # Preserve the same managed theme for GTK 4 explicitly; Home Manager no
+    # longer infers it from gtk.theme for newer state versions.
+    gtk4.theme = config.gtk.theme;
   };
 
   # Screen lock

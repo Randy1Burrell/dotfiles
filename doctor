@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+resolve_script_path() {
+  local source="${BASH_SOURCE[0]}" directory target
+  while [[ -L "${source}" ]]; do
+    directory="$(cd -P -- "$(dirname -- "${source}")" && pwd)"
+    target="$(readlink "${source}")"
+    if [[ "${target}" == /* ]]; then
+      source="${target}"
+    else
+      source="${directory}/${target}"
+    fi
+  done
+  directory="$(cd -P -- "$(dirname -- "${source}")" && pwd)"
+  printf '%s/%s\n' "${directory}" "$(basename -- "${source}")"
+}
+
+SCRIPT_PATH="$(resolve_script_path)"
+readonly SCRIPT_PATH
+REPO_ROOT="$(dirname -- "${SCRIPT_PATH}")"
+readonly REPO_ROOT
+
+passes=0
+warnings=0
+failures=0
+
+pass() {
+  passes=$((passes + 1))
+  printf '\033[1;32mPASS\033[0m %s\n' "$*"
+}
+
+warn() {
+  warnings=$((warnings + 1))
+  printf '\033[1;33mWARN\033[0m %s\n' "$*" >&2
+}
+
+fail_check() {
+  failures=$((failures + 1))
+  printf '\033[1;31mFAIL\033[0m %s\n' "$*" >&2
+}
+
+usage() {
+  cat <<EOF
+Usage: $(basename -- "${SCRIPT_PATH}") [--static]
+
+Validate every maintained shell and Nix source, tangle and parse the Emacs
+configuration, and inspect this machine's GnuPG, tree-sitter, and GitHub SSH
+readiness. --static skips machine- and account-specific runtime checks.
+EOF
+}
+
+run_static_checks() {
+  local file first_line output
+  local -a scripts=()
+
+  while IFS= read -r -d '' file; do
+    first_line="$(head -n 1 "${file}" 2>/dev/null || true)"
+    case "${first_line}" in
+      '#!'*bash*|'#!'*'/sh'*) scripts+=("${file}") ;;
+    esac
+  done < <(
+    find "${REPO_ROOT}" -maxdepth 1 -type f -print0
+    find "${REPO_ROOT}/nix/apps" -type f -print0
+  )
+
+  if (( ${#scripts[@]} == 0 )); then
+    fail_check "No maintained shell scripts were discovered"
+  elif output="$(bash -n "${scripts[@]}" 2>&1)"; then
+    pass "Bash parsed ${#scripts[@]} maintained shell scripts"
+  else
+    fail_check "Shell syntax validation failed:"$'\n'"${output}"
+  fi
+
+  if command -v shellcheck >/dev/null 2>&1; then
+    if output="$(shellcheck -x "${scripts[@]}" 2>&1)"; then
+      pass "ShellCheck found no issues"
+    else
+      fail_check "ShellCheck found script defects:"$'\n'"${output}"
+    fi
+  else
+    warn "ShellCheck is not installed in the active profile; setup switch installs it"
+  fi
+
+  if command -v nix-instantiate >/dev/null 2>&1; then
+    if output="$(
+      {
+        while IFS= read -r -d '' file; do
+          nix-instantiate --parse "${file}" >/dev/null || exit 1
+        done < <(find "${REPO_ROOT}/nix" -type f -name '*.nix' -print0)
+      } 2>&1
+    )"; then
+      pass "Every Nix source parses"
+    else
+      fail_check "Nix parsing failed:"$'\n'"${output}"
+    fi
+  else
+    warn "nix-instantiate is unavailable; Nix source parsing was skipped"
+  fi
+
+  if command -v emacs >/dev/null 2>&1; then
+    local temporary_home
+    temporary_home="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-doctor-emacs.XXXXXX")"
+    if output="$(
+      HOME="${temporary_home}" \
+      DOTFILES_DOCTOR_ORG="${REPO_ROOT}/nix/modules/shared/config/emacs/config.org" \
+      emacs --batch --quick \
+        --eval '(require (quote org))' \
+        --eval '(org-babel-tangle-file (getenv "DOTFILES_DOCTOR_ORG"))' \
+        --eval '(let ((root (expand-file-name ".emacs.d" (getenv "HOME"))))
+                  (dolist (file (directory-files-recursively root (rx ".el" string-end)))
+                    (with-temp-buffer
+                      (insert-file-contents file)
+                      (emacs-lisp-mode)
+                      (check-parens))))' 2>&1
+    )"; then
+      pass "Emacs configuration tangles and every generated Lisp file has balanced syntax"
+    else
+      fail_check "Emacs configuration validation failed:"$'\n'"${output}"
+    fi
+    rm -rf -- "${temporary_home}"
+  else
+    warn "Emacs is unavailable; Org tangling and Lisp syntax checks were skipped"
+  fi
+}
+
+managed_gpg_bin() {
+  local name="$1" candidate
+  for candidate in \
+    "/run/current-system/sw/bin/${name}" \
+    "${HOME}/.nix-profile/bin/${name}" \
+    "/usr/bin/${name}"
+  do
+    if [[ -x "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  command -v "${name}" 2>/dev/null
+}
+
+run_runtime_checks() {
+  local auth_fingerprint card_status evaluation_result expected_version github_keys github_user
+  local gpg_bin gpg_agent_bin gpg_connect_bin gpgconf_bin output public_key
+  local nixos_disk nixos_hostname root_source running_dirmngr_version
+  local running_version ssh_key system target
+  local temporary_directory
+
+  gpg_bin="$(managed_gpg_bin gpg || true)"
+  gpg_agent_bin="$(managed_gpg_bin gpg-agent || true)"
+  gpg_connect_bin="$(managed_gpg_bin gpg-connect-agent || true)"
+  gpgconf_bin="$(managed_gpg_bin gpgconf || true)"
+
+  if [[ -n "${gpg_bin}" && -n "${gpg_agent_bin}" && \
+        -n "${gpg_connect_bin}" && -n "${gpgconf_bin}" ]]; then
+    expected_version="$("${gpg_agent_bin}" --version | awk 'NR == 1 { print $3; exit }')"
+    "${gpgconf_bin}" --launch gpg-agent >/dev/null 2>&1 || true
+    running_version="$(
+      "${gpg_connect_bin}" 'GETINFO version' /bye 2>/dev/null |
+        awk '$1 == "D" { print $2; exit }' || true
+    )"
+    if [[ "${running_version}" == "${expected_version}" ]]; then
+      pass "gpg-agent and the managed GnuPG suite both use ${expected_version}"
+    else
+      fail_check "Managed gpg-agent is ${expected_version}, but its socket reports ${running_version:-unknown}; run ./setup switch"
+    fi
+
+    running_dirmngr_version="$(
+      "${gpg_connect_bin}" --dirmngr 'GETINFO version' /bye 2>/dev/null |
+        awk '$1 == "D" { print $2; exit }' || true
+    )"
+    if [[ "${running_dirmngr_version}" == "${expected_version}" ]]; then
+      pass "dirmngr and the managed GnuPG suite both use ${expected_version}"
+    else
+      fail_check "Managed GnuPG is ${expected_version}, but dirmngr is ${running_dirmngr_version:-unknown}; run ./setup switch"
+    fi
+  else
+    warn "A complete GnuPG suite is not installed in a standard managed profile"
+  fi
+
+  if command -v emacs >/dev/null 2>&1; then
+    if output="$(emacs --batch --quick \
+      --eval '(require (quote treesit))' \
+      --eval '(let ((profiles (append
+                               (list (expand-file-name "~/.nix-profile/lib")
+                                     (format "/etc/profiles/per-user/%s/lib" (user-login-name))
+                                     "/run/current-system/sw/lib")
+                               (mapcar (lambda (profile) (expand-file-name "lib" profile))
+                                       (split-string (or (getenv "NIX_PROFILES") "") nil t)))))
+                (dolist (directory (delete-dups profiles))
+                  (when (file-directory-p directory)
+                    (add-to-list (quote treesit-extra-load-path) directory)))
+                (kill-emacs (if (treesit-ready-p (quote nix) t) 0 1)))' 2>&1)"; then
+      pass "Emacs can load the managed Nix tree-sitter grammar"
+    else
+      fail_check "Emacs cannot load the Nix tree-sitter grammar; run ./setup switch"
+    fi
+  fi
+
+  if command -v nix >/dev/null 2>&1; then
+    temporary_directory="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-doctor-nix.XXXXXX")"
+    system="$(XDG_CACHE_HOME="${temporary_directory}" nix eval --impure --raw --expr builtins.currentSystem 2>/dev/null || true)"
+    case "$(uname -s)" in
+      Darwin) target="darwinConfigurations.${system}.system.drvPath" ;;
+      Linux)
+        if [[ -e /etc/NIXOS ]]; then
+          target="nixosConfigurations.${system}.config.system.build.toplevel.drvPath"
+        else
+          target="homeConfigurations.${system}.activationPackage.drvPath"
+        fi
+        ;;
+      *) target="" ;;
+    esac
+    if [[ -n "${target}" ]]; then
+      nixos_hostname="${DOTFILES_NIXOS_HOSTNAME:-$(hostname -s)}"
+      nixos_disk="${DOTFILES_NIXOS_DISK:-}"
+      if [[ -z "${nixos_disk}" && -e /etc/NIXOS ]] && \
+         command -v findmnt >/dev/null 2>&1 && command -v lsblk >/dev/null 2>&1; then
+        root_source="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+        if [[ "${root_source}" == /dev/* ]]; then
+          nixos_disk="$(
+            lsblk -sno PATH,TYPE "${root_source}" 2>/dev/null |
+              awk '$2 == "disk" { print $1; exit }' || true
+          )"
+        fi
+      fi
+      nixos_disk="${nixos_disk:-/dev/vda}"
+      if output="$(
+        XDG_CACHE_HOME="${temporary_directory}" \
+        DOTFILES_DARWIN_USER="${USER}" DOTFILES_DARWIN_HOME="${HOME}" \
+        DOTFILES_LINUX_USER="${USER}" DOTFILES_LINUX_HOME="${HOME}" \
+        DOTFILES_NIXOS_USER="${USER}" DOTFILES_NIXOS_HOME="${HOME}" \
+        DOTFILES_NIXOS_HOSTNAME="${nixos_hostname}" \
+        DOTFILES_NIXOS_DISK="${nixos_disk}" \
+        nix eval --impure --raw --no-write-lock-file \
+          "${REPO_ROOT}/nix#${target}" 2>&1
+      )"; then
+        evaluation_result="$(tail -n 1 <<< "${output}")"
+        pass "The ${system} configuration evaluates to ${evaluation_result}"
+      else
+        fail_check "The ${system} configuration does not evaluate:"$'\n'"${output}"
+      fi
+    fi
+    rm -rf -- "${temporary_directory}"
+  fi
+
+  github_user="${GITHUB_USER:-}"
+  if [[ -z "${github_user}" && -r "${XDG_CONFIG_HOME:-${HOME}/.config}/dotfiles/github-user" ]]; then
+    IFS= read -r github_user < "${XDG_CONFIG_HOME:-${HOME}/.config}/dotfiles/github-user" || true
+  fi
+  if [[ -n "${gpg_bin}" ]]; then
+    card_status="$("${gpg_bin}" --with-colons --card-status 2>/dev/null || true)"
+    auth_fingerprint="$(awk -F: '$1 == "fpr" && NF >= 4 { print $4; exit }' <<< "${card_status}")"
+    if [[ -n "${auth_fingerprint}" && -n "${github_user}" ]] && \
+       command -v curl >/dev/null 2>&1; then
+      public_key="$("${gpg_bin}" --export-ssh-key "${auth_fingerprint}!" 2>/dev/null || true)"
+      ssh_key="$(awk 'NF >= 2 { print $1 " " $2; exit }' <<< "${public_key}")"
+      github_keys="$(curl --fail --silent --location --connect-timeout 10 --max-time 30 \
+        "https://github.com/${github_user}.keys" 2>/dev/null || true)"
+      if awk 'NF >= 2 { print $1 " " $2 }' <<< "${github_keys}" | grep -Fqx -- "${ssh_key}"; then
+        pass "The connected YubiKey's OpenPGP authentication key is authorized for GitHub user ${github_user}"
+      else
+        fail_check "The connected YubiKey's OpenPGP authentication key is not authorized for ${github_user}; run ./setup github-ssh-key"
+      fi
+    elif [[ -n "${github_user}" ]]; then
+      warn "No configured OpenPGP authentication key is visible on a connected YubiKey"
+    fi
+  fi
+}
+
+main() {
+  local static_only=no
+  case "${1:-}" in
+    '') ;;
+    --static) static_only=yes ;;
+    -h|--help) usage; return 0 ;;
+    *) usage >&2; return 2 ;;
+  esac
+
+  printf 'Dotfiles doctor: %s\n\n' "${REPO_ROOT}"
+  run_static_checks
+  [[ "${static_only}" == yes ]] || run_runtime_checks
+
+  printf '\nSummary: %d passed, %d warnings, %d failures\n' \
+    "${passes}" "${warnings}" "${failures}"
+  (( failures == 0 ))
+}
+
+main "$@"

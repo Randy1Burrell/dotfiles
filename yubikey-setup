@@ -671,6 +671,7 @@ management keys, or exportable copies of any YubiKey private key.
 
 Register openpgp-ssh.pub with GitHub and every SSH server that should accept
 this card. Register openpgp-public.asc as a GPG signing/encryption public key.
+Run ./setup github-ssh-key to register this card with the saved GitHub account.
 Run the provisioning workflow separately for every additional YubiKey.
 EOF
   chmod 600 "${CARD_STATE_DIR}/README.txt"
@@ -681,6 +682,7 @@ EOF
   if [[ -r "${ssh_key}" ]]; then
     printf '\nAuthorize this SSH public key on GitHub and every server:\n'
     cat "${ssh_key}"
+    printf '\nRun ./setup github-ssh-key to register it with the saved GitHub account.\n'
   fi
   cat <<'EOF'
 

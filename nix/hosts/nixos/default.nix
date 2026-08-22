@@ -1,4 +1,4 @@
-{ config, inputs, pkgs, agenix, homeDirectory, user, ... }:
+{ config, inputs, pkgs, agenix, homeDirectory, nixosHostName, user, ... }:
 
 let
   keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOk8iAnIaa1deoc7jw8YACPNVka1ZFJxhnU4G74TmS+p" ];
@@ -35,9 +35,11 @@ in
   # Per-interface useDHCP will be mandatory in the future, so this generated config
   # replicates the default behaviour.
   networking = {
-    hostName = "%HOST%"; # Define your hostname.
-    useDHCP = false;
-    interfaces."%INTERFACE%".useDHCP = true;
+    hostName = nixosHostName;
+    # NetworkManager follows whichever wired, wireless, or USB interface is
+    # actually present instead of baking one machine's interface name into
+    # this portable configuration.
+    networkmanager.enable = true;
   };
 
   # Turn on flag for proprietary software
@@ -60,6 +62,9 @@ in
   };
 
   services = {
+    displayManager.defaultSession = "none+bspwm";
+    libinput.enable = true;
+
     xserver = {
       enable = true;
 
@@ -76,7 +81,6 @@ in
       # '';
 
       # LightDM Display Manager
-      displayManager.defaultSession = "none+bspwm";
       displayManager.lightdm = {
         enable = true;
         greeters.slick.enable = true;
@@ -89,11 +93,10 @@ in
       };
 
       # Turn Caps Lock into Ctrl
-      layout = "us";
-      xkbOptions = "ctrl:nocaps";
-
-      # Better support for general peripherals
-      libinput.enable = true;
+      xkb = {
+        layout = "us";
+        options = "ctrl:nocaps";
+      };
     };
 
     # Let's be able to SSH into this machine
@@ -102,7 +105,6 @@ in
     # Required by age-plugin-yubikey to access the PIV applet.
     pcscd.enable = true;
 
-    # Sync state between machines
     # Sync state between machines
     syncthing = {
       enable = true;
@@ -237,7 +239,7 @@ in
 
   # Video support
   hardware = {
-    opengl.enable = true;
+    graphics.enable = true;
     # nvidia.modesetting.enable = true;
 
     # Enable Xbox support
@@ -260,6 +262,7 @@ in
       extraGroups = [
         "wheel" # Enable ‘sudo’ for the user.
         "docker"
+        "networkmanager"
       ];
       shell = pkgs.zsh;
       openssh.authorizedKeys.keys = keys;

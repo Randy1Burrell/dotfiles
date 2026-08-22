@@ -70,6 +70,12 @@
       nixosHome =
         let detectedHome = builtins.getEnv "DOTFILES_NIXOS_HOME";
         in if detectedHome != "" then detectedHome else "/home/${nixosUser}";
+      nixosHostName =
+        let detectedHostName = builtins.getEnv "DOTFILES_NIXOS_HOSTNAME";
+        in if detectedHostName != "" then detectedHostName else "nixos";
+      nixosDiskDevice =
+        let detectedDisk = builtins.getEnv "DOTFILES_NIXOS_DISK";
+        in if detectedDisk != "" then detectedDisk else "/dev/vda";
       githubUser =
         let detectedUser = builtins.getEnv "DOTFILES_GITHUB_USER";
         in if detectedUser != "" then detectedUser else "randy1burrell";
@@ -170,6 +176,10 @@
       mkApp = scriptName: system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          # Linux helpers are architecture-neutral and share one maintained
+          # implementation. This also keeps aarch64-linux outputs from
+          # referring to a directory that does not exist.
+          scriptSystem = if builtins.elem system linuxSystems then "x86_64-linux" else system;
           sshPackage = if pkgs.stdenv.hostPlatform.isLinux then pkgs.openssh_gssapi else pkgs.openssh;
           runtimePackages = with pkgs; [
             bashInteractive
@@ -192,8 +202,9 @@
             #!/usr/bin/env bash
             PATH=${nixpkgs.lib.makeBinPath runtimePackages}:$PATH
             echo "Running ${scriptName} for ${system}"
-            exec ${self}/apps/${system}/${scriptName} "$@"
+            exec ${self}/apps/${scriptSystem}/${scriptName} "$@"
           '')}/bin/${scriptName}";
+          meta.description = "Run the dotfiles ${scriptName} helper";
         };
       mkLinuxApps = system: {
         "apply" = mkApp "apply" system;
@@ -203,8 +214,6 @@
         "check-keys" = mkApp "check-keys" system;
         "gpg" = mkApp "gpg" system;
         "clean" = mkApp "clean" system;
-        "install" = mkApp "install" system;
-        "install-with-secrets" = mkApp "install-with-secrets" system;
       };
       mkDarwinApps = system: {
         "apply" = mkApp "apply" system;
@@ -279,7 +288,7 @@
         specialArgs = inputs // {
           user = nixosUser;
           homeDirectory = nixosHome;
-          inherit githubUser;
+          inherit githubUser nixosDiskDevice nixosHostName;
         };
         modules = [
           disko.nixosModules.disko

@@ -116,7 +116,6 @@ _:
   "tcl-tk"
   "tidy-html5"
   "tree-sitter"
-  "tree-sitter"
   "unbound"
   "unibilium"
   "unixodbc"
