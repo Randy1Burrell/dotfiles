@@ -312,11 +312,11 @@
     "secrets": {
       "flake": false,
       "locked": {
-        "lastModified": 1787463167,
-        "narHash": "sha256-5o1qfXDLT7idWk+QdVILowdWh3sH9WKFRgGD1OUXZpg=",
+        "lastModified": 1787470910,
+        "narHash": "sha256-ke+1K8e6jmIlmrCezsPLQFTYDKSCGr8STPZH81YAZtE=",
         "ref": "refs/heads/main",
-        "rev": "cecfe855dae4d6cd9e35b52d8cc651c0a0c48b07",
-        "revCount": 6,
+        "rev": "da9836f2fc0846aa215bafc7fa99880058f50b9f",
+        "revCount": 7,
         "type": "git",
         "url": "ssh://git@github.com/randy1burrell/secrets.git"
       },
