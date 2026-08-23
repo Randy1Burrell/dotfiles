@@ -2144,9 +2144,18 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
   (require 'org-crypt)
   (org-crypt-use-before-save-magic)
   (setq org-tags-exclude-from-inheritance (quote ("crypt")))
-  ;; GPG key to use for encryption
-  ;; Either the Key ID or set to nil to use symmetric encryption.
-  (setq org-crypt-key "306FAA9223DD193A")
+  ;; Encrypt ordinary `crypt' entries to every enrolled YubiKey. A heading's
+  ;; explicit CRYPTKEY property still takes precedence when deliberately set.
+  (setq org-crypt-key "")
+  (defun rb/org-crypt-use-enrolled-recipients (original &rest arguments)
+    "Use all enrolled OpenPGP keys unless this heading specifies CRYPTKEY."
+    (if (org-entry-get nil "CRYPTKEY" 'selective 'literal-nil)
+        (apply original arguments)
+      (rb/openpgp-encryption-keys epg-context)))
+  (advice-remove 'org-crypt-key-for-heading
+                 #'rb/org-crypt-use-enrolled-recipients)
+  (advice-add 'org-crypt-key-for-heading :around
+              #'rb/org-crypt-use-enrolled-recipients)
 
   ;; This fixes the problem where org-crypt make org-babel-tangle fail
   ;; because src blocks are encrypted before babel runs.
@@ -2565,6 +2574,104 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
            ((executable-find "gpg"))
            (t "gpg2"))))
   (setenv "GPG_AGENT_INFO" nil)
+
+  ;; `setup gpg' maintains this public fingerprint allowlist from every
+  ;; OpenPGP certificate registered with the configured GitHub account.
+  ;; `yubikey-setup' also records a new card immediately after provisioning.
+  (defconst rb/openpgp-encryption-recipients-file
+    (expand-file-name
+     "openpgp-encryption-recipients"
+     (expand-file-name (or (getenv "GNUPGHOME") "~/.gnupg"))))
+  (defvar rb/openpgp-encryption-recipients nil)
+
+  (defun rb/read-openpgp-encryption-recipients ()
+    "Return valid fingerprints from the managed recipient allowlist."
+    (when (file-readable-p rb/openpgp-encryption-recipients-file)
+      (with-temp-buffer
+        (insert-file-contents rb/openpgp-encryption-recipients-file)
+        (let (recipients)
+          (dolist (candidate (split-string (buffer-string) "[[:space:]]+" t))
+            (when (and (memq (length candidate) '(40 64))
+                       (string-match-p "\\`[[:xdigit:]]+\\'" candidate))
+              (push (upcase candidate) recipients)))
+          (delete-dups (nreverse recipients))))))
+
+  (defun rb/refresh-openpgp-encryption-recipients ()
+    "Refresh EasyPG recipients without restarting the Emacs daemon."
+    (setq rb/openpgp-encryption-recipients
+          (rb/read-openpgp-encryption-recipients))
+    (setq-default epa-file-encrypt-to
+                  (copy-sequence rb/openpgp-encryption-recipients))
+    rb/openpgp-encryption-recipients)
+
+  (defun rb/openpgp-encryption-keys (context)
+    "Resolve every usable enrolled recipient to an EPG key in CONTEXT."
+    (require 'epg)
+    (require 'seq)
+    (let* ((recipients (rb/refresh-openpgp-encryption-recipients))
+           (resolved (and recipients (epg-list-keys context recipients)))
+           (keys
+            (delq
+             nil
+             (mapcar
+              (lambda (key)
+                (when
+                    (seq-some
+                     (lambda (sub-key)
+                       (and (memq 'encrypt (epg-sub-key-capability sub-key))
+                            (not (memq (epg-sub-key-validity sub-key)
+                                       '(invalid disabled revoked expired)))
+                            (let ((expiration
+                                   (epg-sub-key-expiration-time sub-key)))
+                              (or (null expiration)
+                                  (time-less-p (current-time) expiration)))))
+                     (epg-key-sub-key-list key))
+                  key))
+              resolved))))
+      (unless recipients
+        (user-error
+         "No OpenPGP recipients are configured; run ./setup gpg first"))
+      (unless (= (length resolved) (length recipients))
+        (user-error
+         "Only %d of %d OpenPGP recipients are imported; run ./setup gpg"
+         (length resolved) (length recipients)))
+      (unless keys
+        (user-error
+         "No configured OpenPGP recipient has a usable encryption key"))
+      keys))
+
+  (defun rb/openpgp-active-recipient-fingerprints (context)
+    "Return primary fingerprints for usable encryption keys in CONTEXT."
+    (mapcar
+     (lambda (key)
+       (let ((primary (car (epg-key-sub-key-list key))))
+         (or (epg-sub-key-fingerprint primary)
+             (epg-sub-key-id primary))))
+     (rb/openpgp-encryption-keys context)))
+
+  (defun rb/apply-openpgp-file-recipients ()
+    "Replace a GPG file's historical recipients with the enrolled cards."
+    (when (and buffer-file-name
+               (string-match-p "\\.gpg\\'" buffer-file-name))
+      (let ((recipients (rb/refresh-openpgp-encryption-recipients)))
+        (when recipients
+          (setq-local epa-file-encrypt-to (copy-sequence recipients))))))
+
+  (defun rb/validate-openpgp-file-recipients ()
+    "Prevent saving a GPG file without every enrolled public key."
+    (when (and buffer-file-name
+               (string-match-p "\\.gpg\\'" buffer-file-name))
+      (setq-local
+       epa-file-encrypt-to
+       (rb/openpgp-active-recipient-fingerprints (epg-make-context)))))
+
+  ;; EasyPG normally remembers only the recipients found in the ciphertext it
+  ;; just opened. Override that buffer-local value so the next save migrates
+  ;; an older single-card file to all enrolled cards.
+  (setq epa-file-select-keys 'silent)
+  (rb/refresh-openpgp-encryption-recipients)
+  (add-hook 'find-file-hook #'rb/apply-openpgp-file-recipients)
+  (add-hook 'before-save-hook #'rb/validate-openpgp-file-recipients)
   (setq auth-sources '("~/.emacs.d/secrets/.authinfo.gpg"))
 
   (provide 'init-security)

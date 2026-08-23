@@ -330,6 +330,22 @@ sign after its public key is present in the local keyring and registered with
 the relevant Git host. Keep only the card you intend to use connected when
 signing.
 
+Emacs likewise avoids a single-card encryption key. `./setup gpg` maintains
+`~/.gnupg/openpgp-encryption-recipients` from the encryption-capable public
+certificates published by the saved GitHub account, while `yubikey-setup` adds
+a newly provisioned card immediately. EasyPG files and ordinary Org `crypt`
+entries are encrypted to every fingerprint in that allowlist, so any one card
+can decrypt newly saved content. A heading-specific `CRYPTKEY` property remains
+an intentional override. Expired, revoked, or disabled encryption subkeys are
+excluded from new ciphertext even if their historical fingerprint remains in
+the file.
+
+Existing ciphertext cannot gain another recipient without first being
+decrypted. Open an older `.gpg` file once using the exact YubiKey it requests,
+then save it; Emacs replaces its historical recipient list with the complete
+allowlist. For embedded Org `crypt` entries, decrypt the entries and save the
+Org file. Afterward, verify decryption separately with each card.
+
 For the highest assurance, provision on a clean offline machine after the
 required tools are installed. On-card generation prevents private-key export,
 but an offline environment also reduces the risk that a compromised host
@@ -775,6 +791,14 @@ compatible and receive the original three-file restore behavior. Decryption
 can use the dedicated `~/.ssh/id_ed25519_agenix` key, the transitional default
 SSH key, or an enrolled YubiKey. The file-backed recovery keys are deliberately
 not stored inside the encrypted bundle that depends on them.
+
+When several YubiKey Age locators are enrolled, `pull-secrets` asks
+`age-plugin-yubikey` which identities are visible on the currently connected
+hardware and creates a temporary filtered identity file. Age therefore never
+prompts for an absent card merely because its serial appears first in the
+persistent locator list. If no connected card matches and no file-backed
+recovery identity is available, the action stops with a diagnostic before
+decryption instead of entering the plugin's serial-by-serial prompt loop.
 
 Git commits are signed by default with the configured OpenPGP key.  Git LFS,
 the `main` default branch, rebase-on-pull, automatic rebase stashing, and

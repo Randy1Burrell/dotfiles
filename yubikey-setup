@@ -28,6 +28,7 @@ readonly REPO_ROOT
 readonly LOGIN_SCRIPT="${REPO_ROOT}/yubikey-login"
 readonly AGENIX_SCRIPT="${REPO_ROOT}/yubikey-agenix"
 readonly STATE_ROOT="${XDG_STATE_HOME:-${HOME}/.local/state}/dotfiles/yubikeys"
+readonly OPENPGP_ENCRYPTION_RECIPIENTS_FILE="${GNUPGHOME:-${HOME}/.gnupg}/openpgp-encryption-recipients"
 ORIGINAL_ARGUMENTS=("$@")
 
 RESET_OPENPGP=no
@@ -512,6 +513,33 @@ signature_fingerprint() {
   esac
 }
 
+record_openpgp_encryption_recipient() {
+  local fingerprint="$1" directory temporary
+
+  directory="$(dirname -- "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}")"
+  install -d -m 700 "${directory}"
+  temporary="$(mktemp "${directory}/openpgp-encryption-recipients.XXXXXX")"
+  {
+    if [[ -r "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}" ]]; then
+      cat -- "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"
+    fi
+    printf '%s\n' "${fingerprint}"
+  } | awk '
+    (length($0) == 40 || length($0) == 64) && $0 ~ /^[[:xdigit:]]+$/ {
+      print toupper($0)
+    }
+  ' | sort -u > "${temporary}"
+
+  if [[ -r "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}" ]] && \
+     cmp -s "${temporary}" "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"; then
+    rm -f -- "${temporary}"
+  else
+    mv -- "${temporary}" "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"
+    info "Added this card to Emacs's OpenPGP encryption recipients"
+  fi
+  chmod 600 "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"
+}
+
 export_openpgp_public_material() {
   local status fingerprint public_key ssh_key temporary
   status="$(gpg_card_status)"
@@ -537,6 +565,7 @@ export_openpgp_public_material() {
   fi
   printf '%s\n' "${fingerprint}" >"${CARD_STATE_DIR}/openpgp-fingerprint.txt"
   chmod 600 "${CARD_STATE_DIR}/openpgp-fingerprint.txt"
+  record_openpgp_encryption_recipient "${fingerprint}"
   rm -f -- "${temporary}"
 
   info "Saved this card's public OpenPGP and SSH keys under ${CARD_STATE_DIR}"

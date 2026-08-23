@@ -41,6 +41,8 @@ readonly FLAKE_DIR="${REPO_ROOT}/nix"
 readonly NIX_INSTALL_URL="https://nixos.org/nix/install"
 readonly HOMEBREW_INSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
 readonly SECRETS_REMOTE="ssh://git@github.com/randy1burrell/secrets.git"
+readonly OPENPGP_ENCRYPTION_RECIPIENTS_FILE="${GNUPGHOME:-${HOME}/.gnupg}/openpgp-encryption-recipients"
+readonly YUBIKEY_STATE_ROOT="${XDG_STATE_HOME:-${HOME}/.local/state}/dotfiles/yubikeys"
 
 info() {
   printf '\033[1;34m==>\033[0m %s\n' "$*"
@@ -293,8 +295,97 @@ select_managed_gnupg_suite() {
   return 1
 }
 
+openpgp_encryption_fingerprints_from_colons() {
+  awk -F: '
+    function emit() {
+      if (primary != "" && usable && encryption) print toupper(primary)
+    }
+    $1 == "pub" || $1 == "sec" {
+      emit()
+      primary = ""
+      usable = ($2 !~ /[der]/)
+      encryption = (usable && $12 ~ /e/)
+      candidate = 0
+      next
+    }
+    $1 == "fpr" && primary == "" {
+      primary = $10
+      next
+    }
+    $1 == "sub" || $1 == "ssb" {
+      candidate = (usable && $2 !~ /[der]/ && $12 ~ /e/)
+      next
+    }
+    $1 == "fpr" && candidate {
+      encryption = 1
+      candidate = 0
+    }
+    END { emit() }
+  '
+}
+
+refresh_openpgp_encryption_recipients() {
+  local public_key_bundle="${1:-}" directory temporary discovered=""
+  local local_secret_recipients="" fingerprint_file
+
+  directory="$(dirname -- "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}")"
+  install -d -m 700 "${directory}"
+  temporary="$(mktemp "${directory}/openpgp-encryption-recipients.XXXXXX")"
+
+  if [[ -n "${public_key_bundle}" && -r "${public_key_bundle}" ]]; then
+    discovered="$({
+      LC_ALL=C "${GPG_BIN}" --batch --with-colons \
+        --import-options show-only --dry-run --import "${public_key_bundle}" 2>/dev/null
+    } | openpgp_encryption_fingerprints_from_colons)" || discovered=""
+  fi
+
+  # Include active encryption keys backed by secret-key stubs already known to
+  # this machine. This covers a newly inserted card before its public
+  # certificate has been uploaded to GitHub.
+  if [[ -n "${GPG_BIN:-}" && -x "${GPG_BIN}" ]]; then
+    local_secret_recipients="$({
+      LC_ALL=C "${GPG_BIN}" --batch --with-colons --list-secret-keys 2>/dev/null
+    } | openpgp_encryption_fingerprints_from_colons)" || local_secret_recipients=""
+  fi
+
+  {
+    if [[ -r "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}" ]]; then
+      cat -- "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"
+    fi
+    for fingerprint_file in "${YUBIKEY_STATE_ROOT}"/*/openpgp-fingerprint.txt; do
+      [[ -r "${fingerprint_file}" ]] || continue
+      cat -- "${fingerprint_file}"
+    done
+    printf '%s\n' "${discovered}"
+    printf '%s\n' "${local_secret_recipients}"
+  } | awk '
+    (length($0) == 40 || length($0) == 64) && $0 ~ /^[[:xdigit:]]+$/ {
+      print toupper($0)
+    }
+  ' | sort -u > "${temporary}"
+
+  if [[ ! -s "${temporary}" ]]; then
+    rm -f -- "${temporary}"
+    return 0
+  fi
+
+  if [[ -r "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}" ]] && \
+     cmp -s "${temporary}" "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"; then
+    rm -f -- "${temporary}"
+  else
+    mv -- "${temporary}" "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"
+    info "Updated the OpenPGP encryption recipients used by Emacs"
+  fi
+  chmod 600 "${OPENPGP_ENCRYPTION_RECIPIENTS_FILE}"
+}
+
 sync_github_gpg_public_keys() {
   local curl_bin key_file
+
+  # Preserve fingerprints exported by local card provisioning even when the
+  # network is unavailable or a new public certificate has not been uploaded
+  # to GitHub yet.
+  refresh_openpgp_encryption_recipients
 
   [[ -n "${GITHUB_USER:-}" && -n "${GPG_BIN}" ]] || return 0
   curl_bin="$(command -v curl 2>/dev/null || true)"
@@ -322,6 +413,7 @@ sync_github_gpg_public_keys() {
   if "${GPG_BIN}" --batch --import-options import-minimal \
     --import "${key_file}" >/dev/null 2>&1; then
     info "Synchronized ${GITHUB_USER}'s public OpenPGP certificates from GitHub"
+    refresh_openpgp_encryption_recipients "${key_file}"
     # Importing the public certificate first lets GnuPG associate any
     # connected OpenPGP card with its non-exportable secret keys.
     "${GPG_BIN}" --batch --card-status >/dev/null 2>&1 || true
