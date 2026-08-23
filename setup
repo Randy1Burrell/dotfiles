@@ -75,8 +75,8 @@ System actions:
   doctor       Validate scripts, Nix, Emacs, GnuPG, and GitHub SSH readiness
   clean        Remove old system generations and reclaim space
   install-nix  Install upstream Nix, or replace an installer-managed Nix
-  update-secrets  Encrypt and push local secrets, then refresh flake.lock
-  pull-secrets    Pull and decrypt secrets into ~/.ssh with backups
+  update-secrets  Encrypt and push local secrets plus a durable ~/.ssh archive
+  pull-secrets    Pull, validate, back up, and restore encrypted SSH secrets
   refresh-secrets-lock
                   Refresh only the private secrets input in flake.lock
 
@@ -1814,8 +1814,8 @@ Choose an action:
   10) create-keys  Create SSH and Agenix keys
   11) install-nix  Install or replace with upstream Nix
   12) update-secrets
-                    Encrypt and push local secrets
-  13) pull-secrets  Pull and decrypt secrets into ~/.ssh
+                    Encrypt secrets plus a durable ~/.ssh archive
+  13) pull-secrets  Back up and restore encrypted SSH secrets
   14) refresh-secrets-lock
                     Refresh only the private secrets lock entry
   15) github-user  Show or change the saved GitHub username

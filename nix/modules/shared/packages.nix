@@ -48,6 +48,8 @@ in
   coreutils
   emacs
   fastfetch
+  findutils
+  gnutar
   killall
   libllvm
   (if stdenv.hostPlatform.isLinux then openssh_gssapi else openssh)

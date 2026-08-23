@@ -233,8 +233,8 @@ and when copying diagnostic output.
 | `./setup doctor` | Validates every maintained script and Nix source, tangles and parses Emacs configuration, and checks GnuPG, tree-sitter, and GitHub SSH readiness. Use `--static` to skip machine-specific checks. |
 | `./setup clean` | Deletes generations older than seven days and optimizes the applicable Nix store/profile. |
 | `./setup install-nix` | Installs upstream Nix or offers a guarded replacement that leaves nix-darwin uninstalled. |
-| `./setup update-secrets` | Encrypts and pushes local secrets, then refreshes their lock entry. |
-| `./setup pull-secrets` | Downloads and decrypts secrets into `~/.ssh`, backing up replaced files. |
+| `./setup update-secrets` | Encrypts and pushes local secrets plus the durable files under `~/.ssh`, then refreshes their lock entry. |
+| `./setup pull-secrets` | Downloads, validates, backs up, and restores the encrypted SSH secrets into `~/.ssh`. |
 | `./setup refresh-secrets-lock` | Refreshes only the private `secrets` entry in `flake.lock`. |
 | `./setup gpg` | Starts and verifies the GPG-backed SSH agent. |
 | `./setup check-keys` | Checks the expected SSH and Agenix key files and the agent socket. |
@@ -753,19 +753,28 @@ available or automatic discovery is inappropriate.
 socket is usable.
 
 `./setup update-secrets` encrypts `id_rsa`, `authorized_keys`, and
-`config_external` before placing them in the private repository.  Plaintext is
-never added to Git. Every push synchronizes `secrets.nix` recipient rules for
-the dedicated recovery identity, default ED25519 identity, and all enrolled
+`config_external` before placing them in the private repository. It also
+automatically creates and encrypts `ssh-directory.tar.gz.age`, containing all
+durable regular files under `~/.ssh`. Plaintext is never added to Git. The
+archive excludes the recovery identities needed to decrypt it
+(`id_ed25519[_agenix]`), Home Manager's generated `config` link, agent/control
+sockets, editor swap files, and `.bk*` artifacts. Every push synchronizes
+`secrets.nix` recipient rules for all four encrypted artifacts using the
+dedicated recovery identity, default ED25519 identity, and all enrolled
 YubiKeys. The action shows the pending Git files and requires confirmation
 before committing and pushing. If live `~/.ssh/config_external` is absent, the
 retained repository source is used only as bootstrap input to encryption.
 
-`./setup pull-secrets` clones the private repository, decrypts all three files
-in a temporary directory, validates them, and asks before installing them into
-`~/.ssh`. Existing files receive timestamped `.bk` copies. Decryption can use
-the dedicated `~/.ssh/id_ed25519_agenix` key, the transitional default SSH key,
-or an enrolled YubiKey. The file-backed recovery key is deliberately not stored
-inside the encrypted bundle that depends on it.
+`./setup pull-secrets` clones the private repository, decrypts and validates
+the individual secrets and optional SSH directory archive in a temporary
+directory, and asks before restoring them into `~/.ssh`. Before merging an
+archive, it saves the current durable SSH files under
+`~/.local/state/dotfiles/ssh-backups`; files that exist only on the destination
+machine are not deleted. Older private repositories without the archive remain
+compatible and receive the original three-file restore behavior. Decryption
+can use the dedicated `~/.ssh/id_ed25519_agenix` key, the transitional default
+SSH key, or an enrolled YubiKey. The file-backed recovery keys are deliberately
+not stored inside the encrypted bundle that depends on them.
 
 Git commits are signed by default with the configured OpenPGP key.  Git LFS,
 the `main` default branch, rebase-on-pull, automatic rebase stashing, and
