@@ -1,6 +1,12 @@
 { config, pkgs, lib, home-manager, homeDirectory, githubUser, user, ... }:
 
 let
+  # Apple is migrating several Mac-only listings to new universal App Store
+  # IDs. Keep MAS activation disabled until the remaining IDs have been
+  # verified; existing App Store applications are left installed and can
+  # continue updating through the App Store UI.
+  enableMacAppStoreApps = false;
+
   # Define the content of your file as a derivation
   myEmacsLauncher = pkgs.writeScript "emacs-launcher.command" ''
     #!/bin/sh
@@ -48,16 +54,16 @@ in
     # Apps already declared in casks.nix must not also be listed here. Homebrew
     # Bundle tracks casks and Mac App Store receipts separately and would try to
     # install a second copy of the same application.
-    masApps = {
+    masApps = lib.optionalAttrs enableMacAppStoreApps {
       "1Password for Safari" = 1569813296;
       "Docs for Developers" = 1411232591;
       "GarageBand" = 682658836;
       "Grammarly for Safari" = 1462114288;
-      "Keynote" = 409183694;
+      "Keynote" = 361285480;
       "LG Screen Manager" = 1142051783;
       "LimeChat" = 414030210;
       "Microsoft Remote Desktop" = 1295203466;
-      "Numbers" = 409203825;
+      "Numbers" = 361304891;
       "WhatsApp" = 310633997;
       "Xcode" = 497799835;
       "Yubico Authenticator" = 1497506650;
