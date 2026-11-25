@@ -47,6 +47,14 @@
     ;; Eglot enables Flymake when its asynchronous connection is ready. The
     ;; upstream global hook needlessly loads every diagnostic backend while a
     ;; file is still being displayed.
+    (defun rb/flymake-flycheck-auto-unless-eglot ()
+      "Enable Flycheck-backed diagnostics only outside Eglot buffers."
+      (unless (and (fboundp 'eglot-managed-p)
+                   (eglot-managed-p))
+        (flymake-flycheck-auto)))
+
+    (remove-hook 'flymake-mode-hook #'flymake-flycheck-auto)
+    (add-hook 'flymake-mode-hook #'rb/flymake-flycheck-auto-unless-eglot)
     (remove-hook 'prog-mode-hook #'flymake-mode)
     (remove-hook 'text-mode-hook #'flymake-mode)
     (remove-hook 'find-file-hook #'vc-darcs-find-file-hook)
@@ -577,7 +585,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
 
 #+end_src
 
-**** Eglot
+***** Eglot
 #+begin_src emacs-lisp :tangle ~/.emacs.d/custom/init-eglot-customizations.el :mkdirp yes
   ;;; init-eglot-customizations.el --- Eglot and completion setup -*- lexical-binding: t -*-
   ;;; Commentary:
@@ -642,7 +650,7 @@ LXboy79tJWDCCKofHmbNTYuDjDhD5/QUcg==
     (remove-hook mode #'eglot-ensure)
     (add-hook mode #'rb/eglot-ensure))
 
-  (setq eglot-autoshutdown t
+  (setq eglot-autoshutdown nil
         ;; Start language servers asynchronously so visiting a file never waits
         ;; for a server process, network mount, or project configuration.
         eglot-sync-connect nil

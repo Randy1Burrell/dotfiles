@@ -40,6 +40,7 @@ _:
   "highway"
   "icu4c"
   "imath"
+  "iperf3"
   "jpeg-turbo"
   "jpeg-xl"
   "krb5"
