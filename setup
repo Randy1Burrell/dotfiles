@@ -1707,6 +1707,12 @@ run_action() {
     elif [[ "${action}" == "pull-secrets" ]]; then
       info "Pulling and decrypting private secrets"
       "${FLAKE_DIR}/apps/shared/secrets-sync" pull || return $?
+      # Pulling is a restore operation. The repository was already cloned at
+      # the requested branch, so doing another authenticated GitHub lookup is
+      # redundant and can turn a successful restore into a reported failure
+      # when the active card is allowed to decrypt but is not an SSH key on
+      # GitHub. Lock updates belong only to push/refresh workflows.
+      return 0
     fi
 
     info "Refreshing only the private secrets lock entry"

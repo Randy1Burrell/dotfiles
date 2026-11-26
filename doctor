@@ -63,6 +63,9 @@ run_static_checks() {
   done < <(
     find "${REPO_ROOT}" -maxdepth 1 -type f -print0
     find "${REPO_ROOT}/nix/apps" -type f -print0
+    if [[ -d "${REPO_ROOT}/tests" ]]; then
+      find "${REPO_ROOT}/tests" -type f -print0
+    fi
   )
 
   if (( ${#scripts[@]} == 0 )); then
@@ -81,6 +84,16 @@ run_static_checks() {
     fi
   else
     warn "ShellCheck is not installed in the active profile; setup switch installs it"
+  fi
+
+  if [[ -x "${REPO_ROOT}/tests/regression.sh" ]]; then
+    if output="$("${REPO_ROOT}/tests/regression.sh" 2>&1)"; then
+      pass "Secrets restore and YubiKey login regression tests passed"
+    else
+      fail_check "Behavioral regression tests failed:"$'\n'"${output}"
+    fi
+  else
+    fail_check "The behavioral regression suite is missing or not executable"
   fi
 
   if command -v nix-instantiate >/dev/null 2>&1; then

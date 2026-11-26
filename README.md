@@ -374,6 +374,11 @@ The PIN and registration mechanism differ by operating system:
 | Linux | Enrols the key with `pam_u2f`, requires its FIDO2 PIN, stores mappings in root-owned `/etc/u2f_mappings`, and adds the module as `sufficient` so password login remains available. NixOS applies the PAM portion declaratively during `switch`. |
 | Windows | Opens Microsoft's protected security-key registration pages. Native FIDO2 PIN sign-in is available only on Microsoft Entra joined or hybrid joined computers whose administrator enables security-key sign-in; local accounts and personal Microsoft accounts are not supported. Run `yubikey-login-windows.ps1` directly from PowerShell when Bash is unavailable. |
 
+On Linux, the helper merges each new credential into the existing user mapping
+itself. It does not combine `pamu2fcfg --username` with `--nouser`, so enrollment
+works with both Ubuntu's older package and current pam-u2f without replacing a
+previously enrolled YubiKey.
+
 On macOS, `OSStatus error -67808` or `EC signature verification failed, no
 match` means the identity selected by macOS could not verify a signature from
 the PIV slot 9a private key. The login helper attests on-card keys before
@@ -774,23 +779,37 @@ automatically creates and encrypts `ssh-directory.tar.gz.age`, containing all
 durable regular files under `~/.ssh`. Plaintext is never added to Git. The
 archive excludes the recovery identities needed to decrypt it
 (`id_ed25519[_agenix]`), Home Manager's generated `config` link, agent/control
-sockets, editor swap files, and `.bk*` artifacts. Every push synchronizes
-`secrets.nix` recipient rules for all four encrypted artifacts using the
-dedicated recovery identity, default ED25519 identity, and all enrolled
-YubiKeys. The action shows the pending Git files and requires confirmation
-before committing and pushing. If live `~/.ssh/config_external` is absent, the
-retained repository source is used only as bootstrap input to encryption.
+sockets, editor swap files, `.bk*` artifacts, and the three individually
+declared secrets. This prevents an old archive from reintroducing an individual
+secret whose rule was disabled. Every push preserves the enabled artifact set
+from the private repository's uncommented `secrets.nix` rules and synchronizes
+their recipients using the dedicated recovery identity, default ED25519
+identity, and all enrolled YubiKeys. A missing local individual source disables
+and removes its encrypted artifact. The action shows the pending Git files and
+requires confirmation before committing and pushing. If live
+`~/.ssh/config_external` is absent, the retained repository source is used only
+as bootstrap input to encryption.
+
+The private repository's `secrets.nix` is the synchronization authority. Remove
+or comment an artifact's `.publicKeys` rule to disable it; the next pull skips
+it, and the next update keeps it disabled and removes stale ciphertext. The
+platform modules under `nix/modules/*/secrets.nix` control Nix activation only
+and do not override this portable restore manifest.
 
 `./setup pull-secrets` clones the private repository, decrypts and validates
-the individual secrets and optional SSH directory archive in a temporary
-directory, and asks before restoring them into `~/.ssh`. Before merging an
-archive, it saves the current durable SSH files under
-`~/.local/state/dotfiles/ssh-backups`; files that exist only on the destination
-machine are not deleted. Older private repositories without the archive remain
-compatible and receive the original three-file restore behavior. Decryption
-can use the dedicated `~/.ssh/id_ed25519_agenix` key, the transitional default
-SSH key, or an enrolled YubiKey. The file-backed recovery keys are deliberately
-not stored inside the encrypted bundle that depends on them.
+only artifacts enabled by those rules, and asks before reconciling them into
+`~/.ssh`. It first saves all current durable SSH files under
+`~/.local/state/dotfiles/ssh-backups`. Archive-owned files that no longer exist
+at the source and disabled individual secrets are moved into the same
+timestamped backup area instead of being destroyed. Restored files are then
+byte-verified, so the command reports success only after the destination really
+matches the decrypted data. Older private repositories without the archive
+remain compatible. Pulling does not refresh `flake.lock`; it has already read
+the requested private branch, and a redundant second GitHub authentication
+must not turn a completed restore into a failure. Decryption can use the
+dedicated `~/.ssh/id_ed25519_agenix` key, the transitional default SSH key, or
+an enrolled YubiKey. The file-backed recovery keys are deliberately not stored
+inside the encrypted bundle that depends on them.
 
 When several YubiKey Age locators are enrolled, `pull-secrets` asks
 `age-plugin-yubikey` which identities are visible on the currently connected

@@ -324,31 +324,37 @@ linux_install_pam_u2f() {
 }
 
 linux_generate_mapping() {
-  local login_user="$1" append_flag=""
+  local login_user="$1"
   local -a command
   command=("${PAMU2FCFG[@]}" -u "${login_user}" -N -o "${PAM_ORIGIN}" -i "${PAM_ORIGIN}")
-  if sudo test -r "${PAM_AUTHFILE}" && sudo awk -F: -v user="${login_user}" '$1 == user { found=1 } END { exit !found }' "${PAM_AUTHFILE}"; then
-    append_flag="-n"
-    command+=("${append_flag}")
-  fi
 
   info "Touch the connected YubiKey and enter its FIDO2 PIN when prompted." >&2
   run_as_user "${login_user}" "${command[@]}"
 }
 
 linux_complete_mapping() {
-  local login_user="$1" generated="$2" existing=""
-  if [[ "${generated}" == "${login_user}:"* ]]; then
-    printf '%s\n' "${generated}"
-    return 0
-  fi
+  local login_user="$1" generated="$2" existing="" credential="" existing_credentials=""
+
+  # Always ask pamu2fcfg for a complete username-prefixed mapping. Older
+  # Ubuntu releases reject --username together with --nouser, while newer
+  # releases allow that combination. Merging the credential ourselves works
+  # with both and makes it impossible to overwrite previously enrolled cards.
+  [[ "${generated}" == "${login_user}:"* ]] || return 1
+  credential="${generated#"${login_user}:"}"
+  [[ -n "${credential}" && "${credential}" != "${generated}" ]] || return 1
+
   if sudo test -r "${PAM_AUTHFILE}"; then
     existing="$(sudo awk -F: -v user="${login_user}" '$1 == user { print; exit }' "${PAM_AUTHFILE}")"
   fi
-  [[ -n "${existing}" ]] || return 1
-  case "${generated}" in
-    :*) printf '%s%s\n' "${existing}" "${generated}" ;;
-    *) printf '%s:%s\n' "${existing}" "${generated}" ;;
+  if [[ -z "${existing}" ]]; then
+    printf '%s\n' "${generated}"
+    return 0
+  fi
+
+  existing_credentials="${existing#*:}"
+  case ":${existing_credentials}:" in
+    *":${credential}:"*) printf '%s\n' "${existing}" ;;
+    *) printf '%s:%s\n' "${existing}" "${credential}" ;;
   esac
 }
 
@@ -529,38 +535,44 @@ run_windows_helper() {
   "${shell_path}" -NoProfile -ExecutionPolicy Bypass -File "${script_path}" -Action "${ps_action}"
 }
 
-action="add-key"
-case "${1:-}" in
-  ""|--add-key) action="add-key" ;;
-  --status) action="status" ;;
-  --disable) action="disable" ;;
-  -h|--help) usage; exit 0 ;;
-  *) usage >&2; fail "Unknown option: $1" ;;
-esac
-[[ $# -le 1 ]] || fail "Only one action may be supplied."
+main() {
+  local action="add-key" kernel login_user
+  case "${1:-}" in
+    ""|--add-key) action="add-key" ;;
+    --status) action="status" ;;
+    --disable) action="disable" ;;
+    -h|--help) usage; return 0 ;;
+    *) usage >&2; fail "Unknown option: $1" ;;
+  esac
+  [[ $# -le 1 ]] || fail "Only one action may be supplied."
 
-kernel="$(uname -s)"
-case "${kernel}" in
-  Darwin)
-    login_user="$(normal_user)"
-    case "${action}" in
-      add-key) macos_add_key "${login_user}" ;;
-      status) macos_status "${login_user}" ;;
-      disable) macos_disable "${login_user}" ;;
-    esac
-    ;;
-  Linux)
-    if grep -qiE '(microsoft|wsl)' /proc/sys/kernel/osrelease /proc/version 2>/dev/null; then
-      run_windows_helper "${action}"
-    else
+  kernel="$(uname -s)"
+  case "${kernel}" in
+    Darwin)
       login_user="$(normal_user)"
       case "${action}" in
-        add-key) linux_add_key "${login_user}" ;;
-        status) linux_status "${login_user}" ;;
-        disable) linux_disable "${login_user}" ;;
+        add-key) macos_add_key "${login_user}" ;;
+        status) macos_status "${login_user}" ;;
+        disable) macos_disable "${login_user}" ;;
       esac
-    fi
-    ;;
-  MINGW*|MSYS*|CYGWIN*) run_windows_helper "${action}" ;;
-  *) fail "Unsupported operating system: ${kernel}" ;;
-esac
+      ;;
+    Linux)
+      if grep -qiE '(microsoft|wsl)' /proc/sys/kernel/osrelease /proc/version 2>/dev/null; then
+        run_windows_helper "${action}"
+      else
+        login_user="$(normal_user)"
+        case "${action}" in
+          add-key) linux_add_key "${login_user}" ;;
+          status) linux_status "${login_user}" ;;
+          disable) linux_disable "${login_user}" ;;
+        esac
+      fi
+      ;;
+    MINGW*|MSYS*|CYGWIN*) run_windows_helper "${action}" ;;
+    *) fail "Unsupported operating system: ${kernel}" ;;
+  esac
+}
+
+if [[ "${DOTFILES_YUBIKEY_LOGIN_LIBRARY_ONLY:-}" != "1" ]]; then
+  main "$@"
+fi
